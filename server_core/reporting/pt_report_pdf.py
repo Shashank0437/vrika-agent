@@ -30,6 +30,65 @@ def _ensure_reportlab_available() -> None:
 
 _JSON_FENCE = re.compile(r"\{[\s\S]*\}")
 
+# Matches client/src/app/globals.css (@theme / Stitch export) for PDF parity with the web UI.
+_CIPHERSTRIKE_THEME = {
+    "primary": "#684cb6",
+    "on_primary": "#ffffff",
+    "primary_dim": "#5b3fa9",
+    "primary_container": "#e9ddff",
+    "on_primary_container": "#22005d",
+    "surface": "#fdfcff",
+    "surface_container": "#f1f0f7",
+    "surface_container_high": "#ebe9f4",
+    "on_surface": "#1b1b21",
+    "on_surface_variant": "#45464f",
+    "outline_variant": "#c6c5d0",
+    "error": "#a8364b",
+}
+
+
+def _theme_hex(key: str) -> Any:
+    from reportlab.lib import colors
+
+    return colors.HexColor(_CIPHERSTRIKE_THEME[key])
+
+
+def _cipherstrike_table_style(
+    *,
+    num_rows: int,
+    header_fontsize: int = 9,
+    body_fontsize: int = 8,
+) -> Any:
+    """Purple header row (primary), zebra body rows (surface / surface-container), outline grid."""
+    from reportlab.platypus import TableStyle
+
+    hp = _theme_hex("primary")
+    on_p = _theme_hex("on_primary")
+    surf = _theme_hex("surface")
+    surf_c = _theme_hex("surface_container")
+    grid = _theme_hex("outline_variant")
+
+    cmd: list[tuple[Any, ...]] = [
+        ("BACKGROUND", (0, 0), (-1, 0), hp),
+        ("TEXTCOLOR", (0, 0), (-1, 0), on_p),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), header_fontsize),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("GRID", (0, 0), (-1, -1), 0.5, grid),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 1), (-1, -1), body_fontsize),
+        ("TEXTCOLOR", (0, 1), (-1, -1), _theme_hex("on_surface")),
+    ]
+    if num_rows > 1:
+        cmd.append(("ROWBACKGROUNDS", (0, 1), (-1, -1), [surf, surf_c]))
+    else:
+        cmd.append(("BACKGROUND", (0, 1), (-1, -1), surf))
+    return TableStyle(cmd)
+
 
 def extract_json_object(text: str) -> Dict[str, Any] | None:
     if not text or not isinstance(text, str):
@@ -45,13 +104,42 @@ def extract_json_object(text: str) -> Dict[str, Any] | None:
         return None
 
 
-_LLM_SYSTEM = """You are a senior penetration tester documenting an authorized assessment.
-Given the FULL session transcript (user messages, assistant replies, tool outputs), produce ONE JSON object only.
-No markdown fences, no commentary.
+_LLM_SYSTEM = """You are documenting an authorized penetration test for CLIENT READERS (product owners, engineering leads,
+security stakeholders). They care about THEIR application/infrastructure: exposures, misconfigurations, suspicious paths,
+likely risks, and what to fix—not internal pentester troubleshooting.
 
-Include EVERY substantive detail from the transcript: targets, IPs, URLs, tools run, command outcomes, vulnerabilities,
-severities, WAF or defensive controls, reconnaissance, and recommendations. If the transcript is long, prioritize
-accuracy and completeness over brevity.
+Given the FULL session transcript (user messages, assistant replies, tool outputs), produce ONE JSON object only.
+No markdown fences, no commentary outside JSON.
+
+VOICE & FRAMING (critical):
+- Write about the TARGET SYSTEM (e.g. demoqa.com): what was observed, what it implies for risk, what should be validated next.
+- Do NOT write as a lab notebook ("tool X failed", "missing API key", "parsero could not resolve") in executive_summary,
+  areas_of_concern, recon narrative paragraphs, technical_findings narratives, risk_matrix_rows, recommendations, or conclusion.
+- Scanner timeouts, missing wordlists, optional API keys, CLI usage errors, or incomplete runs belong ONLY in appendix_limitations
+  (and optionally one neutral sentence in transcript_coverage_note)—never as headline "findings" or strengths/weaknesses theater.
+- Reframe tool outputs into CUSTOMER IMPACT: e.g. instead of "Nikto timed out", say "Automated web scanning did not complete in the
+  allotted window; common misconfigurations and CVE checks for this host remain unvalidated—schedule follow-up scanning or manual review."
+- technology-detection "unknown" / high heuristic scores: describe as uncertainty about the stack and residual risk to the organization,
+  not as "the tool rated high".
+- sqlmap/commix "no parameters": frame as "Injection testing was not applicable on the landing URL; deeper crawling or API/forms testing
+  may still surface inputs—prioritize forms, search, and APIs discovered."
+
+CONTENT PRIORITY:
+1) Executive summary: asset + scope in plain language, then the most important REAL-WORLD outcomes (attack surface facts, suspicious paths,
+   auth/admin exposure signals, anything resembling vuln evidence). Mention validation gaps briefly if scans incomplete—without blaming tools.
+2) assessment_overview_rows: metrics the client scans for (target, key hosts/paths counts if known, testing phase, validation status).
+3) strengths: genuine positives FOR THE APPLICATION (e.g. HTTPS in use, no critical hits in partial scans)—omit fluff; use empty array if none.
+4) areas_of_concern: bullets about THE APPLICATION (exposed admin paths, CMS indicators, large subdomain surface, unvalidated areas).
+5) recon_sections: subsections describe DISCOVERED ASSETS AND PATHS and why they matter to defenders—minimize namedropping tools in prose;
+   put tool names in tools_table only.
+6) technical_findings: each block title is an APPLICATION SECURITY THEME (e.g. "Exposure of administrative and CMS-related URLs",
+   "Residual risk from incomplete automated validation"). Narrative = stakeholder-facing. tools_table rows: tool/test_type/status factual;
+   "findings" column must describe IMPACT / EVIDENCE for the organization (what was learned about the target), not raw stderr.
+7) risk_matrix_rows: "finding" text must read as a risk to the CLIENT SYSTEM (not "scanner timeout" as the finding title—use
+   "Residual risk: automated vulnerability coverage incomplete for primary host" if needed).
+8) recommendations_*: actionable for the client's teams (validate WordPress, tighten WAF rules, complete scans off-peak)—not "fix feroxbuster wordlist".
+
+Include substantive transcript-backed detail: hosts, URLs, IPs, severities, templates hit, headers, paths—accurately.
 
 Schema (all keys required; use empty strings or empty arrays where unknown):
 {
@@ -79,13 +167,13 @@ Schema (all keys required; use empty strings or empty arrays where unknown):
   "appendix_tools": [{"tool": "", "description": ""}],
   "appendix_scope": ["scope bullet strings"],
   "appendix_limitations": ["limitation bullet strings"],
-  "transcript_coverage_note": "empty if full; otherwise note what was missing or truncated"
+  "transcript_coverage_note": "empty if full; otherwise brief neutral note on coverage gaps"
 }
 
 Rules:
-- Derive tools_table and appendix_tools from tools actually mentioned or executed in the transcript.
-- Counts (e.g. subdomains, findings) must match the transcript when stated there; otherwise say "Not quantified in session".
-- Never invent out-of-scope critical vulnerabilities not supported by the transcript; you may state "none observed" when appropriate.
+- Derive appendix_tools from tools referenced in the session (short neutral descriptions).
+- Counts must match the transcript when stated; otherwise "Not quantified in session".
+- Never invent critical exploits not evidenced in the transcript; use "not observed in completed testing" where appropriate.
 """
 
 
@@ -224,7 +312,9 @@ def _normalize_report_data(raw: Dict[str, Any], *, fallback_client: str, fallbac
 
 def _llm_fill_report(transcript: str, llm_client: Any) -> Dict[str, Any]:
     user_content = (
-        "Session transcript follows. Extract the structured report JSON.\n\n--- TRANSCRIPT ---\n"
+        "Produce the JSON report for CLIENT DELIVERY. Readers care about their target application, real exposures, and priorities—"
+        "not operator toolchain problems (those belong only in appendix_limitations).\n\n"
+        "--- TRANSCRIPT ---\n"
         + transcript.strip()
     )
     raw = llm_client.chat(
@@ -263,19 +353,23 @@ def _llm_fill_report(transcript: str, llm_client: Any) -> Dict[str, Any]:
 
 def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     try:
-        from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
         from reportlab.lib.pagesizes import letter
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import inch
         from reportlab.pdfgen import canvas as pdfcanvas
-        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
     except ImportError as e:
         raise RuntimeError(
             "Could not import 'reportlab' while building the PDF. " + _REPORTLAB_INSTALL_HINT
         ) from e
 
     styles = getSampleStyleSheet()
+    on_surface = _theme_hex("on_surface")
+    on_surface_variant = _theme_hex("on_surface_variant")
+    primary = _theme_hex("primary")
+    outline_variant = _theme_hex("outline_variant")
+
     h_cover = ParagraphStyle(
         name="CoverTitle",
         parent=styles["Heading1"],
@@ -283,6 +377,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         leading=22,
         alignment=TA_CENTER,
         spaceAfter=12,
+        textColor=primary,
     )
     h1 = ParagraphStyle(
         name="H1",
@@ -291,6 +386,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         leading=18,
         spaceBefore=12,
         spaceAfter=8,
+        textColor=on_surface,
     )
     h2 = ParagraphStyle(
         name="H2",
@@ -299,6 +395,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         leading=14,
         spaceBefore=10,
         spaceAfter=6,
+        textColor=primary,
     )
     body = ParagraphStyle(
         name="Body",
@@ -307,13 +404,14 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         leading=13,
         alignment=TA_JUSTIFY,
         spaceAfter=6,
+        textColor=on_surface,
     )
     small = ParagraphStyle(
         name="Small",
         parent=styles["Normal"],
         fontSize=9,
         leading=11,
-        textColor=colors.grey,
+        textColor=on_surface_variant,
         alignment=TA_CENTER,
     )
 
@@ -336,9 +434,22 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
 
         def _draw_footer(self, page_count: int):
             self.saveState()
+            self.setStrokeColor(outline_variant)
+            self.setLineWidth(0.5)
+            y_rule = 0.52 * inch
+            self.line(0.75 * inch, y_rule, letter[0] - 0.75 * inch, y_rule)
+            self.setFillColor(on_surface_variant)
             self.setFont("Helvetica", 9)
-            self.drawCentredString(letter[0] / 2.0, 0.45 * inch, f"-- {self._pageNumber} of {page_count} --")
+            self.drawCentredString(letter[0] / 2.0, 0.42 * inch, f"{self._pageNumber} / {page_count}")
             self.restoreState()
+
+    def _draw_header_band(canvas: Any, doc_: Any) -> None:
+        canvas.saveState()
+        band_h = 6
+        w, h = letter
+        canvas.setFillColor(primary)
+        canvas.rect(0, h - band_h, w, band_h, fill=1, stroke=0)
+        canvas.restoreState()
 
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -346,7 +457,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         pagesize=letter,
         rightMargin=0.75 * inch,
         leftMargin=0.75 * inch,
-        topMargin=0.75 * inch,
+        topMargin=0.78 * inch,
         bottomMargin=0.65 * inch,
     )
     story: List[Any] = []
@@ -365,7 +476,10 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     p(str(data.get("report_title") or "PENETRATION TESTING REPORT"), h_cover)
     p(str(data.get("client_name") or ""), ParagraphStyle("cn", parent=h_cover, fontSize=14))
     p(str(data.get("target_primary") or ""), ParagraphStyle("tg", parent=body, alignment=TA_CENTER, fontSize=12))
-    p("CONFIDENTIAL", ParagraphStyle("conf", parent=body, alignment=TA_CENTER, fontSize=11, textColor=colors.red))
+    p(
+        "CONFIDENTIAL",
+        ParagraphStyle("conf", parent=body, alignment=TA_CENTER, fontSize=11, textColor=_theme_hex("error")),
+    )
     p(f"Date: {data.get('assessment_date_iso')}", ParagraphStyle("dt", parent=body, alignment=TA_CENTER))
     p(f"Generated by: {generated_by}", small)
     story.append(Spacer(1, 0.4 * inch))
@@ -380,18 +494,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         tdata = [["Metric", "Value"]] + [[r.get("metric", ""), r.get("value", "")] for r in ov]
         tw = doc.width
         tbl = Table(tdata, colWidths=[tw * 0.35, tw * 0.65])
-        tbl.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4472C4")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 9),
-                    ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ]
-            )
-        )
+        tbl.setStyle(_cipherstrike_table_style(num_rows=len(tdata)))
         story.append(tbl)
         story.append(Spacer(1, 8))
     p("1.2 Security Posture Assessment", h2)
@@ -413,46 +516,26 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
             tdata = [["Item", "Detail"]] + [[r.get("col_a", ""), r.get("col_b", "")] for r in nrows]
             tw = doc.width
             tbl = Table(tdata, colWidths=[tw * 0.4, tw * 0.6])
-            tbl.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5B9BD5")),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 8),
-                        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ]
-                )
-            )
+            tbl.setStyle(_cipherstrike_table_style(num_rows=len(tdata)))
             story.append(tbl)
             story.append(Spacer(1, 6))
 
-    # 3 Technical
-    p("3. TECHNICAL SECURITY FINDINGS", h1)
+    # 3 Application security findings (stakeholder-facing section titles)
+    p("3. APPLICATION SECURITY FINDINGS", h1)
     for block in data.get("technical_findings") or []:
         p(str(block.get("title") or ""), h2)
         for para in block.get("narrative_paragraphs") or []:
             p(str(para), body)
         tt = block.get("tools_table") or []
         if tt:
-            tdata = [["Tool", "Test type", "Status", "Findings"]] + [
+            tdata = [["Tool", "Test type", "Status", "Impact / evidence"]] + [
                 [r.get("tool", ""), r.get("test_type", ""), r.get("status", ""), r.get("findings", "")]
                 for r in tt
             ]
             tw = doc.width
             tbl = Table(tdata, colWidths=[tw * 0.18, tw * 0.22, tw * 0.15, tw * 0.45])
             tbl.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#70AD47")),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 7),
-                        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ]
-                )
+                _cipherstrike_table_style(num_rows=len(tdata), header_fontsize=8, body_fontsize=7)
             )
             story.append(tbl)
             story.append(Spacer(1, 6))
@@ -468,18 +551,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         ]
         tw = doc.width
         tbl = Table(tdata, colWidths=[tw * 0.08, tw * 0.32, tw * 0.12, tw * 0.48])
-        tbl.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#ED7D31")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 7),
-                    ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ]
-            )
-        )
+        tbl.setStyle(_cipherstrike_table_style(num_rows=len(tdata), header_fontsize=8, body_fontsize=7))
         story.append(tbl)
         story.append(Spacer(1, 8))
     p("4.2 Detailed Recommendations", h2)
@@ -497,7 +569,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     p(f"Overall Security Grade: {data.get('overall_grade')}", ParagraphStyle("gr", parent=body, fontName="Helvetica-Bold"))
 
     # Appendices
-    p("APPENDIX A: TOOLS & METHODOLOGY", h1)
+    p("APPENDIX A: TOOLS REFERENCED (METHODOLOGY)", h1)
     ap = data.get("appendix_tools") or []
     for a in ap:
         p(f"• {a.get('tool', '')} — {a.get('description', '')}", body)
@@ -511,7 +583,12 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         p("Note on transcript coverage:", ParagraphStyle("nt", parent=body, fontName="Helvetica-Bold"))
         p(note, body)
 
-    doc.build(story, canvasmaker=NumberedCanvas)
+    doc.build(
+        story,
+        canvasmaker=NumberedCanvas,
+        onFirstPage=_draw_header_band,
+        onLaterPages=_draw_header_band,
+    )
     pdf = buf.getvalue()
     buf.close()
     return pdf
