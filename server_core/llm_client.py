@@ -585,6 +585,28 @@ class OpenAIBackend:
     return self._model
 
 
+def _anthropic_tools_from_openai_schemas(openai_tools: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+  """Map OpenAI-style ``{"type":"function","function":{...}}`` entries to Anthropic ``tools`` API shape."""
+  if not openai_tools:
+    return []
+  out: List[Dict[str, Any]] = []
+  for item in openai_tools:
+    if not isinstance(item, dict) or item.get("type") != "function":
+      continue
+    fn = item.get("function")
+    if not isinstance(fn, dict):
+      continue
+    nm = str(fn.get("name") or "").strip()
+    if not nm:
+      continue
+    desc = str(fn.get("description") or "")
+    params = fn.get("parameters")
+    if not isinstance(params, dict):
+      params = {"type": "object", "properties": {}, "required": []}
+    out.append({"name": nm, "description": desc, "input_schema": params})
+  return out
+
+
 class AnthropicBackend:
   """Anthropic Claude backend via the anthropic SDK."""
 
@@ -599,7 +621,14 @@ class AnthropicBackend:
         "anthropic SDK not installed. Run: pip install anthropic"
       )
 
-  def chat(self, messages: List[Dict[str, Any]], stop: List[str] = [], think: Optional[bool] = None, num_ctx: Optional[int] = None) -> str:
+  def chat(
+    self,
+    messages: List[Dict[str, Any]],
+    stop: List[str] = [],
+    think: Optional[bool] = None,
+    num_ctx: Optional[int] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
+  ) -> Any:
     system_parts = [m["content"] for m in messages if m["role"] == "system"]
     user_messages = [m for m in messages if m["role"] != "system"]
     system_text = "\n\n".join(system_parts)
@@ -612,11 +641,38 @@ class AnthropicBackend:
       kwargs["system"] = system_text
     if stop:
       kwargs["stop_sequences"] = stop
+    anthropic_tools = _anthropic_tools_from_openai_schemas(tools)
+    if anthropic_tools:
+      kwargs["tools"] = anthropic_tools
     try:
       resp = self._client.messages.create(**kwargs)
-      return resp.content[0].text.strip()
     except Exception as exc:
       raise RuntimeError(f"Anthropic API error: {exc}")
+
+    text_parts: List[str] = []
+    tool_calls_out: List[Dict[str, Any]] = []
+    for block in resp.content:
+      btype = getattr(block, "type", None)
+      if btype == "text":
+        text_parts.append(str(getattr(block, "text", "") or ""))
+      elif btype == "tool_use":
+        raw_input = getattr(block, "input", None)
+        args = dict(raw_input) if isinstance(raw_input, dict) else {}
+        tool_calls_out.append(
+            {
+              "id": str(getattr(block, "id", "") or ""),
+              "type": "function",
+              "function": {
+                "name": str(getattr(block, "name", "") or ""),
+                "arguments": args,
+              },
+            },
+        )
+
+    content = "".join(text_parts).strip()
+    if tool_calls_out:
+      return {"content": content, "tool_calls": tool_calls_out}
+    return content
 
   def stream_chat(self, messages: List[Dict[str, Any]], num_ctx: Optional[int] = None) -> Generator[str, None, None]:
     system_parts = [m["content"] for m in messages if m["role"] == "system"]

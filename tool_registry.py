@@ -2066,8 +2066,11 @@ def get_tools_for_category(category: str) -> List[dict]:
 
 
 def get_tool(name: str) -> Optional[dict]:
-    """Return full tool definition by name, or None."""
-    return TOOLS.get(name)
+    """Return full tool definition by name, or None (case-insensitive; hyphens → underscores)."""
+    if not isinstance(name, str):
+        return None
+    key = name.strip().lower().replace("-", "_")
+    return TOOLS.get(key)
 
 
 def get_all_categories() -> Dict[str, str]:
