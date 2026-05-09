@@ -1,6 +1,11 @@
-from flask import Blueprint, request, jsonify
 import logging
+import os
+import shlex
+
+from flask import Blueprint, jsonify, request
+
 from server_core.command_executor import execute_command
+from server_core.tool_paths import resolve_cli_tool_go_paths_first
 
 logger = logging.getLogger(__name__)
 
@@ -9,10 +14,10 @@ api_web_probe_httpx_bp = Blueprint("api_web_probe_httpx", __name__)
 
 @api_web_probe_httpx_bp.route("/api/tools/httpx", methods=["POST"])
 def httpx():
-    """Execute httpx for fast HTTP probing and technology detection"""
+    """Execute ProjectDiscovery httpx (not the PyPI ``httpx`` CLI that shadows the same name on PATH)."""
     try:
-        params = request.json
-        target = params.get("target", "")
+        params = request.json or {}
+        target = (params.get("target") or params.get("url") or "").strip()
         probe = params.get("probe", True)
         tech_detect = params.get("tech_detect", False)
         status_code = params.get("status_code", False)
@@ -24,9 +29,23 @@ def httpx():
 
         if not target:
             logger.warning("🌐 httpx called without target parameter")
-            return jsonify({"error": "Target parameter is required"}), 400
+            return jsonify({"error": "Target or url parameter is required"}), 400
 
-        command = f"httpx -u {target} -t {threads}"
+        env_bin = (os.environ.get("NYXSTRIKE_HTTPX_BIN") or "").strip()
+        httpx_bin = env_bin if env_bin else resolve_cli_tool_go_paths_first("httpx")
+        if not httpx_bin:
+            return jsonify(
+                {
+                    "error": "ProjectDiscovery httpx not found — install with "
+                    "`go install github.com/projectdiscovery/httpx/cmd/httpx@latest` "
+                    "so it lives in ~/go/bin, or set NYXSTRIKE_HTTPX_BIN to the full path. "
+                    "PyPI `httpx` uses the same command name and breaks `-u` when it appears first on PATH.",
+                }
+            ), 400
+
+        tq = shlex.quote(target)
+        bq = shlex.quote(httpx_bin)
+        command = f"{bq} -u {tq} -t {int(threads)}"
 
         if probe:
             command += " -probe"
