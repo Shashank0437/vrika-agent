@@ -1,0 +1,6 @@
+# Optional pip constraints (used by nyxstrike.sh when present).
+# Mitmproxy 11 needs h11<=0.14 and Flask<=3.1.0; httpcore 1.0.9+ needs h11>=0.16 — pin httpcore 1.0.8 so h11 0.14.x satisfies both.
+httpcore==1.0.8
+h11>=0.13,<0.15
+flask>=3.0.0,<=3.1.0
+PySocks>=1.7.0,<2

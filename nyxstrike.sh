@@ -324,7 +324,11 @@ install_requirements_file() {
 
   ensure_pip_ready
   echo "Installing Python deps from: ${requirements_name}"
-  "${VENV_DIR}/bin/python3" -m pip --disable-pip-version-check install --quiet --progress-bar off -r "${requirements_file}"
+  local pip_constraint=()
+  if [[ -f "${ROOT_DIR}/dependencies/pip_constraints.txt" ]]; then
+    pip_constraint=(-c "${ROOT_DIR}/dependencies/pip_constraints.txt")
+  fi
+  "${VENV_DIR}/bin/python3" -m pip --disable-pip-version-check install --quiet --progress-bar off "${pip_constraint[@]}" -r "${requirements_file}"
   touch "${stamp_file}"
 }
 
