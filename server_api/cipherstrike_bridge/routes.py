@@ -68,15 +68,20 @@ def _extract_json_object(text: str) -> Dict[str, Any] | None:
         return None
 
 
+from tool_registry import CATEGORIES
+
+_ROUTER_CATEGORY_ENUM = ", ".join(sorted(CATEGORIES.keys()))
+
 _ROUTER_SYSTEM_TEMPLATE = """You are a router for CipherStrike (authorized security testing assistant).
 
 Given the user message and the compact tool list below, respond with **only** valid JSON (no markdown):
-{{"intent":"operational"|"conversational","tool_names":[],"reply":""}}
+{{"intent":"operational"|"conversational","tool_names":[],"reply":"","category":"<slug>"}}
 
 Rules:
 - intent **operational** when the user wants scans, enumeration, exploitation workflows, CVE lookup, concrete tooling on targets, URLs/hosts to assess, penetration tests, or any request where starting security tools would help (even if they also ask "how" or "can you").
 - If the message contains **http:// or https://** and asks for testing, assessment, or a pentest → **operational** and pick suitable tools from the list (e.g. HTTP probe, tech fingerprint, vuln templates, web scanner — use names that exist below).
 - intent **conversational** only for pure greetings, thanks, meta chat, or conceptual questions with **no target** and **no request to run or plan tooling**.
+- **category**: exactly **one** workflow slug when intent is **operational**, chosen from: {categories}. Pick the best primary fit (e.g. web pentest with vuln scanners → web_vuln; passive subdomain gathering → osint). When intent is **conversational**, use **""** (empty string) for category.
 - **tool_names**: when operational, include **as many distinct complementary tools as fit the ask**, up to **{max_tools}** names from the list (exact spelling). Use **several** tools for routine checks; for **full / comprehensive pentests** or explicit requests to run many scanners, prefer **closer to {max_tools}** parallel starters covering different roles (probe, fingerprint, vuln templates, crawling/dirs, DNS/subdomain, ports, auth, etc.) **when those names exist**.
 - Prefer **several complementary discrete scanners** over relying on **only** meta-orchestrators such as **smart-scan** or **analyze-target**. Use **smart-scan** (alone or in the mix) only when the user explicitly asks for an intelligent / smart / orchestrated / automated scan, or when discrete scanners are not available below.
 - If fewer than two suitable discrete scanners appear in the list, include every relevant tool available (even if that is a single meta-tool).
@@ -122,7 +127,12 @@ def route_intent():
                 desc = desc[:97] + "..."
             catalog_lines.append(f"- {name}: {desc}")
         catalog_text = "\n".join(catalog_lines) if catalog_lines else "(no tools)"
-        sys_prompt = _ROUTER_SYSTEM_TEMPLATE.format(max_tools=max_pick, catalog=catalog_text)
+        allowed_categories = frozenset(CATEGORIES.keys())
+        sys_prompt = _ROUTER_SYSTEM_TEMPLATE.format(
+            max_tools=max_pick,
+            catalog=catalog_text,
+            categories=_ROUTER_CATEGORY_ENUM,
+        )
         result = llm_client.chat(
             [
                 {"role": "system", "content": sys_prompt},
@@ -143,12 +153,19 @@ def route_intent():
                     tool_names.append(n.strip())
         reply = parsed.get("reply")
         reply_str = reply.strip() if isinstance(reply, str) else ""
+        category_slug = ""
+        raw_cat = parsed.get("category")
+        if isinstance(raw_cat, str):
+            cand = raw_cat.strip().lower().replace(" ", "_").replace("-", "_")
+            if cand in allowed_categories:
+                category_slug = cand
         return jsonify(
             {
                 "success": True,
                 "intent": intent,
                 "tool_names": tool_names,
                 "reply": reply_str,
+                "category": category_slug,
             },
         )
     except Exception as exc:
