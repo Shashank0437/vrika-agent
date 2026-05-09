@@ -572,10 +572,11 @@ def confirm_tool_call(chat_session_id: str):
           result_text = result_text[:_max_tool_json] + "\n… (truncated)"
 
         # Record execution in chat history
+        _tool_json_fence = "````"
         exec_record = (
           f"[Tool executed: **{tool_name}**]\n"
           f"Arguments: `{json.dumps(arguments)}`\n"
-          f"Result:\n```json\n{result_text}\n```"
+          f"Result:\n{_tool_json_fence}json\n{result_text}\n{_tool_json_fence}"
         )
         db.add_chat_message(chat_session_id, "assistant", exec_record)
 
