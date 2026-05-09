@@ -61,7 +61,7 @@ def ffuf():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting FFuf {mode} fuzzing: {url}")
-        result = execute_command(command)
+        result = execute_command(command, tool="ffuf")
         logger.info(f"📊 FFuf fuzzing completed for {url}")
         return jsonify(result)
     except Exception as e:

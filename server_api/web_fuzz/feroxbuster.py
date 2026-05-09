@@ -49,7 +49,7 @@ def feroxbuster():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Feroxbuster scan: {url}")
-        result = execute_command(command)
+        result = execute_command(command, tool="feroxbuster")
         logger.info(f"📊 Feroxbuster scan completed for {url}")
         return jsonify(result)
     except Exception as e:

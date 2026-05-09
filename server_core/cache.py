@@ -8,7 +8,7 @@ from collections import OrderedDict
 from server_core import config_core
 logger = logging.getLogger(__name__)
 
-COMMAND_TIMEOUT = config_core.get("COMMAND_TIMEOUT", 300)  # 5 minutes default timeout
+COMMAND_TIMEOUT = config_core.get("COMMAND_TIMEOUT", 1800)  # 30 minutes default timeout
 CACHE_SIZE = config_core.get("CACHE_SIZE", 1000)
 CACHE_TTL = config_core.get("CACHE_TTL", 3600)  # 1 hour default TTL
 

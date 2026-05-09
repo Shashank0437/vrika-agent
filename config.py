@@ -4,9 +4,9 @@ _config = {
     "APP_NAME": "NyxStrike",
     "VERSION": "1.4.0",
     "DATA_DIR_NAME": ".nyxstrike_data",  # Root data directory name (relative to cwd, override with NYXSTRIKE_DATA_DIR env var)
-    "COMMAND_TIMEOUT": 500,
+    "COMMAND_TIMEOUT": 1800,
     "REQUEST_TIMEOUT": 0,
-    "COMMAND_INACTIVITY_TIMEOUT": 900,
+    "COMMAND_INACTIVITY_TIMEOUT": 1800,
     "COMMAND_MAX_RUNTIME": 86400,
     "TOOL_TIMEOUT_OVERRIDES": {
         "hydra": 0,
@@ -23,6 +23,14 @@ _config = {
         "nuclei": 1800,
         "autorecon": 1800,
         "amass": 1800,
+        # Directory / content discovery often exceeds a low global COMMAND_TIMEOUT.
+        "dirsearch": 1800,
+        "gobuster": 1800,
+        "ffuf": 1800,
+        "feroxbuster": 1800,
+        "wfuzz": 1800,
+        "dirb": 1800,
+        "dotdotpwn": 1800,
     },
     "CLEAN_TOOL_OUTPUT": True,
     "CPU_NICE_THRESHOLD": 85,  # CPU% above which tool commands are niced down (nice -n 10)

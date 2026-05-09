@@ -41,9 +41,9 @@ def _current_settings() -> dict:
             ),
         },
         "runtime": {
-            "command_timeout": config_core.get("COMMAND_TIMEOUT", 300),
+            "command_timeout": config_core.get("COMMAND_TIMEOUT", 1800),
             "request_timeout": config_core.get("REQUEST_TIMEOUT", 3600),
-            "command_inactivity_timeout": config_core.get("COMMAND_INACTIVITY_TIMEOUT", 900),
+            "command_inactivity_timeout": config_core.get("COMMAND_INACTIVITY_TIMEOUT", 1800),
             "command_max_runtime": config_core.get("COMMAND_MAX_RUNTIME", 86400),
             "cache_size": config_core.get("CACHE_SIZE", 1000),
             "cache_ttl": config_core.get("CACHE_TTL", 3600),

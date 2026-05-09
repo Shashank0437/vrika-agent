@@ -10,7 +10,7 @@ from server_core.tool_run_context import current_stream_run_id
 # CPU threshold above which tool commands are niced down.
 _CPU_NICE_THRESHOLD = config_core.get("CPU_NICE_THRESHOLD", 85)
 
-COMMAND_TIMEOUT = config_core.get("COMMAND_TIMEOUT", 300)  # Default to 5 minutes if not set
+COMMAND_TIMEOUT = config_core.get("COMMAND_TIMEOUT", 1800)  # Default 30 minutes if not set
 
 
 def _normalize_timeout(raw_timeout: Any) -> Optional[int]:

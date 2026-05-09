@@ -41,7 +41,7 @@ API_TOKEN = os.environ.get("NYXSTRIKE_API_TOKEN", None)  # e.g. export API_TOKEN
 
 # Configuration
 DEBUG_MODE = os.environ.get("DEBUG_MODE", "0").lower() in ("1", "true", "yes", "y")
-COMMAND_TIMEOUT = config_core.get("COMMAND_TIMEOUT", 300)  # 5 minutes default timeout
+COMMAND_TIMEOUT = config_core.get("COMMAND_TIMEOUT", 1800)  # 30 minutes default timeout
 CACHE_SIZE = config_core.get("CACHE_SIZE", 1000)
 CACHE_TTL = config_core.get("CACHE_TTL", 3600)  # 1 hour default TTL
 

@@ -113,8 +113,8 @@ from server_core.telemetry_collector import TelemetryCollector
 telemetry = TelemetryCollector()
 
 logger = logging.getLogger(__name__)
-COMMAND_TIMEOUT = config_core.get("COMMAND_TIMEOUT", 300)  # Default to 5 minutes if not set
-COMMAND_INACTIVITY_TIMEOUT = config_core.get("COMMAND_INACTIVITY_TIMEOUT", 900)
+COMMAND_TIMEOUT = config_core.get("COMMAND_TIMEOUT", 1800)  # Default 30 minutes if not set
+COMMAND_INACTIVITY_TIMEOUT = config_core.get("COMMAND_INACTIVITY_TIMEOUT", 1800)
 COMMAND_MAX_RUNTIME = config_core.get("COMMAND_MAX_RUNTIME", 86400)
 class EnhancedCommandExecutor:
     """Enhanced command executor with caching, progress tracking, and better output handling"""
@@ -370,7 +370,7 @@ class EnhancedCommandExecutor:
                 _box_row(f" {C['CYBER_ORANGE']}⏰ Duration:{C['RESET']} {execution_time:.2f}s{timeout_status}"),
                 _box_row(f" {C['WARNING']}📊 Output Size:{C['RESET']} {output_size} bytes"),
                 _box_row(f" {C['ELECTRIC_PURPLE']}🔢 Exit Code:{C['RESET']} {self.return_code}"),
-                _box_row(f" {status_color}📈 Status:{C['RESET']} {'SUCCESS' if success else 'FAILED'} | Cached: Yes"),
+                _box_row(f" {status_color}📈 Status:{C['RESET']} {'SUCCESS' if success else 'FAILED'}"),
                 f"{C['MATRIX_GREEN']}{C['BOLD']}╰{_hr}╯{C['RESET']}",
             ]
             print('\n'.join(box_lines), flush=True)
