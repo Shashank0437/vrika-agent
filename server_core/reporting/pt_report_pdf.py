@@ -30,7 +30,143 @@ def _ensure_reportlab_available() -> None:
 
 _JSON_FENCE = re.compile(r"\{[\s\S]*\}")
 
-# Matches client/src/app/globals.css (@theme / Stitch export) for PDF parity with the web UI.
+# Drop or neutralize operator-platform leakage (never surface raw agent/toolchain failures to clients).
+_OP_LEAK_MATCH = re.compile(
+    r"(?i)\bnyxstrike\b|nyx\s*strike|\btraceback\b|\bstderr\b|\bstderr:\b|"
+    r"reportlab\s*(missing|not\s+installed|error)|json\s+parse|parseable\s+json|"
+    r"\bllm\b.*\b(return|fail)|model\s+did\s+not\s+return|agent\s+microservice|"
+    r"tool\s+invocation\s+fail|cipherstrike_bridge|internal\s+server\s+error\s*\(\d+\)",
+)
+_NYX_TOKEN = re.compile(r"(?i)\bnyxstrike\b|nyx\s*strike")
+
+
+def _xml_escape(text: str) -> str:
+    return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _sanitize_client_sentence(s: str) -> str:
+    """Remove platform/agent noise; keep assessment substance."""
+    t = (s or "").strip()
+    if not t:
+        return ""
+    t = _NYX_TOKEN.sub("", t)
+    t = re.sub(r"\s{2,}", " ", t).strip()
+    if not t:
+        return ""
+    if _OP_LEAK_MATCH.search(t):
+        if len(t) <= 320:
+            return ""
+        return ""
+    return t
+
+
+def _sanitize_str_list(items: List[str]) -> List[str]:
+    out: List[str] = []
+    for x in items:
+        s = _sanitize_client_sentence(str(x))
+        if s:
+            out.append(s)
+    return out
+
+
+def _sanitize_client_report_payload(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Post-process LLM output so delivered PDFs stay client-centric."""
+    rt = _sanitize_client_sentence(str(data.get("report_title") or ""))
+    data["report_title"] = rt if rt else "PENETRATION TESTING REPORT"
+    cn = _sanitize_client_sentence(str(data.get("client_name") or ""))
+    if not cn:
+        cn = str(data.get("client_name") or "").strip()
+    data["client_name"] = cn or "Client"
+    tp = _sanitize_client_sentence(str(data.get("target_primary") or ""))
+    if not tp:
+        tp = str(data.get("target_primary") or "").strip()
+    data["target_primary"] = tp or "See scope documentation"
+    spr = _sanitize_client_sentence(str(data.get("security_posture_rating") or ""))
+    if not spr:
+        spr = str(data.get("security_posture_rating") or "").strip()
+    data["security_posture_rating"] = spr or "Not rated"
+    og = _sanitize_client_sentence(str(data.get("overall_grade") or ""))
+    if not og:
+        og = str(data.get("overall_grade") or "").strip()
+    data["overall_grade"] = og or data["security_posture_rating"]
+
+    data["executive_summary"] = _sanitize_str_list(_as_str_list(data.get("executive_summary")))
+    data["strengths"] = _sanitize_str_list(_as_str_list(data.get("strengths")))
+    data["areas_of_concern"] = _sanitize_str_list(_as_str_list(data.get("areas_of_concern")))
+    data["recommendations_immediate"] = _sanitize_str_list(_as_str_list(data.get("recommendations_immediate")))
+    data["recommendations_short_term"] = _sanitize_str_list(_as_str_list(data.get("recommendations_short_term")))
+    data["recommendations_long_term"] = _sanitize_str_list(_as_str_list(data.get("recommendations_long_term")))
+    data["conclusion_paragraphs"] = _sanitize_str_list(_as_str_list(data.get("conclusion_paragraphs")))
+    data["appendix_scope"] = _sanitize_str_list(_as_str_list(data.get("appendix_scope")))
+    data["appendix_limitations"] = _sanitize_str_list(_as_str_list(data.get("appendix_limitations")))
+    note = _sanitize_client_sentence(str(data.get("transcript_coverage_note") or ""))
+    data["transcript_coverage_note"] = note
+
+    recon = data.get("recon_sections")
+    if isinstance(recon, list):
+        for sec in recon:
+            if not isinstance(sec, dict):
+                continue
+            sec["narrative_paragraphs"] = _sanitize_str_list(_as_str_list(sec.get("narrative_paragraphs")))
+            sec["bullets"] = _sanitize_str_list(_as_str_list(sec.get("bullets")))
+            stitle = _sanitize_client_sentence(str(sec.get("subsection_title") or ""))
+            sec["subsection_title"] = stitle if stitle else "Reconnaissance"
+            ntr = sec.get("notes_table_rows")
+            if isinstance(ntr, list):
+                for row in ntr:
+                    if isinstance(row, dict):
+                        for k in ("col_a", "col_b"):
+                            if k in row:
+                                row[k] = _sanitize_client_sentence(str(row[k]))
+
+    tf = data.get("technical_findings")
+    if isinstance(tf, list):
+        for block in tf:
+            if not isinstance(block, dict):
+                continue
+            block["title"] = _sanitize_client_sentence(str(block.get("title") or "")) or "Application security finding"
+            block["narrative_paragraphs"] = _sanitize_str_list(_as_str_list(block.get("narrative_paragraphs")))
+            tt = block.get("tools_table")
+            if isinstance(tt, list):
+                for trow in tt:
+                    if isinstance(trow, dict):
+                        for k in ("tool", "test_type", "status", "findings"):
+                            if k in trow:
+                                trow[k] = _sanitize_client_sentence(str(trow.get(k) or ""))
+
+    rm = data.get("risk_matrix_rows")
+    if isinstance(rm, list):
+        for r in rm:
+            if isinstance(r, dict):
+                for k in ("finding", "recommended_action", "risk_level", "priority"):
+                    if k in r:
+                        r[k] = _sanitize_client_sentence(str(r.get(k) or ""))
+
+    ap = data.get("appendix_tools")
+    if isinstance(ap, list):
+        for a in ap:
+            if isinstance(a, dict):
+                if a.get("description"):
+                    a["description"] = _sanitize_client_sentence(str(a["description"]))
+                if a.get("tool"):
+                    a["tool"] = _sanitize_client_sentence(str(a["tool"]))
+
+    rows = data.get("assessment_overview_rows")
+    if isinstance(rows, list):
+        for r in rows:
+            if isinstance(r, dict):
+                for k in ("metric", "value"):
+                    if k in r:
+                        r[k] = _sanitize_client_sentence(str(r.get(k) or ""))
+        data["assessment_overview_rows"] = [
+            x
+            for x in rows
+            if isinstance(x, dict) and (str(x.get("metric") or "").strip() or str(x.get("value") or "").strip())
+        ]
+
+    return data
+
+# Matches client/src/app/globals.css (@theme / Stitch export) — use these tokens only (no ad‑hoc colors).
 _CIPHERSTRIKE_THEME = {
     "primary": "#684cb6",
     "on_primary": "#ffffff",
@@ -40,8 +176,10 @@ _CIPHERSTRIKE_THEME = {
     "surface": "#fdfcff",
     "surface_container": "#f1f0f7",
     "surface_container_high": "#ebe9f4",
+    "surface_variant": "#e2e1ec",
     "on_surface": "#1b1b21",
     "on_surface_variant": "#45464f",
+    "outline": "#767680",
     "outline_variant": "#c6c5d0",
     "error": "#a8364b",
 }
@@ -53,40 +191,26 @@ def _theme_hex(key: str) -> Any:
     return colors.HexColor(_CIPHERSTRIKE_THEME[key])
 
 
-def _cipherstrike_table_style(
-    *,
-    num_rows: int,
-    header_fontsize: int = 9,
-    body_fontsize: int = 8,
-) -> Any:
-    """Purple header row (primary), zebra body rows (surface / surface-container), outline grid."""
+def _cipherstrike_table_surface_style(*, num_rows: int) -> Any:
+    """Backgrounds + grid + padding only; typography comes from Paragraph cells (readable wrapping)."""
     from reportlab.platypus import TableStyle
 
     hp = _theme_hex("primary")
-    on_p = _theme_hex("on_primary")
     surf = _theme_hex("surface")
     surf_c = _theme_hex("surface_container")
     grid = _theme_hex("outline_variant")
 
     cmd: list[tuple[Any, ...]] = [
         ("BACKGROUND", (0, 0), (-1, 0), hp),
-        ("TEXTCOLOR", (0, 0), (-1, 0), on_p),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), header_fontsize),
-        ("TOPPADDING", (0, 0), (-1, -1), 7),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("GRID", (0, 0), (-1, -1), 0.5, grid),
-        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 1), (-1, -1), body_fontsize),
-        ("TEXTCOLOR", (0, 1), (-1, -1), _theme_hex("on_surface")),
     ]
     if num_rows > 1:
         cmd.append(("ROWBACKGROUNDS", (0, 1), (-1, -1), [surf, surf_c]))
-    else:
-        cmd.append(("BACKGROUND", (0, 1), (-1, -1), surf))
     return TableStyle(cmd)
 
 
@@ -104,42 +228,39 @@ def extract_json_object(text: str) -> Dict[str, Any] | None:
         return None
 
 
-_LLM_SYSTEM = """You are documenting an authorized penetration test for CLIENT READERS (product owners, engineering leads,
-security stakeholders). They care about THEIR application/infrastructure: exposures, misconfigurations, suspicious paths,
-likely risks, and what to fix—not internal pentester troubleshooting.
+_LLM_SYSTEM = """You are the author of a formal penetration test report for CLIENT DELIVERY: security operations leadership,
+product/engineering leads, and executives. Write like a polished red-team / offensive-security consulting memo—precise, calm,
+business-professional, and centered on the client's systems and risk—not lab notes or vendor troubleshooting.
 
 Given the FULL session transcript (user messages, assistant replies, tool outputs), produce ONE JSON object only.
 No markdown fences, no commentary outside JSON.
 
-VOICE & FRAMING (critical):
-- Write about the TARGET SYSTEM (e.g. demoqa.com): what was observed, what it implies for risk, what should be validated next.
-- Do NOT write as a lab notebook ("tool X failed", "missing API key", "parsero could not resolve") in executive_summary,
-  areas_of_concern, recon narrative paragraphs, technical_findings narratives, risk_matrix_rows, recommendations, or conclusion.
-- Scanner timeouts, missing wordlists, optional API keys, CLI usage errors, or incomplete runs belong ONLY in appendix_limitations
-  (and optionally one neutral sentence in transcript_coverage_note)—never as headline "findings" or strengths/weaknesses theater.
-- Reframe tool outputs into CUSTOMER IMPACT: e.g. instead of "Nikto timed out", say "Automated web scanning did not complete in the
-  allotted window; common misconfigurations and CVE checks for this host remain unvalidated—schedule follow-up scanning or manual review."
-- technology-detection "unknown" / high heuristic scores: describe as uncertainty about the stack and residual risk to the organization,
-  not as "the tool rated high".
-- sqlmap/commix "no parameters": frame as "Injection testing was not applicable on the landing URL; deeper crawling or API/forms testing
-  may still surface inputs—prioritize forms, search, and APIs discovered."
+ABSOLUTE PROHIBITIONS (client-facing sections):
+- Never name or allude to NyxStrike, agent runtimes, LLMs, JSON formatting, ReportLab, bridges, microservices, tracebacks,
+  stderr, stack traces, HTTP 500s, or other internal platform errors. Those details must NEVER appear in executive_summary,
+  strengths, areas_of_concern, recon narratives, technical_findings narratives or tools_table "findings", risk_matrix_rows,
+  recommendations, conclusion, or transcript_coverage_note.
+- If the transcript contains platform/agent failures, IGNORE them for narrative sections; optionally summarize ONLY neutral
+  testing limitations under appendix_limitations (e.g. "Automated scanning coverage was partial during the engagement window")
+  without naming internal components.
+
+VOICE & FRAMING:
+- Focus on the TARGET ENVIRONMENT: observations, likelihood, business/security impact, validation steps, and remediation owners.
+- Reframe incomplete tooling outcomes as CLIENT RISK & COVERAGE GAPS (what remains unknown or unvalidated), never as
+  "tool X failed".
+- Keep tools_table factual but client-safe: status columns may be concise; the "findings" column must describe impact and
+  evidence for the organization—not raw command output.
 
 CONTENT PRIORITY:
-1) Executive summary: asset + scope in plain language, then the most important REAL-WORLD outcomes (attack surface facts, suspicious paths,
-   auth/admin exposure signals, anything resembling vuln evidence). Mention validation gaps briefly if scans incomplete—without blaming tools.
-2) assessment_overview_rows: metrics the client scans for (target, key hosts/paths counts if known, testing phase, validation status).
-3) strengths: genuine positives FOR THE APPLICATION (e.g. HTTPS in use, no critical hits in partial scans)—omit fluff; use empty array if none.
-4) areas_of_concern: bullets about THE APPLICATION (exposed admin paths, CMS indicators, large subdomain surface, unvalidated areas).
-5) recon_sections: subsections describe DISCOVERED ASSETS AND PATHS and why they matter to defenders—minimize namedropping tools in prose;
-   put tool names in tools_table only.
-6) technical_findings: each block title is an APPLICATION SECURITY THEME (e.g. "Exposure of administrative and CMS-related URLs",
-   "Residual risk from incomplete automated validation"). Narrative = stakeholder-facing. tools_table rows: tool/test_type/status factual;
-   "findings" column must describe IMPACT / EVIDENCE for the organization (what was learned about the target), not raw stderr.
-7) risk_matrix_rows: "finding" text must read as a risk to the CLIENT SYSTEM (not "scanner timeout" as the finding title—use
-   "Residual risk: automated vulnerability coverage incomplete for primary host" if needed).
-8) recommendations_*: actionable for the client's teams (validate WordPress, tighten WAF rules, complete scans off-peak)—not "fix feroxbuster wordlist".
+1) Executive summary: scope + asset + the highest-signal outcomes for defenders (paths, auth/admin exposure, vuln-class signals).
+2) assessment_overview_rows: executive-readable metrics (target, phase, validation status).
+3) strengths / areas_of_concern: about THE APPLICATION and its exposure, not the engagement toolchain.
+4) recon_sections: assets, paths, and why they matter to blue teams; minimize tool name-dropping in prose.
+5) technical_findings: themes titled for stakeholder clarity; narratives are client-centric.
+6) risk_matrix_rows: each finding reads as organizational risk; recommended_action is practical for the client's teams.
+7) recommendations_*: prioritized remediation—ownership-ready (engineering, IT, AppSec), not operator configuration trivia.
 
-Include substantive transcript-backed detail: hosts, URLs, IPs, severities, templates hit, headers, paths—accurately.
+Include substantive transcript-backed detail: hosts, URLs, IPs, severities, templates, headers, paths—accurately.
 
 Schema (all keys required; use empty strings or empty arrays where unknown):
 {
@@ -167,11 +288,11 @@ Schema (all keys required; use empty strings or empty arrays where unknown):
   "appendix_tools": [{"tool": "", "description": ""}],
   "appendix_scope": ["scope bullet strings"],
   "appendix_limitations": ["limitation bullet strings"],
-  "transcript_coverage_note": "empty if full; otherwise brief neutral note on coverage gaps"
+  "transcript_coverage_note": "empty if full; otherwise one short neutral sentence on coverage—no internal systems"
 }
 
 Rules:
-- Derive appendix_tools from tools referenced in the session (short neutral descriptions).
+- Derive appendix_tools from techniques/tools referenced (neutral methodology labels).
 - Counts must match the transcript when stated; otherwise "Not quantified in session".
 - Never invent critical exploits not evidenced in the transcript; use "not observed in completed testing" where appropriate.
 """
@@ -307,13 +428,14 @@ def _normalize_report_data(raw: Dict[str, Any], *, fallback_client: str, fallbac
     out["appendix_scope"] = _as_str_list(out.get("appendix_scope"))
     out["appendix_limitations"] = _as_str_list(out.get("appendix_limitations"))
     out["transcript_coverage_note"] = str(out.get("transcript_coverage_note") or "").strip()
-    return out
+    return _sanitize_client_report_payload(out)
 
 
 def _llm_fill_report(transcript: str, llm_client: Any) -> Dict[str, Any]:
     user_content = (
-        "Produce the JSON report for CLIENT DELIVERY. Readers care about their target application, real exposures, and priorities—"
-        "not operator toolchain problems (those belong only in appendix_limitations).\n\n"
+        "Produce the JSON report for CLIENT DELIVERY. Audience: client security leadership and technical owners. "
+        "They need clear risk and remediation guidance for THEIR environment—not internal agent/platform errors "
+        "(omit those entirely from client sections; neutral engagement limitations only in appendix_limitations).\n\n"
         "--- TRANSCRIPT ---\n"
         + transcript.strip()
     )
@@ -330,9 +452,12 @@ def _llm_fill_report(transcript: str, llm_client: Any) -> Dict[str, Any]:
         logger.warning("pt_report_pdf: LLM returned no JSON; using minimal shell")
         return {
             "report_title": "PENETRATION TESTING REPORT",
-            "executive_summary": ["The model did not return parseable JSON. See raw transcript in source session."],
+            "executive_summary": [
+                "A complete structured summary could not be produced automatically from the engagement record for this run. "
+                "Please contact your assessment delivery contact for the full findings package and narrative."
+            ],
             "assessment_overview_rows": [],
-            "security_posture_rating": "Unknown",
+            "security_posture_rating": "Not assessed",
             "strengths": [],
             "areas_of_concern": [],
             "recon_sections": [],
@@ -342,11 +467,11 @@ def _llm_fill_report(transcript: str, llm_client: Any) -> Dict[str, Any]:
             "recommendations_short_term": [],
             "recommendations_long_term": [],
             "conclusion_paragraphs": [],
-            "overall_grade": "N/A",
+            "overall_grade": "Not assessed",
             "appendix_tools": [],
             "appendix_scope": [],
             "appendix_limitations": [],
-            "transcript_coverage_note": "LLM JSON parse failed; regenerate or shorten transcript.",
+            "transcript_coverage_note": "",
         }
     return parsed
 
