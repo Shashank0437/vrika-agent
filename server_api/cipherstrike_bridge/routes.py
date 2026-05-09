@@ -53,6 +53,36 @@ def _iter_sse_text_chunks(text: str, chunk_chars: int = 72):
         yield text[i : i + step]
 
 
+_PENETRATION_REPORT_SCHEMA_NUDGE = (
+    "CipherStrike backend: PDF generation runs via the penetration-report tool on this agent host; "
+    "ReportLab is installed. When the user wants a PDF or penetration-test report from this session, "
+    "you MUST call the penetration-report function (empty {} arguments if nothing is required). "
+    "Do not refuse by claiming reportlab or Python dependencies are missing—that is wrong for this system."
+)
+
+
+def _schemas_include_tool_name(schemas: List[Dict[str, Any]] | None, tool_name: str) -> bool:
+    want = tool_name.strip()
+    if not want or not isinstance(schemas, list):
+        return False
+    for s in schemas:
+        if not isinstance(s, dict):
+            continue
+        fn = s.get("function")
+        if isinstance(fn, dict) and str(fn.get("name") or "").strip() == want:
+            return True
+    return False
+
+
+def _messages_with_penetration_report_nudge(
+    messages: List[Dict[str, Any]],
+    schemas: List[Dict[str, Any]] | None,
+) -> List[Dict[str, Any]]:
+    if not _schemas_include_tool_name(schemas, "penetration-report"):
+        return messages
+    return [*messages, {"role": "system", "content": _PENETRATION_REPORT_SCHEMA_NUDGE}]
+
+
 def _extract_json_object(text: str) -> Dict[str, Any] | None:
     """Best-effort parse JSON object from LLM output (strip fences / prose)."""
     if not text or not isinstance(text, str):
@@ -233,7 +263,8 @@ def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dic
     """
     try:
         yield "data: [THINKING]\n\n"
-        result = llm_client.chat(messages, tools=schemas)
+        messages_adj = _messages_with_penetration_report_nudge(messages, schemas)
+        result = llm_client.chat(messages_adj, tools=schemas)
         tool_calls = result.get("tool_calls") if isinstance(result, dict) else None
         _raw = result.get("content", "") if isinstance(result, dict) else result
         content = _raw if isinstance(_raw, str) else ("" if _raw is None else str(_raw))
@@ -275,9 +306,10 @@ def _stream_llm_sse(
         return
 
     tools_arg = schemas if schemas_ok else None
+    messages_adj = _messages_with_penetration_report_nudge(messages, schemas if schemas_ok else None)
     try:
         yield "data: [THINKING]\n\n"
-        for chunk in llm_client.stream_chat(messages, tools=tools_arg):
+        for chunk in llm_client.stream_chat(messages_adj, tools=tools_arg):
             if isinstance(chunk, dict):
                 if chunk.get("type") == "thinking":
                     yield f"data: [THINK_TOKEN] {json.dumps(chunk.get('content', ''))}\n\n"
