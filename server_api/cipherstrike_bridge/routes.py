@@ -74,10 +74,11 @@ Given the user message and the compact tool list below, respond with **only** va
 {{"intent":"operational"|"conversational","tool_names":[],"reply":""}}
 
 Rules:
-- intent **operational** when the user wants scans, enumeration, exploitation workflows, CVE lookup, concrete tooling on targets, or similar actionable security tasks.
-- intent **conversational** for greetings, thanks, general explanations, policy discussion without requesting tools.
-- **tool_names**: when operational, include 1–{max_tools} tool **names** chosen ONLY from the list below (exact spelling). Prefer minimal sufficient set. When conversational, use [].
-- **reply**: when conversational, a short helpful reply (1–6 sentences). When operational, usually "" unless you need one clarifying sentence.
+- intent **operational** when the user wants scans, enumeration, exploitation workflows, CVE lookup, concrete tooling on targets, URLs/hosts to assess, penetration tests, or any request where starting security tools would help (even if they also ask "how" or "can you").
+- If the message contains **http:// or https://** and asks for testing, assessment, or a pentest → **operational** and pick suitable tools from the list (e.g. HTTP probe, tech fingerprint, vuln templates, web scanner — use names that exist below).
+- intent **conversational** only for pure greetings, thanks, meta chat, or conceptual questions with **no target** and **no request to run or plan tooling**.
+- **tool_names**: when operational, include 1–{max_tools} tool **names** chosen ONLY from the list below (exact spelling). Prefer a minimal set that can **start** the assessment (do not leave tool_names empty when intent is operational).
+- **reply**: when conversational, a short helpful reply (1–6 sentences). When operational, usually "" unless one short clarifying question is essential.
 
 Available tools (name: short description):
 {catalog}
