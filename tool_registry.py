@@ -124,7 +124,7 @@ TOOLS: Dict[str, dict] = {
     },
 
     "smart-scan": {
-        "desc": "Execute an intelligent scan using AI-driven tool selection and parameter optimization with parallel execution",
+        "desc": "Meta-orchestrator: internally runs multiple scanners in parallel with AI-driven selection (appears as one tool execution in chat). For separate visible executions per scanner, use discrete tools (httpx, whatweb, nuclei, …) instead.",
         "endpoint": "/api/intelligence/smart-scan",
         "method": "POST",
         "category": "intelligence",

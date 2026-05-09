@@ -77,7 +77,10 @@ Rules:
 - intent **operational** when the user wants scans, enumeration, exploitation workflows, CVE lookup, concrete tooling on targets, URLs/hosts to assess, penetration tests, or any request where starting security tools would help (even if they also ask "how" or "can you").
 - If the message contains **http:// or https://** and asks for testing, assessment, or a pentest → **operational** and pick suitable tools from the list (e.g. HTTP probe, tech fingerprint, vuln templates, web scanner — use names that exist below).
 - intent **conversational** only for pure greetings, thanks, meta chat, or conceptual questions with **no target** and **no request to run or plan tooling**.
-- **tool_names**: when operational, include 1–{max_tools} tool **names** chosen ONLY from the list below (exact spelling). Prefer a minimal set that can **start** the assessment (do not leave tool_names empty when intent is operational).
+- **tool_names**: when operational, include **2–{max_tools}** distinct tool **names** from the list (exact spelling) whenever the catalog offers multiple complementary scanners (e.g. combine HTTP probe + tech fingerprint + vuln scanning + crawl/dir discovery **when those names exist**).
+- Prefer **several complementary discrete scanners** over relying on **only** meta-orchestrators such as **smart-scan** or **analyze-target**. Use **smart-scan** (alone or in the mix) only when the user explicitly asks for an intelligent / smart / orchestrated / automated scan, or when discrete scanners are not available below.
+- If fewer than two suitable discrete scanners appear in the list, include every relevant tool available (even if that is a single meta-tool).
+- Do not leave tool_names empty when intent is operational.
 - **reply**: when conversational, a short helpful reply (1–6 sentences). When operational, usually "" unless one short clarifying question is essential.
 
 Available tools (name: short description):
