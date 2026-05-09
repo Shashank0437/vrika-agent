@@ -36,6 +36,7 @@ Tool-calling flow (human-in-the-loop):
 
 import json
 import logging
+import os
 import uuid
 from typing import Any, Dict, List
 
@@ -565,10 +566,10 @@ def confirm_tool_call(chat_session_id: str):
         )
         tool_result = internal_api.run_tool(tool_endpoint, arguments)
 
-        # Summarise result for the LLM (cap at 4000 chars to stay within context)
+        _max_tool_json = int(os.environ.get("AGENT_CHAT_TOOL_RESULT_MAX_CHARS", "56000"))
         result_text = json.dumps(tool_result, indent=2)
-        if len(result_text) > 4000:
-          result_text = result_text[:4000] + "\n… (truncated)"
+        if len(result_text) > _max_tool_json:
+          result_text = result_text[:_max_tool_json] + "\n… (truncated)"
 
         # Record execution in chat history
         exec_record = (

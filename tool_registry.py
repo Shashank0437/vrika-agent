@@ -2066,11 +2066,28 @@ def get_tools_for_category(category: str) -> List[dict]:
 
 
 def get_tool(name: str) -> Optional[dict]:
-    """Return full tool definition by name, or None (case-insensitive; hyphens → underscores)."""
+    """Return full tool definition by name, or None.
+
+    Registry keys mix hyphenated ids (e.g. ``http-framework``) and snake_case
+    (e.g. ``ai_analyze_session``). Accept either spelling from the model.
+    """
     if not isinstance(name, str):
         return None
-    key = name.strip().lower().replace("-", "_")
-    return TOOLS.get(key)
+    key = name.strip().lower()
+    if not key:
+        return None
+    direct = TOOLS.get(key)
+    if direct is not None:
+        return direct
+    alt_us = key.replace("-", "_")
+    if alt_us != key:
+        hit = TOOLS.get(alt_us)
+        if hit is not None:
+            return hit
+    alt_hy = key.replace("_", "-")
+    if alt_hy != key:
+        return TOOLS.get(alt_hy)
+    return None
 
 
 def get_all_categories() -> Dict[str, str]:
