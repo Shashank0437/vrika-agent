@@ -478,7 +478,7 @@ def _llm_fill_report(transcript: str, llm_client: Any) -> Dict[str, Any]:
 
 def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     try:
-        from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
         from reportlab.lib.pagesizes import letter
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import inch
@@ -490,55 +490,113 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         ) from e
 
     styles = getSampleStyleSheet()
+    on_primary = _theme_hex("on_primary")
     on_surface = _theme_hex("on_surface")
     on_surface_variant = _theme_hex("on_surface_variant")
     primary = _theme_hex("primary")
+    primary_container = _theme_hex("primary_container")
+    on_primary_container = _theme_hex("on_primary_container")
     outline_variant = _theme_hex("outline_variant")
 
     h_cover = ParagraphStyle(
         name="CoverTitle",
         parent=styles["Heading1"],
-        fontSize=18,
-        leading=22,
+        fontSize=20,
+        leading=26,
         alignment=TA_CENTER,
-        spaceAfter=12,
+        spaceAfter=14,
         textColor=primary,
+        fontName="Helvetica-Bold",
+    )
+    cover_band = ParagraphStyle(
+        name="CoverBand",
+        parent=styles["Normal"],
+        fontSize=14,
+        leading=20,
+        alignment=TA_CENTER,
+        spaceAfter=10,
+        textColor=on_primary_container,
+        backColor=primary_container,
+        borderPadding=14,
     )
     h1 = ParagraphStyle(
         name="H1",
         parent=styles["Heading1"],
-        fontSize=14,
-        leading=18,
-        spaceBefore=12,
-        spaceAfter=8,
+        fontSize=15,
+        leading=20,
+        spaceBefore=14,
+        spaceAfter=10,
         textColor=on_surface,
+        fontName="Helvetica-Bold",
     )
     h2 = ParagraphStyle(
         name="H2",
         parent=styles["Heading2"],
-        fontSize=11,
-        leading=14,
-        spaceBefore=10,
-        spaceAfter=6,
+        fontSize=12,
+        leading=16,
+        spaceBefore=12,
+        spaceAfter=8,
         textColor=primary,
+        fontName="Helvetica-Bold",
     )
     body = ParagraphStyle(
         name="Body",
         parent=styles["Normal"],
-        fontSize=10,
-        leading=13,
-        alignment=TA_JUSTIFY,
-        spaceAfter=6,
+        fontSize=11,
+        leading=15,
+        alignment=TA_LEFT,
+        spaceAfter=8,
         textColor=on_surface,
+        fontName="Helvetica",
     )
     small = ParagraphStyle(
         name="Small",
         parent=styles["Normal"],
         fontSize=9,
-        leading=11,
+        leading=12,
         textColor=on_surface_variant,
         alignment=TA_CENTER,
+        fontName="Helvetica",
     )
+    tbl_hdr = ParagraphStyle(
+        name="TblHdr",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=10,
+        leading=13,
+        textColor=on_primary,
+        alignment=TA_LEFT,
+    )
+    tbl_body = ParagraphStyle(
+        name="TblBody",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=10,
+        leading=14,
+        textColor=on_surface,
+        alignment=TA_LEFT,
+    )
+    tbl_compact = ParagraphStyle(
+        name="TblCompact",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=9,
+        leading=12,
+        textColor=on_surface,
+        alignment=TA_LEFT,
+    )
+
+    def P_cell(text: object, *, header: bool = False, compact: bool = False) -> Paragraph:
+        st = tbl_hdr if header else (tbl_compact if compact else tbl_body)
+        return Paragraph(_xml_escape(str(text)), st)
+
+    def para_table(headers: List[str], rows: List[List[str]], col_widths: List[float], *, compact_data: bool = False) -> Table:
+        header_row = [P_cell(h, header=True) for h in headers]
+        body_rows = [[P_cell(c, compact=compact_data) for c in row] for row in rows]
+        matrix = [header_row] + body_rows
+        tbl = Table(matrix, colWidths=col_widths, repeatRows=1)
+        tbl.setStyle(_cipherstrike_table_surface_style(num_rows=len(matrix)))
+        return tbl
 
     class NumberedCanvas(pdfcanvas.Canvas):
         def __init__(self, *args, **kwargs):
@@ -580,34 +638,45 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     doc = SimpleDocTemplate(
         buf,
         pagesize=letter,
-        rightMargin=0.75 * inch,
-        leftMargin=0.75 * inch,
-        topMargin=0.78 * inch,
-        bottomMargin=0.65 * inch,
+        rightMargin=0.85 * inch,
+        leftMargin=0.85 * inch,
+        topMargin=0.82 * inch,
+        bottomMargin=0.68 * inch,
     )
     story: List[Any] = []
 
     def p(text: str, style=body):
-        t = (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        story.append(Paragraph(t, style))
-        story.append(Spacer(1, 4))
+        story.append(Paragraph(_xml_escape(text), style))
+        story.append(Spacer(1, 6))
 
     def bullet_list(items: List[str]):
         for it in items:
             p(f"• {it}", body)
 
     # Cover
-    story.append(Spacer(1, 1.2 * inch))
+    story.append(Spacer(1, 0.9 * inch))
     p(str(data.get("report_title") or "PENETRATION TESTING REPORT"), h_cover)
-    p(str(data.get("client_name") or ""), ParagraphStyle("cn", parent=h_cover, fontSize=14))
-    p(str(data.get("target_primary") or ""), ParagraphStyle("tg", parent=body, alignment=TA_CENTER, fontSize=12))
+    p(str(data.get("client_name") or ""), cover_band)
+    p(
+        str(data.get("target_primary") or ""),
+        ParagraphStyle(
+            "tg",
+            parent=body,
+            alignment=TA_CENTER,
+            fontSize=12,
+            leading=16,
+            fontName="Helvetica-Bold",
+            textColor=on_surface_variant,
+            spaceAfter=10,
+        ),
+    )
     p(
         "CONFIDENTIAL",
         ParagraphStyle("conf", parent=body, alignment=TA_CENTER, fontSize=11, textColor=_theme_hex("error")),
     )
-    p(f"Date: {data.get('assessment_date_iso')}", ParagraphStyle("dt", parent=body, alignment=TA_CENTER))
-    p(f"Generated by: {generated_by}", small)
-    story.append(Spacer(1, 0.4 * inch))
+    p(f"Date: {data.get('assessment_date_iso')}", ParagraphStyle("dt", parent=body, alignment=TA_CENTER, fontSize=10))
+    p(f"Prepared for client distribution · {generated_by}", small)
+    story.append(Spacer(1, 0.35 * inch))
 
     # 1 Executive summary
     p("1. EXECUTIVE SUMMARY", h1)
@@ -616,17 +685,16 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     p("1.1 Assessment Overview", h2)
     ov = data.get("assessment_overview_rows") or []
     if ov:
-        tdata = [["Metric", "Value"]] + [[r.get("metric", ""), r.get("value", "")] for r in ov]
+        hdr = ["Metric", "Value"]
+        rows_ov = [[r.get("metric", ""), r.get("value", "")] for r in ov]
         tw = doc.width
-        tbl = Table(tdata, colWidths=[tw * 0.35, tw * 0.65])
-        tbl.setStyle(_cipherstrike_table_style(num_rows=len(tdata)))
-        story.append(tbl)
-        story.append(Spacer(1, 8))
+        story.append(para_table(hdr, rows_ov, [tw * 0.34, tw * 0.66], compact_data=False))
+        story.append(Spacer(1, 10))
     p("1.2 Security Posture Assessment", h2)
-    p(f"Overall Security Rating: {data.get('security_posture_rating')}", body)
-    p("Strengths:", ParagraphStyle("lb", parent=body, fontName="Helvetica-Bold"))
+    p(f"Overall security rating: {data.get('security_posture_rating')}", body)
+    p("Strengths", ParagraphStyle("lb", parent=h2, fontSize=11, spaceBefore=4))
     bullet_list(data.get("strengths") or [])
-    p("Areas of Concern:", ParagraphStyle("lb2", parent=body, fontName="Helvetica-Bold"))
+    p("Areas of concern", ParagraphStyle("lb2", parent=h2, fontSize=11, spaceBefore=4))
     bullet_list(data.get("areas_of_concern") or [])
 
     # 2 Recon
@@ -638,14 +706,13 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         bullet_list(sec.get("bullets") or [])
         nrows = sec.get("notes_table_rows") or []
         if nrows:
-            tdata = [["Item", "Detail"]] + [[r.get("col_a", ""), r.get("col_b", "")] for r in nrows]
+            hdr = ["Item", "Detail"]
+            rows_r = [[r.get("col_a", ""), r.get("col_b", "")] for r in nrows]
             tw = doc.width
-            tbl = Table(tdata, colWidths=[tw * 0.4, tw * 0.6])
-            tbl.setStyle(_cipherstrike_table_style(num_rows=len(tdata)))
-            story.append(tbl)
-            story.append(Spacer(1, 6))
+            story.append(para_table(hdr, rows_r, [tw * 0.38, tw * 0.62], compact_data=False))
+            story.append(Spacer(1, 8))
 
-    # 3 Application security findings (stakeholder-facing section titles)
+    # 3 Application security findings
     p("3. APPLICATION SECURITY FINDINGS", h1)
     for block in data.get("technical_findings") or []:
         p(str(block.get("title") or ""), h2)
@@ -653,59 +720,71 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
             p(str(para), body)
         tt = block.get("tools_table") or []
         if tt:
-            tdata = [["Tool", "Test type", "Status", "Impact / evidence"]] + [
+            hdr = ["Tool / technique", "Test type", "Status", "Impact / evidence"]
+            rows_t = [
                 [r.get("tool", ""), r.get("test_type", ""), r.get("status", ""), r.get("findings", "")]
                 for r in tt
             ]
             tw = doc.width
-            tbl = Table(tdata, colWidths=[tw * 0.18, tw * 0.22, tw * 0.15, tw * 0.45])
-            tbl.setStyle(
-                _cipherstrike_table_style(num_rows=len(tdata), header_fontsize=8, body_fontsize=7)
+            story.append(
+                para_table(
+                    hdr,
+                    rows_t,
+                    [tw * 0.17, tw * 0.20, tw * 0.14, tw * 0.49],
+                    compact_data=True,
+                )
             )
-            story.append(tbl)
-            story.append(Spacer(1, 6))
+            story.append(Spacer(1, 8))
 
     # 4 Risk
-    p("4. RISK ASSESSMENT & RECOMMENDATIONS", h1)
-    p("4.1 Risk Priority Matrix", h2)
+    p("4. RISK ASSESSMENT & REMEDIATION", h1)
+    p("4.1 Risk priority matrix", h2)
     rm = data.get("risk_matrix_rows") or []
     if rm:
-        tdata = [["Priority", "Finding", "Risk", "Recommended action"]] + [
+        hdr = ["Prio.", "Finding", "Risk", "Recommended action"]
+        rows_m = [
             [r.get("priority", ""), r.get("finding", ""), r.get("risk_level", ""), r.get("recommended_action", "")]
             for r in rm
         ]
         tw = doc.width
-        tbl = Table(tdata, colWidths=[tw * 0.08, tw * 0.32, tw * 0.12, tw * 0.48])
-        tbl.setStyle(_cipherstrike_table_style(num_rows=len(tdata), header_fontsize=8, body_fontsize=7))
-        story.append(tbl)
-        story.append(Spacer(1, 8))
-    p("4.2 Detailed Recommendations", h2)
-    p("IMMEDIATE ACTIONS (0-30 days):", ParagraphStyle("im", parent=body, fontName="Helvetica-Bold"))
+        story.append(
+            para_table(hdr, rows_m, [tw * 0.07, tw * 0.33, tw * 0.12, tw * 0.48], compact_data=True)
+        )
+        story.append(Spacer(1, 10))
+    p("4.2 Detailed recommendations", h2)
+    p("Immediate (0–30 days)", ParagraphStyle("im", parent=h2, fontSize=11, spaceBefore=2))
     bullet_list(data.get("recommendations_immediate") or [])
-    p("SHORT-TERM ACTIONS (30-90 days):", ParagraphStyle("st", parent=body, fontName="Helvetica-Bold"))
+    p("Short-term (30–90 days)", ParagraphStyle("st", parent=h2, fontSize=11, spaceBefore=2))
     bullet_list(data.get("recommendations_short_term") or [])
-    p("LONG-TERM ACTIONS (90+ days):", ParagraphStyle("lt", parent=body, fontName="Helvetica-Bold"))
+    p("Long-term (90+ days)", ParagraphStyle("lt", parent=h2, fontSize=11, spaceBefore=2))
     bullet_list(data.get("recommendations_long_term") or [])
 
     # 5 Conclusion
     p("5. CONCLUSION", h1)
     for para in data.get("conclusion_paragraphs") or []:
         p(str(para), body)
-    p(f"Overall Security Grade: {data.get('overall_grade')}", ParagraphStyle("gr", parent=body, fontName="Helvetica-Bold"))
+    p(f"Overall security posture grade: {data.get('overall_grade')}", ParagraphStyle("gr", parent=body, fontName="Helvetica-Bold"))
 
     # Appendices
-    p("APPENDIX A: TOOLS REFERENCED (METHODOLOGY)", h1)
+    p("APPENDIX A — METHODOLOGY & TOOLS REFERENCED", h1)
     ap = data.get("appendix_tools") or []
     for a in ap:
-        p(f"• {a.get('tool', '')} — {a.get('description', '')}", body)
-    p("APPENDIX B: SCOPE & LIMITATIONS", h1)
-    p("Assessment Scope:", ParagraphStyle("sc", parent=body, fontName="Helvetica-Bold"))
+        tool = str(a.get("tool") or "").strip()
+        desc = str(a.get("description") or "").strip()
+        if tool and desc:
+            p(f"• {tool}: {desc}", body)
+        elif tool:
+            p(f"• {tool}", body)
+        elif desc:
+            p(f"• {desc}", body)
+    p("APPENDIX B — SCOPE & LIMITATIONS", h1)
+    p("Assessment scope", ParagraphStyle("sc", parent=h2, fontSize=11, spaceBefore=2))
     bullet_list(data.get("appendix_scope") or [])
-    p("Limitations:", ParagraphStyle("lm", parent=body, fontName="Helvetica-Bold"))
+    p("Limitations", ParagraphStyle("lm", parent=h2, fontSize=11, spaceBefore=2))
     bullet_list(data.get("appendix_limitations") or [])
     note = str(data.get("transcript_coverage_note") or "").strip()
     if note:
-        p("Note on transcript coverage:", ParagraphStyle("nt", parent=body, fontName="Helvetica-Bold"))
+        p("Engagement coverage note", ParagraphStyle("nt", parent=h2, fontSize=11, spaceBefore=2))
         p(note, body)
 
     doc.build(
