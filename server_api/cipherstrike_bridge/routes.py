@@ -248,7 +248,7 @@ def _stream_llm_sse(
     provider = getattr(backend, "provider", None) if backend else None
     schemas_ok = isinstance(schemas, list) and len(schemas) > 0
 
-    if schemas_ok and provider != "gemini":
+    if schemas_ok and provider not in ("gemini", "openai"):
         yield from _stream_tools_blocking_sse(messages, schemas)
         return
 

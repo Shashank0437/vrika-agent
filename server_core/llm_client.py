@@ -490,7 +490,12 @@ class OpenAIBackend:
     except Exception as exc:
       raise RuntimeError(f"OpenAI API error: {exc}")
 
-  def stream_chat(self, messages: List[Dict[str, Any]], num_ctx: Optional[int] = None) -> Generator[str, None, None]:
+  def stream_chat(
+    self,
+    messages: List[Dict[str, Any]],
+    num_ctx: Optional[int] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
+  ) -> Generator[Any, None, None]:
     kwargs: Dict[str, Any] = {
       "model": self._model,
       "messages": messages,
@@ -498,12 +503,63 @@ class OpenAIBackend:
       "temperature": 0.7,
       "stream": True,
     }
+    if tools:
+      kwargs["tools"] = tools
+      kwargs["tool_choice"] = "auto"
     try:
       stream = self._client.chat.completions.create(**kwargs)
+      tool_call_parts: Dict[int, Dict[str, Any]] = {}
       for chunk in stream:
-        delta = chunk.choices[0].delta.content if chunk.choices else None
+        if not chunk.choices:
+          continue
+        delta_obj = chunk.choices[0].delta
+        delta = getattr(delta_obj, "content", None)
         if delta:
           yield delta
+
+        for tc_delta in getattr(delta_obj, "tool_calls", None) or []:
+          idx = int(getattr(tc_delta, "index", 0) or 0)
+          slot = tool_call_parts.setdefault(
+            idx,
+            {"id": "", "type": "function", "function": {"name": "", "arguments": ""}},
+          )
+          tc_id = getattr(tc_delta, "id", None)
+          if tc_id:
+            slot["id"] = tc_id
+          tc_type = getattr(tc_delta, "type", None)
+          if tc_type:
+            slot["type"] = tc_type
+          fn_delta = getattr(tc_delta, "function", None)
+          if fn_delta is None:
+            continue
+          name_delta = getattr(fn_delta, "name", None)
+          if name_delta:
+            slot["function"]["name"] += name_delta
+          args_delta = getattr(fn_delta, "arguments", None)
+          if args_delta:
+            slot["function"]["arguments"] += args_delta
+
+      if tool_call_parts:
+        parsed_tool_calls = []
+        for _, tc in sorted(tool_call_parts.items()):
+          fn = tc.get("function") if isinstance(tc, dict) else None
+          if not isinstance(fn, dict):
+            continue
+          raw_args = str(fn.get("arguments") or "")
+          try:
+            parsed_args = json.loads(raw_args) if raw_args else {}
+          except json.JSONDecodeError:
+            parsed_args = {"_raw": raw_args}
+          parsed_tool_calls.append({
+            "id": str(tc.get("id") or ""),
+            "type": str(tc.get("type") or "function"),
+            "function": {
+              "name": str(fn.get("name") or ""),
+              "arguments": parsed_args if isinstance(parsed_args, dict) else {"_value": parsed_args},
+            },
+          })
+        if parsed_tool_calls:
+          yield {"type": "_cipherstrike_tool_calls", "tool_calls": parsed_tool_calls}
     except Exception as exc:
       raise RuntimeError(f"OpenAI streaming error: {exc}")
 
