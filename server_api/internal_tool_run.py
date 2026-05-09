@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from flask import Blueprint, current_app, jsonify, request
@@ -41,6 +42,18 @@ def _path_allowed(ep: str) -> bool:
     return any(ep.startswith(prefix) for prefix in _INTERNAL_ALLOWED_PREFIXES)
 
 
+def _nested_invoke_headers() -> dict[str, str]:
+    """Re-send credentials so nested ``test_client`` POSTs satisfy ``optional_bearer_auth``."""
+    h: dict[str, str] = {}
+    tok = (os.environ.get("NYXSTRIKE_API_TOKEN") or "").strip()
+    if tok:
+        h["Authorization"] = f"Bearer {tok}"
+    bridge = (os.environ.get("CIPHERSTRIKE_BRIDGE_SECRET") or "").strip()
+    if bridge:
+        h["X-CipherStrike-Bridge-Secret"] = bridge
+    return h
+
+
 @api_internal_tool_run_bp.route("/api/internal/tool-run", methods=["POST"])
 def internal_tool_run():
     """
@@ -72,7 +85,7 @@ def internal_tool_run():
     try:
         with stream_run_scope(sr_id if sr_id else None):
             with current_app.test_client() as client:
-                resp = client.post(ep, json=inner_body)
+                resp = client.post(ep, json=inner_body, headers=_nested_invoke_headers())
         status_code = int(resp.status_code)
         parsed = resp.get_json(silent=True)
         body_out = parsed if parsed is not None else {"raw": resp.get_data(as_text=True)}
