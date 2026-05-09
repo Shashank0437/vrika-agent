@@ -5,7 +5,7 @@ Endpoints:
   POST /api/cipherstrike/schemas-from-tools
   POST /api/cipherstrike/route-intent  (JSON — operational vs conversational + tool shortlist)
   POST /api/cipherstrike/llm-chat
-  POST /api/cipherstrike/llm-stream  (SSE)
+  POST /api/cipherstrike/llm-stream  (SSE; optional JSON ``schemas`` for tool-bound Gemini streaming)
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, Generator, List
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
 
@@ -152,20 +152,118 @@ def route_intent():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
-def _stream_llm_sse(messages: List[Dict[str, Any]]):
-    full_response: List[str] = []
-    response_stats = None
+def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Generator[str, None, None]:
+    """Emit TOOL_CALL_PENDING / TOOL_CALL_BATCH_PENDING SSE frames for registry-resolved tools."""
+    from tool_registry import get_tool
+
+    batch_payloads: List[Dict[str, Any]] = []
+    if not isinstance(tool_calls, list):
+        return
+    for tc in tool_calls[:_MAX_MULTI_TOOL_CALLS]:
+        if not isinstance(tc, dict):
+            continue
+        fn = tc.get("function", {})
+        if not isinstance(fn, dict):
+            continue
+        tool_name = str(fn.get("name") or "").strip()
+        arguments = fn.get("arguments", {})
+        if not isinstance(arguments, dict):
+            arguments = {}
+        tool_def = get_tool(tool_name)
+        if tool_def:
+            batch_payloads.append(
+                {
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                    "description": str(tool_def.get("desc") or ""),
+                    "endpoint": str(tool_def.get("endpoint") or ""),
+                },
+            )
+        else:
+            logger.warning(
+                "cipherstrike_bridge: unknown tool %r from model, skipping",
+                tool_name,
+            )
+
+    if len(batch_payloads) == 1:
+        yield f"data: [TOOL_CALL_PENDING] {json.dumps(batch_payloads[0])}\n\n"
+        return
+    if len(batch_payloads) > 1:
+        envelope = {"calls": batch_payloads}
+        yield f"data: [TOOL_CALL_BATCH_PENDING] {json.dumps(envelope)}\n\n"
+        return
+    if tool_calls:
+        tc0 = tool_calls[0]
+        fn0 = tc0.get("function", {}) if isinstance(tc0, dict) else {}
+        logger.warning(
+            "cipherstrike_bridge: tool_calls present but none resolved via registry (first=%r)",
+            fn0.get("name") if isinstance(fn0, dict) else None,
+        )
+
+
+def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dict[str, Any]]) -> Generator[str, None, None]:
+    """Non-streaming chat + tools (OpenAI/Anthropic or fallback); replay assistant text as SSE chunks."""
     try:
         yield "data: [THINKING]\n\n"
-        for chunk in llm_client.stream_chat(messages):
+        result = llm_client.chat(messages, tools=schemas)
+        tool_calls = result.get("tool_calls") if isinstance(result, dict) else None
+        _raw = result.get("content", "") if isinstance(result, dict) else result
+        content = _raw if isinstance(_raw, str) else ("" if _raw is None else str(_raw))
+        _think = result.get("thinking_content") if isinstance(result, dict) else None
+        thinking_extra = _think.strip() if isinstance(_think, str) else ""
+        if thinking_extra:
+            yield f"data: [THINK_TOKEN] {json.dumps(thinking_extra)}\n\n"
+
+        if tool_calls:
+            pending_sse = list(_yield_cipherstrike_tool_pending_sse(tool_calls if isinstance(tool_calls, list) else []))
+            if pending_sse:
+                for ln in pending_sse:
+                    yield ln
+                yield "data: [DONE]\n\n"
+                return
+
+        if content:
+            for chunk in _iter_sse_text_chunks(content):
+                yield f"data: {json.dumps(chunk)}\n\n"
+        yield "data: [DONE]\n\n"
+    except GeneratorExit:
+        raise
+    except Exception as exc:
+        logger.error("cipherstrike_bridge blocking tools stream: %s", exc)
+        yield f"data: [ERROR] {str(exc)}\n\n"
+
+
+def _stream_llm_sse(
+    messages: List[Dict[str, Any]],
+    schemas: List[Dict[str, Any]] | None = None,
+) -> Generator[str, None, None]:
+    """Stream tokens from the configured LLM; optional ``schemas`` enables tool mode."""
+    backend = getattr(llm_client, "_backend", None)
+    provider = getattr(backend, "provider", None) if backend else None
+    schemas_ok = isinstance(schemas, list) and len(schemas) > 0
+
+    if schemas_ok and provider != "gemini":
+        yield from _stream_tools_blocking_sse(messages, schemas)
+        return
+
+    tools_arg = schemas if schemas_ok else None
+    try:
+        yield "data: [THINKING]\n\n"
+        for chunk in llm_client.stream_chat(messages, tools=tools_arg):
             if isinstance(chunk, dict):
                 if chunk.get("type") == "thinking":
                     yield f"data: [THINK_TOKEN] {json.dumps(chunk.get('content', ''))}\n\n"
                     continue
-                response_stats = chunk
+                if chunk.get("type") == "_cipherstrike_tool_calls":
+                    tcalls = chunk.get("tool_calls") or []
+                    pending_sse = list(_yield_cipherstrike_tool_pending_sse(tcalls if isinstance(tcalls, list) else []))
+                    if pending_sse:
+                        for ln in pending_sse:
+                            yield ln
+                    yield "data: [DONE]\n\n"
+                    return
                 yield f"data: [STATS] {json.dumps(chunk)}\n\n"
                 continue
-            full_response.append(chunk)
             yield f"data: {json.dumps(chunk)}\n\n"
         yield "data: [DONE]\n\n"
     except GeneratorExit:
@@ -239,9 +337,12 @@ def llm_stream():
         messages = body.get("messages")
         if not isinstance(messages, list):
             return jsonify({"success": False, "error": "messages must be a list"}), 400
+        schemas = body.get("schemas")
+        if schemas is not None and not isinstance(schemas, list):
+            return jsonify({"success": False, "error": "schemas must be a list when supplied"}), 400
 
         return Response(
-            stream_with_context(_stream_llm_sse(messages)),
+            stream_with_context(_stream_llm_sse(messages, schemas if isinstance(schemas, list) else None)),
             mimetype="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -256,10 +357,7 @@ def llm_stream():
 
 @api_cipherstrike_bridge_bp.route("/api/cipherstrike/llm-chat-with-tools-stream-text", methods=["POST"])
 def llm_chat_tools_then_chunk():
-    """
-    Non-streaming llm chat with tools; if plain text response, emit SSE chunks like chat.py.
-    If tool_calls, emit TOOL_CALL_PENDING (caller persists — no pending store here).
-    """
+    """Compatibility alias — same as POST /llm-stream with a non-empty schemas list (blocking tools on non-Gemini)."""
     blocked = _require_bridge()
     if blocked:
         return blocked
@@ -275,79 +373,8 @@ def llm_chat_tools_then_chunk():
         if not isinstance(schemas, list) or not schemas:
             return jsonify({"success": False, "error": "schemas must be a non-empty list"}), 400
 
-        def gen():
-            try:
-                yield "data: [THINKING]\n\n"
-                result = llm_client.chat(messages, tools=schemas)
-                tool_calls = result.get("tool_calls") if isinstance(result, dict) else None
-                _raw = result.get("content", "") if isinstance(result, dict) else result
-                content = _raw if isinstance(_raw, str) else ("" if _raw is None else str(_raw))
-                _think = result.get("thinking_content") if isinstance(result, dict) else None
-                thinking_extra = _think.strip() if isinstance(_think, str) else ""
-                if thinking_extra:
-                    yield f"data: [THINK_TOKEN] {json.dumps(thinking_extra)}\n\n"
-
-                if tool_calls:
-                    from tool_registry import get_tool
-
-                    batch_payloads: List[Dict[str, Any]] = []
-                    if not isinstance(tool_calls, list):
-                        tool_calls = []
-                    for tc in tool_calls[:_MAX_MULTI_TOOL_CALLS]:
-                        if not isinstance(tc, dict):
-                            continue
-                        fn = tc.get("function", {})
-                        if not isinstance(fn, dict):
-                            continue
-                        tool_name = str(fn.get("name") or "").strip()
-                        arguments = fn.get("arguments", {})
-                        if not isinstance(arguments, dict):
-                            arguments = {}
-                        tool_def = get_tool(tool_name)
-                        if tool_def:
-                            batch_payloads.append(
-                                {
-                                    "tool_name": tool_name,
-                                    "arguments": arguments,
-                                    "description": str(tool_def.get("desc") or ""),
-                                    "endpoint": str(tool_def.get("endpoint") or ""),
-                                },
-                            )
-                        else:
-                            logger.warning(
-                                "cipherstrike_bridge: unknown tool %r from model, skipping",
-                                tool_name,
-                            )
-
-                    if len(batch_payloads) == 1:
-                        yield f"data: [TOOL_CALL_PENDING] {json.dumps(batch_payloads[0])}\n\n"
-                        yield "data: [DONE]\n\n"
-                        return
-                    if len(batch_payloads) > 1:
-                        envelope = {"calls": batch_payloads}
-                        yield f"data: [TOOL_CALL_BATCH_PENDING] {json.dumps(envelope)}\n\n"
-                        yield "data: [DONE]\n\n"
-                        return
-                    if tool_calls:
-                        tc0 = tool_calls[0]
-                        fn0 = tc0.get("function", {}) if isinstance(tc0, dict) else {}
-                        logger.warning(
-                            "cipherstrike_bridge: tool_calls present but none resolved via registry (first=%r)",
-                            fn0.get("name") if isinstance(fn0, dict) else None,
-                        )
-
-                if content:
-                    for chunk in _iter_sse_text_chunks(content):
-                        yield f"data: {json.dumps(chunk)}\n\n"
-                yield "data: [DONE]\n\n"
-            except GeneratorExit:
-                return
-            except Exception as exc:
-                logger.error("cipherstrike_bridge llm-chat-with-tools-stream: %s", exc)
-                yield f"data: [ERROR] {str(exc)}\n\n"
-
         return Response(
-            stream_with_context(gen()),
+            stream_with_context(_stream_llm_sse(messages, schemas)),
             mimetype="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

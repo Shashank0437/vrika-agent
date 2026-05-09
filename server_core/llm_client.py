@@ -35,6 +35,15 @@ import server_core.config_core as config_core
 logger = logging.getLogger(__name__)
 
 
+def _slice_stream_text(text: str, max_chars: int = 48) -> Generator[str, None, None]:
+  """Split large model deltas into smaller SSE chunks so the UI can render progressively."""
+  if not text:
+    return
+  step = max(1, max_chars)
+  for i in range(0, len(text), step):
+    yield text[i : i + step]
+
+
 def _cfg(key: str, default: str = "") -> str:
   """Read config as a string: env var overrides config_core, which overrides default.
 
@@ -273,7 +282,12 @@ class GeminiBackend:
       out["thinking_content"] = thought_text
     return out
 
-  def stream_chat(self, messages: List[Dict[str, Any]], num_ctx: Optional[int] = None) -> Generator:
+  def stream_chat(
+    self,
+    messages: List[Dict[str, Any]],
+    num_ctx: Optional[int] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
+  ) -> Generator:
     sys_text, contents = self._build_contents(messages)
     mo = min(max((num_ctx or self._max_output_tokens), 256), 8192)
     want_thoughts = self._want_thoughts(None)
@@ -285,6 +299,13 @@ class GeminiBackend:
     }
     if sys_text:
       body["systemInstruction"] = {"parts": [{"text": sys_text}]}
+
+    had_tools = bool(tools)
+    if tools:
+      decls = self._openai_tools_to_gemini_declarations(tools)
+      if decls:
+        body["tools"] = [{"functionDeclarations": decls}]
+        body["toolConfig"] = {"functionCallingConfig": {"mode": "AUTO"}}
 
     url = self._endpoint("streamGenerateContent") + "&alt=sse"
 
@@ -305,6 +326,8 @@ class GeminiBackend:
       with resp:
         resp.raise_for_status()
         last_usage: Dict[str, Any] = {}
+        last_parts: List[Dict[str, Any]] = []
+        function_call_parts: List[Dict[str, Any]] = []
         for raw in resp.iter_lines(decode_unicode=True):
           if not raw or not isinstance(raw, str):
             continue
@@ -323,14 +346,33 @@ class GeminiBackend:
             last_usage.update(meta)
 
           for cand in data.get("candidates") or []:
-            for part in (cand.get("content") or {}).get("parts") or []:
+            parts = (cand.get("content") or {}).get("parts") or []
+            if parts:
+              last_parts = parts
+            for part in parts:
+              if isinstance(part, dict) and part.get("functionCall"):
+                function_call_parts.append(part)
               txt = part.get("text") if isinstance(part, dict) else None
               if not txt:
                 continue
               if part.get("thought"):
                 yield {"type": "thinking", "content": txt}
               else:
-                yield txt
+                yield from _slice_stream_text(txt)
+
+        tool_calls_norm: Optional[List[Dict[str, Any]]] = None
+        if had_tools:
+          if function_call_parts:
+            parsed_fc = self._parse_tool_calls_from_parts(function_call_parts)
+            tool_calls_norm = parsed_fc if parsed_fc else None
+          if tool_calls_norm is None and last_parts:
+            non_thought_parts = [p for p in last_parts if isinstance(p, dict) and not p.get("thought")]
+            parsed = self._parse_tool_calls_from_parts(non_thought_parts)
+            tool_calls_norm = parsed if parsed else None
+
+        if tool_calls_norm:
+          yield {"type": "_cipherstrike_tool_calls", "tool_calls": tool_calls_norm}
+          return
 
         elapsed = max(time.perf_counter() - stream_t0, 1e-9)
         prompt = int(last_usage.get("promptTokenCount") or 0)
@@ -667,14 +709,27 @@ class LLMClient:
       return result
     return str(result) if result is not None else ""
 
-  def stream_chat(self, messages: List[Dict[str, Any]], num_ctx: Optional[int] = None) -> Generator:
+  def stream_chat(
+    self,
+    messages: List[Dict[str, Any]],
+    num_ctx: Optional[int] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
+  ) -> Generator:
     if self._backend is None:
       raise RuntimeError(
         f"LLM client not initialized: {self._init_error or 'unknown error'}"
       )
     if not hasattr(self._backend, "stream_chat"):
       raise RuntimeError(f"Backend {self.provider!r} does not support streaming")
-    yield from self._backend.stream_chat(messages, num_ctx=num_ctx)
+    sc = self._backend.stream_chat
+    try:
+      yield from sc(messages, num_ctx=num_ctx, tools=tools)
+    except TypeError:
+      if tools is not None:
+        raise RuntimeError(
+          f"Backend {self.provider!r} does not support streaming with tools",
+        ) from None
+      yield from sc(messages, num_ctx=num_ctx)
 
   def generate_summary(self, messages: List[Dict[str, Any]]) -> str:
     if self._backend is None:
