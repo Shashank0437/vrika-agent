@@ -295,7 +295,7 @@ setup_git_repo() {
   fi
 
   echo "Preparing repo: ${repo_name}"
-  if ! "${VENV_DIR}/bin/python3" -m pip --disable-pip-version-check install --quiet --progress-bar off -r "${requirements_file}"; then
+  if ! "${VENV_DIR}/bin/python3" -m pip --disable-pip-version-check install  -r "${requirements_file}"; then
     echo "Repo setup failed for ${repo_name}; continuing."
     echo "You can run setup manually inside ${repo_dir}."
     return
@@ -328,7 +328,7 @@ install_requirements_file() {
   if [[ -f "${ROOT_DIR}/dependencies/pip_constraints.txt" ]]; then
     pip_constraint=(-c "${ROOT_DIR}/dependencies/pip_constraints.txt")
   fi
-  "${VENV_DIR}/bin/python3" -m pip --disable-pip-version-check install --quiet --progress-bar off "${pip_constraint[@]}" -r "${requirements_file}"
+  "${VENV_DIR}/bin/python3" -m pip --disable-pip-version-check install  "${pip_constraint[@]}" -r "${requirements_file}"
   touch "${stamp_file}"
 }
 
