@@ -3,6 +3,7 @@ Stateless LLM bridge for CipherStrike FastAPI — no SQLite chat persistence.
 
 Endpoints:
   POST /api/cipherstrike/schemas-from-tools
+  POST /api/cipherstrike/route-intent  (JSON — operational vs conversational + tool shortlist)
   POST /api/cipherstrike/llm-chat
   POST /api/cipherstrike/llm-stream  (SSE)
 """
@@ -13,6 +14,7 @@ import hmac
 import json
 import logging
 import os
+import re
 from typing import Any, Dict, List
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
@@ -21,6 +23,8 @@ from server_core.singletons import llm_client
 from server_core.tool_schema import build_tool_schemas
 
 logger = logging.getLogger(__name__)
+
+_MAX_MULTI_TOOL_CALLS = max(1, int(os.environ.get("CIPHERSTRIKE_MAX_MULTI_TOOL_CALLS", "8")))
 
 api_cipherstrike_bridge_bp = Blueprint("api_cipherstrike_bridge", __name__)
 
@@ -47,6 +51,105 @@ def _iter_sse_text_chunks(text: str, chunk_chars: int = 72):
     step = max(chunk_chars, 1)
     for i in range(0, len(text), step):
         yield text[i : i + step]
+
+
+def _extract_json_object(text: str) -> Dict[str, Any] | None:
+    """Best-effort parse JSON object from LLM output (strip fences / prose)."""
+    if not text or not isinstance(text, str):
+        return None
+    raw = text.strip()
+    fence = re.search(r"\{[\s\S]*\}", raw)
+    if fence:
+        raw = fence.group(0)
+    try:
+        obj = json.loads(raw)
+        return obj if isinstance(obj, dict) else None
+    except json.JSONDecodeError:
+        return None
+
+
+_ROUTER_SYSTEM_TEMPLATE = """You are a router for CipherStrike (authorized security testing assistant).
+
+Given the user message and the compact tool list below, respond with **only** valid JSON (no markdown):
+{{"intent":"operational"|"conversational","tool_names":[],"reply":""}}
+
+Rules:
+- intent **operational** when the user wants scans, enumeration, exploitation workflows, CVE lookup, concrete tooling on targets, or similar actionable security tasks.
+- intent **conversational** for greetings, thanks, general explanations, policy discussion without requesting tools.
+- **tool_names**: when operational, include 1–{max_tools} tool **names** chosen ONLY from the list below (exact spelling). Prefer minimal sufficient set. When conversational, use [].
+- **reply**: when conversational, a short helpful reply (1–6 sentences). When operational, usually "" unless you need one clarifying sentence.
+
+Available tools (name: short description):
+{catalog}
+"""
+
+
+@api_cipherstrike_bridge_bp.route("/api/cipherstrike/route-intent", methods=["POST"])
+def route_intent():
+    """LLM router — operational vs conversational + subset of tool names from caller-supplied catalog."""
+    blocked = _require_bridge()
+    if blocked:
+        return blocked
+    if not llm_client.is_available():
+        return jsonify({"success": False, "error": "LLM is not available"}), 503
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        message = body.get("message")
+        if not isinstance(message, str) or not message.strip():
+            return jsonify({"success": False, "error": "message is required"}), 400
+        tools = body.get("tools")
+        if not isinstance(tools, list):
+            return jsonify({"success": False, "error": "tools must be a list"}), 400
+        max_pick = max(1, min(int(body.get("max_tool_names") or 12), 24))
+        allowed_names = {
+            str(t.get("name") or "").strip()
+            for t in tools
+            if isinstance(t, dict) and str(t.get("name") or "").strip()
+        }
+        catalog_lines: List[str] = []
+        for t in tools:
+            if not isinstance(t, dict):
+                continue
+            name = str(t.get("name") or "").strip()
+            if not name:
+                continue
+            desc = str(t.get("desc") or "").strip().replace("\n", " ")
+            if len(desc) > 100:
+                desc = desc[:97] + "..."
+            catalog_lines.append(f"- {name}: {desc}")
+        catalog_text = "\n".join(catalog_lines) if catalog_lines else "(no tools)"
+        sys_prompt = _ROUTER_SYSTEM_TEMPLATE.format(max_tools=max_pick, catalog=catalog_text)
+        result = llm_client.chat(
+            [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": message.strip()},
+            ],
+            tools=None,
+        )
+        text_out = result if isinstance(result, str) else str((result or {}).get("content") or "")
+        parsed = _extract_json_object(text_out) or {}
+        intent = str(parsed.get("intent") or "conversational").lower().strip()
+        if intent not in ("operational", "conversational"):
+            intent = "conversational"
+        raw_names = parsed.get("tool_names") or []
+        tool_names: List[str] = []
+        if isinstance(raw_names, list) and intent == "operational":
+            for n in raw_names[:max_pick]:
+                if isinstance(n, str) and n.strip() in allowed_names:
+                    tool_names.append(n.strip())
+        reply = parsed.get("reply")
+        reply_str = reply.strip() if isinstance(reply, str) else ""
+        return jsonify(
+            {
+                "success": True,
+                "intent": intent,
+                "tool_names": tool_names,
+                "reply": reply_str,
+            },
+        )
+    except Exception as exc:
+        logger.exception("cipherstrike_bridge route-intent")
+        return jsonify({"success": False, "error": str(exc)}), 500
 
 
 def _stream_llm_sse(messages: List[Dict[str, Any]]):
@@ -185,27 +288,53 @@ def llm_chat_tools_then_chunk():
                     yield f"data: [THINK_TOKEN] {json.dumps(thinking_extra)}\n\n"
 
                 if tool_calls:
-                    tc = tool_calls[0]
-                    fn = tc.get("function", {})
-                    tool_name = fn.get("name", "")
-                    arguments = fn.get("arguments", {})
                     from tool_registry import get_tool
 
-                    tool_def = get_tool(tool_name)
-                    if tool_def:
-                        pending_payload = {
-                            "tool_name": tool_name,
-                            "arguments": arguments if isinstance(arguments, dict) else {},
-                            "description": tool_def.get("desc", ""),
-                            "endpoint": tool_def.get("endpoint", ""),
-                        }
-                        yield f"data: [TOOL_CALL_PENDING] {json.dumps(pending_payload)}\n\n"
+                    batch_payloads: List[Dict[str, Any]] = []
+                    if not isinstance(tool_calls, list):
+                        tool_calls = []
+                    for tc in tool_calls[:_MAX_MULTI_TOOL_CALLS]:
+                        if not isinstance(tc, dict):
+                            continue
+                        fn = tc.get("function", {})
+                        if not isinstance(fn, dict):
+                            continue
+                        tool_name = str(fn.get("name") or "").strip()
+                        arguments = fn.get("arguments", {})
+                        if not isinstance(arguments, dict):
+                            arguments = {}
+                        tool_def = get_tool(tool_name)
+                        if tool_def:
+                            batch_payloads.append(
+                                {
+                                    "tool_name": tool_name,
+                                    "arguments": arguments,
+                                    "description": str(tool_def.get("desc") or ""),
+                                    "endpoint": str(tool_def.get("endpoint") or ""),
+                                },
+                            )
+                        else:
+                            logger.warning(
+                                "cipherstrike_bridge: unknown tool %r from model, skipping",
+                                tool_name,
+                            )
+
+                    if len(batch_payloads) == 1:
+                        yield f"data: [TOOL_CALL_PENDING] {json.dumps(batch_payloads[0])}\n\n"
                         yield "data: [DONE]\n\n"
                         return
-                    logger.warning(
-                        "cipherstrike_bridge: unknown tool %r from model, falling back to text",
-                        tool_name,
-                    )
+                    if len(batch_payloads) > 1:
+                        envelope = {"calls": batch_payloads}
+                        yield f"data: [TOOL_CALL_BATCH_PENDING] {json.dumps(envelope)}\n\n"
+                        yield "data: [DONE]\n\n"
+                        return
+                    if tool_calls:
+                        tc0 = tool_calls[0]
+                        fn0 = tc0.get("function", {}) if isinstance(tc0, dict) else {}
+                        logger.warning(
+                            "cipherstrike_bridge: tool_calls present but none resolved via registry (first=%r)",
+                            fn0.get("name") if isinstance(fn0, dict) else None,
+                        )
 
                 if content:
                     for chunk in _iter_sse_text_chunks(content):
