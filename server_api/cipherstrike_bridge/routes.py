@@ -202,7 +202,13 @@ def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Ge
 
 
 def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dict[str, Any]]) -> Generator[str, None, None]:
-    """Non-streaming chat + tools (OpenAI/Anthropic or fallback); replay assistant text as SSE chunks."""
+    """Non-streaming chat + tools (OpenAI/Anthropic or fallback); replay assistant text as SSE chunks.
+
+    Operational turns with tool schemas on non-Gemini providers take this path: the model runs to
+    completion (tools may block), then assistant text is chunked into SSE events. There is no live
+    token stream until after ``llm_client.chat`` returns — expect a pause after ``[THINKING]``,
+    then batched ``data:`` lines (still chunked for SSE framing, but not token-real-time).
+    """
     try:
         yield "data: [THINKING]\n\n"
         result = llm_client.chat(messages, tools=schemas)
