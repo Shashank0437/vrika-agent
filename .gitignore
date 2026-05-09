@@ -1,5 +1,6 @@
 __pycache__
 *.pyc
+nyxstrike-env/
 nyxstrike.log
 app.log
 .nyxstrike_data/
