@@ -1,0 +1,2 @@
+# NyxStrike / CipherStrike agent (Python). Install alongside the server or in the agent venv.
+reportlab>=4.0.0

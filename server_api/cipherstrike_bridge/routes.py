@@ -79,6 +79,7 @@ Given the user message and the compact tool list below, respond with **only** va
 
 Rules:
 - intent **operational** when the user wants scans, enumeration, exploitation workflows, CVE lookup, concrete tooling on targets, URLs/hosts to assess, penetration tests, or any request where starting security tools would help (even if they also ask "how" or "can you").
+- If the user asks for a **penetration test report**, **security report**, **PDF report**, **executive summary / write-up** of findings, or to **create / generate / export a report** from the session → **operational**, **category** **reporting**, and include **penetration-report** in **tool_names** when that exact name appears in the tool list (often as the only tool for that request).
 - If the message contains **http:// or https://** and asks for testing, assessment, or a pentest → **operational** and pick suitable tools from the list (e.g. HTTP probe, tech fingerprint, vuln templates, web scanner — use names that exist below).
 - intent **conversational** only for pure greetings, thanks, meta chat, or conceptual questions with **no target** and **no request to run or plan tooling**.
 - **category**: exactly **one** workflow slug when intent is **operational**, chosen from: {categories}. Pick the best primary fit (e.g. web pentest with vuln scanners → web_vuln; passive subdomain gathering → osint). When intent is **conversational**, use **""** (empty string) for category.

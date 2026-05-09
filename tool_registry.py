@@ -143,6 +143,21 @@ TOOLS: Dict[str, dict] = {
         "effectiveness": 0.90,
     },
 
+    "penetration-report": {
+        "desc": "Generate a comprehensive penetration testing PDF report from the current chat session "
+        "(findings, tools, vulnerabilities). Server supplies session transcript; optional labels refine the cover page.",
+        "endpoint": "/api/intelligence/penetration-report",
+        "method": "POST",
+        "category": "intelligence",
+        "params": {},
+        "optional": {
+            "client_name": "",
+            "target_label": "",
+            "generated_by": "CipherStrike",
+        },
+        "effectiveness": 0.88,
+    },
+
     # "cve-monitor": {
     #     "desc": "Monitor CVE databases for new vulnerabilities with AI analysis.",
     #     "endpoint": "/api/vuln-intel/cve-monitor",
@@ -1861,6 +1876,7 @@ CATEGORIES = {
     "database": "Database management and querying",
     "active_directory": "Active Directory enumeration and exploitation",
     "vulnerability_intelligence": "Vulnerability research and intelligence gathering",
+    "reporting": "Documentation and formal penetration test / security assessment reports",
 }
 
 # ---------------------------------------------------------------------------
@@ -1923,8 +1939,18 @@ _INTENT_KEYWORDS: Dict[str, List[str]] = {
     ],
     "database": ["mysql", "sqlite3"],
     "essential": ["nmap", "gobuster", "dirb", "nikto", "sqlmap", "hydra", "john", "hashcat"],
-    "vulnerability_intelligence": ["vulnx", "vulnerability intelligence", "vulnerability research", "cve search", "exploit research"]
-
+    "vulnerability_intelligence": ["vulnx", "vulnerability intelligence", "vulnerability research", "cve search", "exploit research"],
+    "reporting": [
+        "report",
+        "pdf",
+        "write-up",
+        "writeup",
+        "executive summary",
+        "penetration test report",
+        "security report",
+        "assessment report",
+        "documentation",
+    ],
 }
 
 
@@ -1996,6 +2022,10 @@ SUGGESTED_APPROACHES: Dict[str, str] = {
         "Search CVE databases and Exploit-DB for the target stack. "
         "Cross-reference discovered service versions with known vulnerabilities. "
         "Prioritise CVEs with public PoC or Metasploit modules."
+    ),
+    "reporting": (
+        "Consolidate session findings, tools run, and risks into a formal penetration test report. "
+        "Use penetration-report when the operator asks for a PDF or written assessment."
     ),
 }
 
