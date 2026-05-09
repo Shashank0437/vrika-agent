@@ -1,6 +1,9 @@
 from flask import Blueprint, request, jsonify
 import logging
+import shlex
+
 from server_core.command_executor import execute_command
+from server_core.tool_paths import resolve_cli_tool, scope_to_domain
 
 logger = logging.getLogger(__name__)
 
@@ -12,16 +15,29 @@ def waybackurls():
     """Execute Waybackurls for historical URL discovery with enhanced logging"""
     try:
         params = request.json
-        domain = params.get("domain", "")
+        raw = params.get("domain") or params.get("target") or ""
+        domain = scope_to_domain(str(raw))
         get_versions = params.get("get_versions", False)
         no_subs = params.get("no_subs", False)
         additional_args = params.get("additional_args", "")
 
         if not domain:
             logger.warning("🌐 Waybackurls called without domain parameter")
-            return jsonify({"error": "Domain parameter is required"}), 400
+            return jsonify(
+                {"error": "domain or target parameter is required (hostname or http(s) URL)"}
+            ), 400
 
-        command = f"waybackurls {domain}"
+        wb_bin = resolve_cli_tool("waybackurls")
+        if not wb_bin:
+            return jsonify(
+                {
+                    "error": "waybackurls binary not found on PATH or in ~/go/bin — install with "
+                    "`go install github.com/tomnomnom/waybackurls@latest` "
+                    "(or `agent/scripts/install_recon_go_tools.sh`).",
+                }
+            ), 400
+
+        command = f"{shlex.quote(wb_bin)} {shlex.quote(domain)}"
 
         if get_versions:
             command += " --get-versions"

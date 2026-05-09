@@ -1,6 +1,9 @@
 from flask import Blueprint, request, jsonify
 import logging
+import shlex
+
 from server_core.command_executor import execute_command
+from server_core.tool_paths import resolve_cli_tool
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +15,7 @@ def katana():
     """Execute Katana for next-generation crawling and spidering with enhanced logging"""
     try:
         params = request.json
-        url = params.get("url", "")
+        url = (params.get("url") or params.get("target") or "").strip()
         depth = params.get("depth", 3)
         js_crawl = params.get("js_crawl", True)
         form_extraction = params.get("form_extraction", True)
@@ -21,9 +24,19 @@ def katana():
 
         if not url:
             logger.warning("🌐 Katana called without URL parameter")
-            return jsonify({"error": "URL parameter is required"}), 400
+            return jsonify({"error": "URL or target parameter is required"}), 400
 
-        command = f"katana -u {url} -d {depth}"
+        katana_bin = resolve_cli_tool("katana")
+        if not katana_bin:
+            return jsonify(
+                {
+                    "error": "katana binary not found on PATH or in ~/go/bin — install with "
+                    "`go install github.com/projectdiscovery/katana/cmd/katana@latest` "
+                    "(or `agent/scripts/install_recon_go_tools.sh`).",
+                }
+            ), 400
+
+        command = f"{shlex.quote(katana_bin)} -u {shlex.quote(url)} -d {int(depth)}"
 
         if js_crawl:
             command += " -jc"

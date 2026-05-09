@@ -1,7 +1,10 @@
 from flask import Blueprint, request, jsonify
 import logging
+import shlex
+
 from server_core.command_executor import execute_command
 from server_core.singletons import COMMON_DIRB_PATH
+from server_core.tool_paths import resolve_cli_tool, resolve_wordlist_path
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +17,11 @@ def dirb():
     try:
         params = request.json
         url = params.get("url", "")
-        wordlist = params.get("wordlist", COMMON_DIRB_PATH)
+        raw_wl = params.get("wordlist")
+        wordlist = resolve_wordlist_path(
+            raw_wl if isinstance(raw_wl, str) else None,
+            catalog_paths=(COMMON_DIRB_PATH,),
+        )
         additional_args = params.get("additional_args", "")
 
         if not url:
@@ -23,7 +30,18 @@ def dirb():
                 "error": "URL parameter is required"
             }), 400
 
-        command = f"dirb {url} {wordlist}"
+        dirb_bin = resolve_cli_tool("dirb")
+        if not dirb_bin:
+            return jsonify(
+                {
+                    "error": "dirb binary not found on PATH — install dirb (e.g. apt install dirb) "
+                    "and ensure it is on PATH.",
+                }
+            ), 400
+
+        command = (
+            f"{shlex.quote(dirb_bin)} {shlex.quote(str(url).strip())} {shlex.quote(wordlist)}"
+        )
 
         if additional_args:
             command += f" {additional_args}"

@@ -257,7 +257,7 @@ TOOLS: Dict[str, dict] = {
         "method": "POST",
         "category": "web_recon",
         "params": {"url": {"required": True}},
-        "optional": {"additional_args": ""},
+        "optional": {"target": "", "depth": 3, "js_crawl": True, "form_extraction": True, "output_format": "json", "additional_args": ""},
         "effectiveness": 0.88,
     },
     "gospider": {
@@ -269,6 +269,8 @@ TOOLS: Dict[str, dict] = {
         "optional": {
             "site": "",
             "sites": "",
+            "url": "",
+            "target": "",
             "proxy": "",
             "output": "",
             "user_agent": "web",
@@ -786,7 +788,13 @@ TOOLS: Dict[str, dict] = {
         "method": "POST",
         "category": "osint",
         "params": {"domain": {"required": True}},
-        "optional": {"additional_args": ""},
+        "optional": {
+            "target": "",
+            "providers": "wayback,commoncrawl,otx,urlscan",
+            "include_subs": True,
+            "blacklist": "png,jpg,gif,jpeg,swf,woff,svg,pdf,css,ico",
+            "additional_args": "",
+        },
         "effectiveness": 0.82,
     },
     "waybackurls": {
@@ -795,7 +803,7 @@ TOOLS: Dict[str, dict] = {
         "method": "POST",
         "category": "osint",
         "params": {"domain": {"required": True}},
-        "optional": {"additional_args": ""},
+        "optional": {"get_versions": False, "no_subs": False, "target": "", "additional_args": ""},
         "effectiveness": 0.80,
     },
     "theHarvester": {
@@ -1093,7 +1101,7 @@ TOOLS: Dict[str, dict] = {
         "method": "POST",
         "category": "web_recon",
         "params": {"url": {"required": True}},
-        "optional": {"depth": 2, "forms": True, "robots": True, "sitemap": True, "wayback": False, "additional_args": ""},
+        "optional": {"target": "", "depth": 2, "forms": True, "robots": True, "sitemap": True, "wayback": False, "additional_args": ""},
         "effectiveness": 0.83,
     },
     "autorecon": {

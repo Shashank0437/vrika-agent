@@ -1,10 +1,24 @@
 from flask import Blueprint, request, jsonify
 import logging
+import shlex
+
 from server_core.command_executor import execute_command
+from server_core.tool_paths import resolve_cli_tool
 
 logger = logging.getLogger(__name__)
 
 api_web_crawl_gospider_bp = Blueprint("api_web_crawl_gospider", __name__)
+
+
+def _coerce_seed_url(val: object) -> str:
+    if val is None:
+        return ""
+    v = str(val).strip()
+    if not v:
+        return ""
+    if v.startswith(("http://", "https://")):
+        return v
+    return f"https://{v}"
 
 
 @api_web_crawl_gospider_bp.route("/api/tools/gospider", methods=["POST"])
@@ -13,8 +27,12 @@ def gospider():
     try:
         params = request.json or {}
 
-        site = params.get("site", "")
+        site = (params.get("site") or "").strip()
         sites = params.get("sites", "")
+        if not site and not sites:
+            url_like = params.get("url") or params.get("target")
+            if url_like:
+                site = _coerce_seed_url(url_like)
         proxy = params.get("proxy", "")
         output = params.get("output", "")
         user_agent = params.get("user_agent", "web")
@@ -41,34 +59,48 @@ def gospider():
 
         if not version and not site and not sites:
             logger.warning("🕷️ GoSpider called without site/sites parameter")
-            return jsonify({"error": "Provide either site or sites parameter"}), 400
+            return jsonify(
+                {
+                    "error": "Provide either site, sites, url, or target parameter",
+                }
+            ), 400
 
-        command_parts = ["gospider"]
+        gospider_bin = resolve_cli_tool("gospider")
+        if not gospider_bin:
+            return jsonify(
+                {
+                    "error": "gospider binary not found on PATH or in ~/go/bin — install GoSpider "
+                    "(e.g. `go install github.com/jaeles-project/gospider@latest` per upstream docs).",
+                }
+            ), 400
+
+        command_parts = [shlex.quote(gospider_bin)]
 
         if site:
-            command_parts.extend(["-s", site])
+            command_parts.extend(["-s", shlex.quote(site)])
         if sites:
-            command_parts.extend(["-S", sites])
+            sites_s = sites if isinstance(sites, str) else str(sites)
+            command_parts.extend(["-S", shlex.quote(sites_s)])
         if proxy:
-            command_parts.extend(["-p", proxy])
+            command_parts.extend(["-p", shlex.quote(str(proxy))])
         if output:
-            command_parts.extend(["-o", output])
+            command_parts.extend(["-o", shlex.quote(str(output))])
         if user_agent:
-            command_parts.extend(["-u", user_agent])
+            command_parts.extend(["-u", shlex.quote(str(user_agent))])
         if cookie:
-            command_parts.extend(["--cookie", cookie])
+            command_parts.extend(["--cookie", shlex.quote(str(cookie))])
 
         if isinstance(headers, str) and headers:
-            command_parts.extend(["-H", headers])
+            command_parts.extend(["-H", shlex.quote(headers)])
         elif isinstance(headers, list):
             for header in headers:
                 if isinstance(header, str) and header:
-                    command_parts.extend(["-H", header])
+                    command_parts.extend(["-H", shlex.quote(header)])
 
         if burp:
-            command_parts.extend(["--burp", burp])
+            command_parts.extend(["--burp", shlex.quote(str(burp))])
         if blacklist:
-            command_parts.extend(["--blacklist", blacklist])
+            command_parts.extend(["--blacklist", shlex.quote(str(blacklist))])
 
         if threads:
             command_parts.extend(["-t", str(threads)])
