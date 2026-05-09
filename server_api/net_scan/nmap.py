@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 import logging
 
 from server_core.command_executor import execute_command
+from server_core.nmap_target import normalize_nmap_target
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,14 @@ def nmap():
             return jsonify({
                 "error": "Target parameter is required"
             }), 400
+
+        original_target = target
+        target = normalize_nmap_target(target)
+        if not target:
+            logger.warning("Nmap target empty after normalization from %r", original_target)
+            return jsonify({"error": "Target parameter is required"}), 400
+        if target != original_target:
+            logger.info("Nmap target normalized: %r -> %r", original_target, target)
 
         command = f"nmap {scan_type}"
 
