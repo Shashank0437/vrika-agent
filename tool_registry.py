@@ -330,7 +330,14 @@ TOOLS: Dict[str, dict] = {
         "method": "POST",
         "category": "web_recon",
         "params": {"url": {"required": True}},
-        "optional": {"additional_args": ""},
+        "optional": {
+            "target": "",
+            "extensions": "php,html,js,txt,xml,json",
+            "wordlist": "",
+            "threads": 30,
+            "recursive": False,
+            "additional_args": "",
+        },
         "effectiveness": 0.87,
     },
     "wafw00f": {
