@@ -1,0 +1,911 @@
+{
+  "account": {
+    "help": "CloudMapper/Prowler pseudo-account alias for mapping AWS tenancy graphs."
+  },
+  "action": {
+    "help": "`airmon-ng` verb (`start`/`stop`) or CloudMapper subcommand name."
+  },
+  "additional_args": {
+    "help": "Shell tokens appended after mapped CLI arguments."
+  },
+  "aes_key": {
+    "help": "Hex AES256 key for Kerberos `-aesKey` flows when passwords are unavailable."
+  },
+  "aggressive": {
+    "help": "When true, wrappers usually opt into intrusive bundles such as `nmap -A`; requires privileged raw sockets. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "all_sources": {
+    "help": "Expand subfinder to every passive source\u2014more external queries and latency. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "analysis_timeout": {
+    "help": "Maximum Ghidra headless analysis seconds before abort."
+  },
+  "analysis_type": {
+    "help": "angr strategy (`symbolic`, `CFGFast`, \u2026)."
+  },
+  "analyze": {
+    "help": "Responder analyse-only posture versus active spoofing loops. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "api_key": {
+    "help": "Privileged bearer (ZAP API, SaaS connectors)\u2014never ticket plain-text."
+  },
+  "append_data": {
+    "help": "Suffix bytes appended inside hashpump length-extension forgeries."
+  },
+  "arch": {
+    "help": "ISA hint (`x86`, `amd64`, `aarch64`) for gadget tools."
+  },
+  "attack_handshake": {
+    "help": "Wi-Fi utilities bias toward WPA handshake harvesting when drivers allow. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "attack_mode": {
+    "help": "`aireplay-ng` attack name **or** hashcat `-a` attack id\u2014meaning depends on catalogue entry context."
+  },
+  "attack_pmkid": {
+    "help": "Prefer PMKID capture paths on supported chipsets. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "attack_type": {
+    "help": "MDK4/EAPHammer attack choreography identifier."
+  },
+  "auth": {
+    "help": "Compact credential or Authorization header string for Schemathesis/HTTP harnesses."
+  },
+  "auth_key": {
+    "help": "API key/bearer for premium vulnerability intel feeds."
+  },
+  "auth_mode": {
+    "help": "EAPHammer soft-AP authentication profile (OPEN, WPA2-PSK, enterprise)."
+  },
+  "authtype": {
+    "help": "LDAP bind mode (`NTLM`, `SIMPLE`, \u2026) for ldapdomaindump."
+  },
+  "auto_domain": {
+    "help": "shuffleDNS may infer apex domains from mixed inputs\u2014disable for strict scope. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "avoid_addresses": {
+    "help": "Hex addresses excluded from symbolic paths."
+  },
+  "base_url": {
+    "help": "API root such as `https://api.target` that relative fuzz paths expand against."
+  },
+  "binary": {
+    "help": "Executable for radare2/ghidra/objdump/ropper workflows."
+  },
+  "bindto": {
+    "help": "Local IPv4 MassDNS binds to for egress control."
+  },
+  "blacklist": {
+    "help": "Regex/glob denylist trimming spider scope."
+  },
+  "blind": {
+    "help": "Route XSS testing through out-of-band/collaborator channels for blind sinks. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "body": {
+    "help": "Raw HTTP body for x8-style hidden parameter fuzzing."
+  },
+  "bssid": {
+    "help": "AP MAC filters for airodump/aireplay workflows."
+  },
+  "burp": {
+    "help": "Burp collaborator/proxy integration hint for auxiliary crawlers."
+  },
+  "burst_rate": {
+    "help": "Wi\u2011Fi injection throttle\u2014reduce outside shielded enclosures."
+  },
+  "busy_poll": {
+    "help": "MassDNS trades CPU for lower latency via tight socket polling loops. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "caplet": {
+    "help": "Bettercap `.cap` macro loaded after interface setup."
+  },
+  "capture_file": {
+    "help": "Single capture for airdecap-ng decrypt passes."
+  },
+  "capture_files": {
+    "help": "`.pcap` paths with handshake material for aircrack-ng."
+  },
+  "capture_filter": {
+    "help": "The workspace forwards `capture_filter` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "case_name": {
+    "help": "Autopsy logical case separating evidence SQLite stores."
+  },
+  "cert_path": {
+    "help": "Agent filesystem path for `cert_path` consumed by the connector."
+  },
+  "channel": {
+    "help": "802.11 channel for captures or rogue AP broadcasts."
+  },
+  "check": {
+    "help": "The workspace forwards `check` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "checks": {
+    "help": "CSV benchmark control ids (docker-bench), Prowler check ids, **or** Schemathesis check names\u2014depends on route."
+  },
+  "client_mac": {
+    "help": "Station MAC for directed deauthentication bursts."
+  },
+  "command": {
+    "help": "Escaped command string for psexec/wmiexec/smbexec-style runners."
+  },
+  "commands": {
+    "help": "Macro batch (`rpcclient` or `r2 -c`) replayed verbatim."
+  },
+  "concurrent": {
+    "help": "gospider concurrent fetch budget per depth tier."
+  },
+  "config": {
+    "help": "cloudmapper account metadata or secondary service configuration path."
+  },
+  "config_dir": {
+    "help": "kube-bench JSON directory or auxiliary DNS config roots."
+  },
+  "config_file": {
+    "help": "Alternate YAML for Falco, Clair, or service-specific configs."
+  },
+  "cookie": {
+    "help": "Session cookie string for authenticated gospider crawls."
+  },
+  "cookies": {
+    "help": "Cookie jar string for manual HTTP replays."
+  },
+  "count": {
+    "help": "`aireplay-ng` packet burst counter."
+  },
+  "cover_file": {
+    "help": "Carrier file for Steghide embed/extract."
+  },
+  "cve_id": {
+    "help": "CVE identifier for vulnx-style intel APIs."
+  },
+  "data": {
+    "help": "sqlmap POST body, Commix injection context, or hashpump cleartext segment."
+  },
+  "data_services": {
+    "help": "The workspace forwards `data_services` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "database": {
+    "help": "The workspace forwards `database` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "db_path": {
+    "help": "Agent filesystem path for `db_path` consumed by the connector."
+  },
+  "dc_ip": {
+    "help": "Domain controller IPv4 when DNS is untrusted or split-horizon breaks auth."
+  },
+  "debug": {
+    "help": "Emit verbose traces (Impacket, HTTP utilities); may leak secrets into logs. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "delay": {
+    "help": "Millis or seconds between probes to reduce WAF trips (Arjun, fuzzers)."
+  },
+  "depth": {
+    "help": "hakrawler/paramspider/gospider crawl depth."
+  },
+  "directory": {
+    "help": "Repository root for Checkov or broad filesystem Trivy scans."
+  },
+  "disable_update_check": {
+    "help": "Skip vendor version pings (useful air-gapped). Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "disassemble": {
+    "help": "Force disassembly-oriented output in objdump-style connectors. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "disk": {
+    "help": "The workspace forwards `disk` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "display_filter": {
+    "help": "The workspace forwards `display_filter` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "domain": {
+    "help": "Authorised DNS apex fed to Amass/subfinder/GAU style OSINT connectors."
+  },
+  "domainlist": {
+    "help": "Path to newline-separated domains for MassDNS bulk resolution."
+  },
+  "domains": {
+    "help": "Additional apex names shuffledns can merge with `domain` for brute jobs."
+  },
+  "drop_group": {
+    "help": "Supplemental group drop for hardened MassDNS runs."
+  },
+  "drop_user": {
+    "help": "Unprivileged POSIX user MassDNS drops to after binding."
+  },
+  "duration": {
+    "help": "Runtime cap for Responder poison loops or Falco capture windows."
+  },
+  "embed_file": {
+    "help": "Secret payload Steghide hides inside `cover_file`."
+  },
+  "endpoint": {
+    "help": "HTTP GraphQL/OpenAPI endpoint evaluated by schema scanners (not the NyxStrike route string)."
+  },
+  "endpoints": {
+    "help": "Relative route fragments `api_fuzzer` appends to `base_url`."
+  },
+  "engine": {
+    "help": "Sublist3r search-engine string."
+  },
+  "error_log": {
+    "help": "MassDNS stderr/log redirection target."
+  },
+  "essid": {
+    "help": "SSID string for handshake correlation or rogue APs."
+  },
+  "exceptions": {
+    "help": "Scout JSON describing suppressed false positives."
+  },
+  "exclude": {
+    "help": "The workspace forwards `exclude` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "exclude_operation_id": {
+    "help": "Skip risky OpenAPI operationIds. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "exploit_type": {
+    "help": "pwntools harness mode (`local` vs `remote`)."
+  },
+  "extended_input": {
+    "help": "Allow MassDNS extended input encodings beyond bare labels. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "extra_args": {
+    "help": "Trailing CLI tokens after mapped arguments for niche switches."
+  },
+  "extra_options": {
+    "help": "Leading dash-options for Impacket scripts lacking structured fields."
+  },
+  "file": {
+    "help": "Binary/firmware specimen for binwalk/strings/checksec."
+  },
+  "file_path": {
+    "help": "Readable path for xxd/exiftool style utilities."
+  },
+  "file_types": {
+    "help": "The workspace forwards `file_types` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "filter": {
+    "help": "MassDNS output-filter DSL restricting printed answers."
+  },
+  "find_address": {
+    "help": "Hex goal for symbolic exploration."
+  },
+  "fingerprint": {
+    "help": "Responder OS/service fingerprinting during poisoning jobs. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "flush": {
+    "help": "Force MassDNS to flush partial results mid-run. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "follow_redirects": {
+    "help": "HTTP helpers follow 3xx chains\u2014watch for open-redirect scope creep. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "force_wpad_auth": {
+    "help": "Force captive WPAD auth flows\u2014only in isolated RF labs. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "format": {
+    "help": "msfvenom output container (`elf`, `exe`, `raw`, `python`)."
+  },
+  "format_type": {
+    "help": "John the Ripper format string (`raw-md5`, `wpapsk`, \u2026)."
+  },
+  "forms": {
+    "help": "hakrawler enumerates HTML forms in addition to anchors. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "framework": {
+    "help": "The workspace forwards `framework` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "gadget_type": {
+    "help": "Ropper category (`rop`, `jop`, `sys`)."
+  },
+  "groups": {
+    "help": "The workspace forwards `groups` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "hash": {
+    "help": "Verifier string for Evil-WinRM / NetExec pass-the-hash transports."
+  },
+  "hash_file": {
+    "help": "Line-delimited hashes for John/hashcat/ophcrack."
+  },
+  "hash_type": {
+    "help": "Hashcat mode id matching `hash_file` format (`22000`, `1000`, \u2026)."
+  },
+  "hashes": {
+    "help": "Impacket `-hashes LMHASH:NTHASH` material or equivalent for Kerberos/NTLM hops."
+  },
+  "hashmap_size": {
+    "help": "MassDNS internal hash buckets for gigantic wordlists."
+  },
+  "headers": {
+    "help": "HTTP headers as JSON map or newline text for replay utilities."
+  },
+  "headless": {
+    "help": "Drive Burp-alternative or ZAP automation without a desktop session. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "heartbeat": {
+    "help": "AutoRecon status interval between internal tool stages."
+  },
+  "host": {
+    "help": "The workspace forwards `host` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "hostname": {
+    "help": "The workspace forwards `hostname` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "https": {
+    "help": "http-headers helper uses TLS when probing raw hostnames. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "iac_dir": {
+    "help": "Terraform/Kubernetes manifest tree for Terrascan."
+  },
+  "ignore": {
+    "help": "Substring denylist skipping brittle resolver targets."
+  },
+  "image": {
+    "help": "OCI image ref (`repo:tag@sha256:\u2026`) for Clair/Trivy."
+  },
+  "image_path": {
+    "help": "Forensic disk image for Autopsy/sleuthkit ingestion."
+  },
+  "include_operation_id": {
+    "help": "Restrict fuzzing to these OpenAPI operationIds. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "include_other_source": {
+    "help": "gospider adds optional third-party link sources. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "include_subs": {
+    "help": "Include discovered subdomains in spider expansion lists. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "input": {
+    "help": "Generic text blob for waymore/hurl data transforms."
+  },
+  "input_data": {
+    "help": "Line block deduped by anew-style utilities."
+  },
+  "input_file": {
+    "help": "Evidence blob for foremost/scalpel/testdisk carvers."
+  },
+  "interface": {
+    "help": "Network interface (`wlan0mon`, `eth0`) for Wi\u2011Fi or Responder jobs."
+  },
+  "interval": {
+    "help": "Millis between MassDNS resolver batches."
+  },
+  "introspection": {
+    "help": "GraphQL scanners may run introspection-assisted checks. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "json": {
+    "help": "Emit JSON-line output for ShuffleDNS-compatible tooling. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "jwt_token": {
+    "help": "Raw JWT/JWS blob for decode, key confusion, or RS256\u2192HS256 testing\u2014handle as live secret."
+  },
+  "kerberos": {
+    "help": "Impacket connectors use Kerberos instead of classical NTLM only. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "key_length": {
+    "help": "The workspace forwards `key_length` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "ld": {
+    "help": "Dynamic linker path accompanying pwninit bundles."
+  },
+  "length": {
+    "help": "The workspace forwards `length` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "level": {
+    "help": "Commix injection depth, ophcrack gadget level, or similar integer tier."
+  },
+  "lhost": {
+    "help": "Callback host embedded in generated payloads."
+  },
+  "libc": {
+    "help": "Optional libc.so path for pwninit bundling."
+  },
+  "libc_id": {
+    "help": "libc-database download id after a match is found."
+  },
+  "libc_path": {
+    "help": "`libc.so.6` path examined by one_gadget."
+  },
+  "list": {
+    "help": "ShuffleDNS bruteforce wordlist path."
+  },
+  "log_prefix": {
+    "help": "Prefix applied to chunked log artefacts on long engagements."
+  },
+  "lport": {
+    "help": "Callback port embedded in generated payloads."
+  },
+  "mask": {
+    "help": "Hashcat mask syntax (`?d?d?d?d?d?d`)."
+  },
+  "massdns": {
+    "help": "MassDNS binary path or helper directory for shuffleDNS glue."
+  },
+  "massdns_cmd": {
+    "help": "Custom MassDNS launcher prefix when images differ."
+  },
+  "match_codes": {
+    "help": "The workspace forwards `match_codes` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "max_depth": {
+    "help": "Recursive crawl depth for packaged web spiders."
+  },
+  "max_examples": {
+    "help": "Schemathesis generated-example cap per operation."
+  },
+  "max_failures": {
+    "help": "Fail-fast threshold for flaky API fuzz campaigns."
+  },
+  "max_pages": {
+    "help": "Burp-style spider page cap."
+  },
+  "max_tools": {
+    "help": "Smart-scan parallel tool budget."
+  },
+  "memory_file": {
+    "help": "RAM dump consumed by volatility `plugin` jobs."
+  },
+  "method": {
+    "help": "HTTP verb (`GET`, `POST`, \u2026) or tool-specific dispatcher (ffuf mode selection, HTTP-framework action cues, Arjun transport)."
+  },
+  "mode": {
+    "help": "High-level tool mode (Amass `enum`, gobuster `dir`, shuffleDNS profile, etc.)."
+  },
+  "module": {
+    "help": "Metasploit module path, Patator dialect, or NetExec plugin name."
+  },
+  "modules": {
+    "help": "Recon-ng module chain, Pacu module list, or related automation selector."
+  },
+  "mutations": {
+    "help": "GraphQL scanners include mutation-focused test cases. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "n": {
+    "help": "`interactsh` poll/request budget controlling how many callback checks occur before stopping."
+  },
+  "negotiate": {
+    "help": "EAPHammer/downgrade knobs affecting WPA-enterprise negotiation behaviours."
+  },
+  "no_color": {
+    "help": "Strip ANSI colour codes for CI logs. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "no_pass": {
+    "help": "Permit credential-less binds when upstream scripts expect that sentinel. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "no_redirect": {
+    "help": "Disable HTTP redirect following for deterministic responses. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "norecurse": {
+    "help": "MassDNS stub mode without recursive iteration. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "nse_scripts": {
+    "help": "Comma-separated NSE script list (`default,safe,vuln`)."
+  },
+  "objective": {
+    "help": "Planner hint for smart-scan/attack-chain heuristics (`comprehensive`, `stealth`)."
+  },
+  "offset": {
+    "help": "The workspace forwards `offset` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "only_subdomains": {
+    "help": "assetfinder prints hostnames without bare apex records. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "options": {
+    "help": "JSON map of Metasploit `set` assignments for scripted console use."
+  },
+  "os_detection": {
+    "help": "Enable OS fingerprinting (`nmap -O`) where templates map it. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "other_source": {
+    "help": "Enable optional OSINT feeds in gospider. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "outfile": {
+    "help": "Explicit MassDNS output file path."
+  },
+  "output": {
+    "help": "Primary output sink some CLIs require (`-o`, `--output`)."
+  },
+  "output_dir": {
+    "help": "Directory root for AutoRecon, foremost, Scout exports."
+  },
+  "output_file": {
+    "help": "Explicit output path for logs/PCAPNG/JSON when CLIs support `-o`."
+  },
+  "output_format": {
+    "help": "Structured report format (`json`, `xml`, `sarif`, `html`)."
+  },
+  "output_prefix": {
+    "help": "`airodump-ng` `--write` basename for rolling captures."
+  },
+  "output_responses": {
+    "help": "Persist raw HTTP bodies from waymore-style mining. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "output_urls": {
+    "help": "Persist URL-only lines from waymore-style archive mining. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "parameters": {
+    "help": "BBot JSON/YAML selecting modules, safe flags, and seeds."
+  },
+  "passphrase": {
+    "help": "WPA PSK or Steghide passphrase for crypto operations."
+  },
+  "password": {
+    "help": "Cleartext password for authenticated scans\u2014rotate if leaked into logs."
+  },
+  "password_file": {
+    "help": "Dictionary file for Hydra/Medusa/Patator."
+  },
+  "payload": {
+    "help": "msfvenom payload specifier (`windows/x64/meterpreter/reverse_tcp`)."
+  },
+  "phases": {
+    "help": "Schemathesis comma-separated phases (`examples`, `coverage`, \u2026)."
+  },
+  "plugin": {
+    "help": "Volatility module (`windows.pslist`, `linux_bash`, \u2026)."
+  },
+  "policy": {
+    "help": "The workspace forwards `policy` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "policy_type": {
+    "help": "The workspace forwards `policy_type` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "poll_interval": {
+    "help": "Spiderfoot/long-job polling cadence when exposed."
+  },
+  "port": {
+    "help": "Single TCP port (for example ZAP\u2019s local proxy) distinct from multi-port scans."
+  },
+  "port_scans": {
+    "help": "Port-related control for `port_scans`; exact meaning follows the catalogue connector."
+  },
+  "ports": {
+    "help": "Port list (`22,443`, `1-65535`) for Masscan/Nmap templates."
+  },
+  "predictable": {
+    "help": "Deterministic MassDNS behaviour for repeatable tests. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "probe": {
+    "help": "httpx runs liveness/TLS fingerprint passes. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "processes": {
+    "help": "The workspace forwards `processes` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "profile": {
+    "help": "Volatility KDBG profile **or** named cloud CLI profile for Prowler\u2014check tool context."
+  },
+  "project_name": {
+    "help": "Ghidra project directory for headless reversing jobs."
+  },
+  "protocol": {
+    "help": "NetExec transport (`smb`, `winrm`, `ldap`, `mssql`, \u2026)."
+  },
+  "protocols": {
+    "help": "The workspace forwards `protocols` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "provider": {
+    "help": "Cloud vendor (`aws`, `azure`, `gcp`, `oci`)."
+  },
+  "proxy": {
+    "help": "HTTP/S proxy URL for gospider or other HTTP utilities."
+  },
+  "quality": {
+    "help": "Ropper minimum gadget quality rank."
+  },
+  "query": {
+    "help": "The workspace forwards `query` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "query_depth": {
+    "help": "GraphQL nested query depth limit for scanners."
+  },
+  "quiet": {
+    "help": "Suppress non-error MassDNS chatter. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "rand_src_ipv6": {
+    "help": "Textual IPv6 source selection hint for MassDNS."
+  },
+  "random_delay": {
+    "help": "gospider random delay between worker requests."
+  },
+  "rate": {
+    "help": "Masscan `--rate` packets-per-second ceiling\u2014keep low outside owned networks."
+  },
+  "rate_limit": {
+    "help": "Global HTTP RPS throttle for schema fuzzing."
+  },
+  "raw_input": {
+    "help": "Domain corpus without normalisation for advanced DNS utilities."
+  },
+  "rcvbuf": {
+    "help": "Kernel receive-buffer hint for MassDNS sockets."
+  },
+  "record_type": {
+    "help": "DNS RR (`A`, `AAAA`, `TXT`) forwarded to stubs."
+  },
+  "record_types": {
+    "help": "dig driver issues these RR types sequentially against `target`."
+  },
+  "region": {
+    "help": "Cloud region focus for audit connectors."
+  },
+  "regions": {
+    "help": "The workspace forwards `regions` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "replacement": {
+    "help": "qsreplace token replacing query values (often `FUZZ`)."
+  },
+  "report_dir": {
+    "help": "Schemathesis/Scout HTML/SARIF/JSON bundle root."
+  },
+  "report_formats": {
+    "help": "Schemathesis export format list (`html,json,junit`)."
+  },
+  "request_timeout": {
+    "help": "Per-request HTTP timeout for Schemathesis."
+  },
+  "resolve_count": {
+    "help": "MassDNS simultaneous resolution concurrency (`-r`)."
+  },
+  "resolver": {
+    "help": "Resolver `ip:port` for shuffleDNS active jobs."
+  },
+  "resolvers": {
+    "help": "The workspace forwards `resolvers` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "retries": {
+    "help": "Resolver retries for ShuffleDNS brute mode."
+  },
+  "retry": {
+    "help": "The workspace forwards `retry` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "robots": {
+    "help": "Respect or parse robots.txt during crawls. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "root": {
+    "help": "Request privileged MassDNS capabilities when the wrapper allows. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "rules_file": {
+    "help": "Supplemental Falco rule pack path."
+  },
+  "scan_type": {
+    "help": "Connector-specific profile: Nmap flags, Trivy scan class, Burp macro, or ZAP policy name."
+  },
+  "scanners": {
+    "help": "The workspace forwards `scanners` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "schema": {
+    "help": "The workspace forwards `schema` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "schema_type": {
+    "help": "Parser hint such as `\"openapi\"`, `\"swagger\"`, or `\"graphql\"`."
+  },
+  "schema_url": {
+    "help": "Remote OpenAPI/Swagger/GraphQL schema URL downloaded before static analysis."
+  },
+  "script": {
+    "help": "Impacket script basename (`GetNPUsers.py`, `secretsdump.py`)."
+  },
+  "script_content": {
+    "help": "Inline pwntools/angr code executed before harness launch."
+  },
+  "script_file": {
+    "help": "External automation script for Ghidra/GDB post-processing."
+  },
+  "search": {
+    "help": "Keyword search for vulnx when CVE id unknown."
+  },
+  "search_string": {
+    "help": "Mnemonic substring filter for gadget dumps."
+  },
+  "server": {
+    "help": "Interactsh or collaborator base URL polled for DNS/HTTP blind-callback payloads."
+  },
+  "server_defaults": {
+    "help": "The workspace forwards `server_defaults` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "service": {
+    "help": "The workspace forwards `service` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "service_scans": {
+    "help": "The workspace forwards `service_scans` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "services": {
+    "help": "Service allowlist for Scout Suite / cloud modules."
+  },
+  "session_id": {
+    "help": "Server-side CipherStrike/NyxStrike session UUID/hash used to reload transcripts for LLM planners."
+  },
+  "session_name": {
+    "help": "Pacu workspace label isolating Dynamo-style AWS attack state on the agent."
+  },
+  "severity": {
+    "help": "Minimum issue class for terrascan/trivy style reporting."
+  },
+  "share": {
+    "help": "SMB share (`C$`, `ADMIN$`) for remote execution transports."
+  },
+  "shares": {
+    "help": "The workspace forwards `shares` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "shell_type": {
+    "help": "Remote shell interpreter (`cmd`, `powershell`) some Impacket scripts honour."
+  },
+  "signature": {
+    "help": "The workspace forwards `signature` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "silent": {
+    "help": "The workspace forwards `silent` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "site": {
+    "help": "Single gospider seed URL."
+  },
+  "sitemap": {
+    "help": "Pull sitemap-derived URLs during crawls. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "sites": {
+    "help": "Multiple gospider seeds."
+  },
+  "skip_check": {
+    "help": "The workspace forwards `skip_check` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "sndbuf": {
+    "help": "Kernel send-buffer hint for MassDNS sockets."
+  },
+  "socket_count": {
+    "help": "Parallel MassDNS socket fan-out."
+  },
+  "ssid_wordlist": {
+    "help": "Newline wordlist path on the agent for brute/DNS/content tooling."
+  },
+  "stable": {
+    "help": "Arjun stabilises differential heuristics for noisy targets. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "status_code": {
+    "help": "httpx prints HTTP status codes in output tables. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "status_format": {
+    "help": "The workspace forwards `status_format` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "stealth": {
+    "help": "Prefer quieter scan templates when mappers honour the flag. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "sticky": {
+    "help": "MassDNS retries stick to previously working resolver paths. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "strict_wildcard": {
+    "help": "shuffleDNS strict wildcard handling for poisoned zones. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "suppress": {
+    "help": "hurl-style helpers hide decorative stdout. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "symbols": {
+    "help": "Symbol offset blob identifying libc for libc-database lookups."
+  },
+  "tables": {
+    "help": "Named rainbow tables passed to ophcrack."
+  },
+  "tables_dir": {
+    "help": "Ophcrack rainbow-table base directory."
+  },
+  "tags": {
+    "help": "exiftool tag projection or scanner tag filters."
+  },
+  "target": {
+    "help": "Primary IPv4/IPv6/hostname/CIDR or bulk newline list routed into network scanners and RPC clients."
+  },
+  "target_binary": {
+    "help": "Local binary executed by pwntools when `exploit_type` is local."
+  },
+  "target_bssid": {
+    "help": "802.11 BSSID narrowed for Bettercap Wi\u2011Fi tooling."
+  },
+  "target_essid": {
+    "help": "SSID string for rogue AP labs or WPA correlation workflows."
+  },
+  "target_host": {
+    "help": "Remote host for pwntools or callback harnesses."
+  },
+  "target_port": {
+    "help": "Remote TCP port paired with `target_host` for exploit callbacks."
+  },
+  "target_url": {
+    "help": "Optional HTTP sink where JWT tamper harnesses replay altered tokens."
+  },
+  "targets": {
+    "help": "Host groups for kube-bench-style scopes or multitarget wrappers."
+  },
+  "tech_detect": {
+    "help": "httpx enriches results with technology fingerprints. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "template": {
+    "help": "Nuclei template id glob/path when exposed by the route."
+  },
+  "template_type": {
+    "help": "Exploit scaffold format (`python`, `c`)."
+  },
+  "threads": {
+    "help": "Concurrent workers for ffuf/arjun/sublist3r/feroxbuster HTTP jobs."
+  },
+  "timeout": {
+    "help": "Seconds for socket/DNS/CLI overall timeouts."
+  },
+  "timing": {
+    "help": "Nmap `-T0`\u2026`-T5` template for advanced wrappers."
+  },
+  "title": {
+    "help": "httpx captures HTML `<title>` tags alongside probes. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "token": {
+    "help": "Interactsh session token tying out-of-band events to your run."
+  },
+  "transforms": {
+    "help": "Maltego transform identifiers or descriptors."
+  },
+  "trusted_resolver": {
+    "help": "Ground-truth resolver for shuffleDNS wildcard logic."
+  },
+  "update": {
+    "help": "Allow tooling metadata refresh pings (shuffleDNS). Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "url": {
+    "help": "Fully qualified HTTP/S URL for crawlers, fuzzers, or vuln scanners (scheme required)."
+  },
+  "urls": {
+    "help": "URL batch for qsreplace, uro, or anew dedup pipelines."
+  },
+  "use_recovery": {
+    "help": "Impacket enables Kerberos session recovery quirks. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "user": {
+    "help": "The workspace forwards `user` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "user_agent": {
+    "help": "Custom User-Agent for spiders and REST fuzzers."
+  },
+  "username": {
+    "help": "Username for SMB/LDAP/WinRM clients and login brute modules."
+  },
+  "username_file": {
+    "help": "Username list for credential spraying modules."
+  },
+  "users": {
+    "help": "The workspace forwards `users` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "verbose": {
+    "help": "Extra SMB/RPC/DNS chatter for troubleshooting. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "verify_ip": {
+    "help": "MassDNS verifies answers against trusted resolvers. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "version": {
+    "help": "Surface `--version`-style banners when connectors expose them. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "version_detection": {
+    "help": "Enable service/version probing (`nmap -sV`) mappings. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "wayback": {
+    "help": "hakrawler can fold Wayback-derived URLs into the crawl frontier. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  },
+  "wep_key": {
+    "help": "ASCII/hex WEP key for airdecap-ng decryption."
+  },
+  "whitelist": {
+    "help": "uro allow-regex keeping only approved URL patterns."
+  },
+  "wildcard_output": {
+    "help": "The workspace forwards `wildcard_output` in the CipherStrike POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "wildcard_threads": {
+    "help": "shuffleDNS wildcard-detection parallelism."
+  },
+  "wordlist": {
+    "help": "Agent-resident newline wordlist for content/DNS/password tooling."
+  },
+  "workers": {
+    "help": "Schemathesis Hypothesis worker count."
+  },
+  "wpa_mode": {
+    "help": "Soft-AP cipher selection (`wpa2`, `wpa3`, \u2026)."
+  },
+  "wpad": {
+    "help": "Responder answers WPAD\u2014illegal outside sanctioned RF enclosures. Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+  }
+}

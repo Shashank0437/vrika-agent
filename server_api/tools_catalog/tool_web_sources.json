@@ -1,0 +1,634 @@
+{
+  "ai_analyze_session": {
+    "summary": "Analyse an existing workflow session with the LLM. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "url": ""
+  },
+  "airbase-ng": {
+    "summary": "Rogue access point framework for WiFi attacks. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.aircrack-ng.org/doku.php?id=airbase-ng"
+  },
+  "aircrack-ng": {
+    "summary": "WiFi password cracking tool for WEP/WPA/WPA2 handshakes. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.aircrack-ng.org/doku.php?id=aircrack-ng"
+  },
+  "airdecap-ng": {
+    "summary": "Decrypt WEP/WPA/WPA2 capture files with known keys. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.aircrack-ng.org/doku.php?id=airdecap-ng"
+  },
+  "aireplay-ng": {
+    "summary": "Packet injection \u2014 deauth, fake auth, ARP replay, injection test. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.aircrack-ng.org/doku.php?id=aireplay-ng"
+  },
+  "airmon-ng": {
+    "summary": "Enable or disable monitor mode on a wireless interface. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.aircrack-ng.org/doku.php?id=airmon-ng"
+  },
+  "airodump-ng": {
+    "summary": "Passive 802.11 capture \u2014 discovers APs/clients, captures WPA handshakes. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.aircrack-ng.org/doku.php?id=airodump-ng"
+  },
+  "amass": {
+    "summary": "OWASP Amass maps external attack surfaces using intel, enum, and database subcommands with configurable data sources.",
+    "url": "https://owasp.org/www-project-amass/"
+  },
+  "analyze-target": {
+    "summary": "Analyze target and create comprehensive profile using Intelligent Decision Engine. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "url": ""
+  },
+  "anew": {
+    "summary": "Append unique lines to a file \u2014 deduplication for recon pipelines. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/tomnomnom/anew"
+  },
+  "angr": {
+    "summary": "angr performs symbolic execution, CFG recovery, and automated reasoning over binaries; the academic-style docs explain analyses and pitfalls.",
+    "url": "https://docs.angr.io/"
+  },
+  "api-schema-analyzer": {
+    "summary": "OpenAPI/Swagger definitions describe attack surface; the OpenAPI specification explains document structure for aligning schema reviews.",
+    "url": "https://swagger.io/specification/"
+  },
+  "api_fuzzer": {
+    "summary": "Custom API fuzzer for parameter and endpoint fuzzing. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://owasp.org/www-project-web-security-testing-guide/"
+  },
+  "arjun": {
+    "summary": "HTTP parameter discovery \u2014 find hidden GET/POST params. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/s0md3v/Arjun"
+  },
+  "arp-scan": {
+    "summary": "ARP-based host discovery on local network. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/royhills/arp-scan"
+  },
+  "assetfinder": {
+    "summary": "Passive subdomain discovery using certificate and web sources. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/tomnomnom/assetfinder"
+  },
+  "autopsy": {
+    "summary": "Digital forensics platform \u2014 disk image analysis. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.autopsy.com/documentation/"
+  },
+  "autorecon": {
+    "summary": "Automated multi-tool recon \u2014 runs nmap, web, and service scanners. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/Tib3rius/AutoRecon"
+  },
+  "bbot": {
+    "summary": "Reconnaissance and enumeration with BBot. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/blacklanternsecurity/bbot"
+  },
+  "bettercap": {
+    "summary": "Advanced network attack framework for MITM, sniffing, and spoofing. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.bettercap.org/"
+  },
+  "binwalk": {
+    "summary": "Firmware analysis and extraction. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/ReFirmLabs/binwalk"
+  },
+  "bulk_extractor": {
+    "summary": "Extract features (emails, URLs, credit cards) from disk images or files. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/simsong/bulk_extractor"
+  },
+  "burpsuite": {
+    "summary": "Burp Suite is PortSwigger's integrated web testing toolkit covering proxy, scanning, and sequencing features via docs.portswigger.net.",
+    "url": "https://portswigger.net/burp/documentation"
+  },
+  "checkov": {
+    "summary": "Checkov scans Infrastructure-as-Code for policy violations across Terraform, CloudFormation, Kubernetes manifests, and more.",
+    "url": "https://www.checkov.io/"
+  },
+  "checksec": {
+    "summary": "Check binary security properties (NX, PIE, RELRO). Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/slimm609/checksec.sh"
+  },
+  "clair": {
+    "summary": "Container vulnerability scanner \u2014 static analysis of OCI/Docker images. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://quay.github.io/clair/"
+  },
+  "cloudmapper": {
+    "summary": "AWS network visualization and security analysis. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/duo-labs/cloudmapper"
+  },
+  "commix": {
+    "summary": "commix focuses on command injection detection and exploitation; the GitHub docs list tampering and injection techniques.",
+    "url": "https://github.com/commixproject/commix"
+  },
+  "create-attack-chain": {
+    "summary": "Create an intelligent attack chain based on target profile. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "url": ""
+  },
+  "dalfox": {
+    "summary": "DalFox is a focused XSS scanner with DOM, reflected, and blind payload strategies documented in the repository.",
+    "url": "https://github.com/hahwul/dalfox"
+  },
+  "dig": {
+    "summary": "DNS record lookup \u2014 A, MX, NS, TXT records via dig +short. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://bind9.readthedocs.io/en/latest/manpages.html"
+  },
+  "dirb": {
+    "summary": "Classic web content scanner using a wordlist. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://dirb.sourceforge.net/"
+  },
+  "dirsearch": {
+    "summary": "Web path scanner. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/maurosoria/dirsearch"
+  },
+  "dnsenum": {
+    "summary": "DNS enumeration and zone transfer. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/fwaeytens/dnsenum"
+  },
+  "docker-bench-security": {
+    "summary": "CIS Docker Benchmark checks for container host security. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/docker/docker-bench-security"
+  },
+  "dotdotpwn": {
+    "summary": "Directory traversal scanner. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/wireghoul/dotdotpwn"
+  },
+  "eaphammer": {
+    "summary": "Rogue access point framework for WiFi pentesting. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/s0lst1c3/eaphammer"
+  },
+  "enum4linux": {
+    "summary": "SMB/RPC enumeration on Windows/Samba. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/CiscoCXSecurity/enum4linux"
+  },
+  "enum4linux-ng": {
+    "summary": "Next-gen enum4linux \u2014 SMB/RPC enumeration with JSON output. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/cddmp/enum4linux-ng"
+  },
+  "evil-winrm": {
+    "summary": "Evil-WinRM provides a WinRM shell with pass-the-hash support for legitimately tested Windows estates.",
+    "url": "https://github.com/Hackplayers/evil-winrm"
+  },
+  "exiftool": {
+    "summary": "Read and write metadata from image, audio, and document files. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://exiftool.org/exiftool_pod.html"
+  },
+  "falco": {
+    "summary": "Runtime security monitoring \u2014 detect anomalous container/host behaviour. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://falco.org/docs/"
+  },
+  "feroxbuster": {
+    "summary": "feroxbuster recursively brute forces web content with configurable concurrency; project docs cover recursion depth and status-code filters.",
+    "url": "https://github.com/epi052/feroxbuster"
+  },
+  "ffuf": {
+    "summary": "ffuf performs high-speed HTTP fuzzing for directories, virtual hosts, parameters, and verbs; refer to the repository wiki for matcher/filter flags.",
+    "url": "https://github.com/ffuf/ffuf"
+  },
+  "fierce": {
+    "summary": "DNS reconnaissance tool. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/mschwager/fierce"
+  },
+  "file": {
+    "summary": "Identify file type by magic bytes \u2014 essential for forensics triage. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://man7.org/linux/man-pages/man1/file.1.html"
+  },
+  "foremost": {
+    "summary": "File carving \u2014 recover files from disk images by file headers. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/korczis/foremost"
+  },
+  "gau": {
+    "summary": "Fetch known URLs from AlienVault/Wayback. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/lc/gau"
+  },
+  "gdb": {
+    "summary": "GNU debugger \u2014 dynamic binary analysis and exploit dev. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://sourceware.org/gdb/documentation/"
+  },
+  "ghidra": {
+    "summary": "NSA reverse engineering suite \u2014 decompile and analyse binaries. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://ghidra-sre.org/CheatSheet.html"
+  },
+  "gobuster": {
+    "summary": "Gobuster enumerates DNS names, virtual hosts, S3 buckets, or web paths depending on mode; the README details each subcommand.",
+    "url": "https://github.com/OJ/gobuster"
+  },
+  "gospider": {
+    "summary": "Web spider for crawling URLs, sitemap, robots, and third-party sources. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/jaeles-project/gospider"
+  },
+  "graphql-scanner": {
+    "summary": "GraphQL testing should follow OWASP's GraphQL cheat sheet covering introspection abuse, excessive query depth, and authorization pitfalls.",
+    "url": "https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html"
+  },
+  "hakrawler": {
+    "summary": "Fast web crawler \u2014 extracts links, forms, and endpoints. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/hakluke/hakrawler"
+  },
+  "hashcat": {
+    "summary": "hashcat is a GPU-accelerated hash recovery tool; the wiki documents attack modes, rule files, and legal expectations for offline material.",
+    "url": "https://hashcat.net/wiki/"
+  },
+  "hashcat-utils": {
+    "summary": "Hashcat utility tools \u2014 cap2hccapx, combinator, expander, etc. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/hashcat/hashcat-utils"
+  },
+  "hashid": {
+    "summary": "Identify hash types from hash strings. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/psypanda/hashID"
+  },
+  "hashpump": {
+    "summary": "Hash length extension attack tool. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/bwall/HashPump"
+  },
+  "hcxdumptool": {
+    "summary": "Capture raw 802.11 frames for offline analysis and cracking. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/ZerBea/hcxdumptool"
+  },
+  "hcxpcapngtool": {
+    "summary": "Convert and filter 802.11 capture files for cracking and analysis. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/ZerBea/hcxtools"
+  },
+  "http-framework": {
+    "summary": "The NyxStrike HTTP testing connector implements crafted requests, replay, and spider-style exploration analogous to manual Burp/curl workflows\u2014pair usage with OWASP WSTG scenarios.",
+    "url": "https://cheatsheetseries.owasp.org/cheatsheets/Web_Service_Security_Cheat_Sheet.html"
+  },
+  "http-headers": {
+    "summary": "Fetch HTTP response headers via curl -sI (security headers, server info, redirects). Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers"
+  },
+  "httpx": {
+    "summary": "httpx probes HTTP/S endpoints for alive status, technologies, titles, and metadata; ProjectDiscovery docs outline probe toggles that mirror many modal options.",
+    "url": "https://github.com/projectdiscovery/httpx"
+  },
+  "hurl": {
+    "summary": "Hexadecimal & URL encoder + decoder with support for various encodings and transformations. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/tomnomnom/hacks/tree/master/hurl"
+  },
+  "hydra": {
+    "summary": "Hydra performs parallelized login brute-force attempts against numerous network services; see the project README for per-module options.",
+    "url": "https://github.com/vanhauser-thc/thc-hydra"
+  },
+  "impacket-ad-enum": {
+    "summary": "Impacket Active Directory enumeration recipes query LDAP, SAMR, and MSRPC interfaces documented across Fortra's Impacket repository.",
+    "url": "https://github.com/fortra/impacket"
+  },
+  "impacket-remote-exec": {
+    "summary": "Impacket remote execution helpers orchestrate techniques like WMI, SMB, and DCOM only where expressly authorized.",
+    "url": "https://github.com/fortra/impacket"
+  },
+  "impacket-scripts": {
+    "summary": "Impacket supplies pure-Python protocol implementations for SMB, MSRPC, Kerberos, and LDAP operations used during AD assessments.",
+    "url": "https://github.com/fortra/impacket"
+  },
+  "impacket-spec": {
+    "summary": "Impacket specialty scripts expose lower-level primitives for crafting Windows protocol traffic in lab settings.",
+    "url": "https://github.com/fortra/impacket"
+  },
+  "interactsh": {
+    "summary": "Interactsh provides asynchronous out-of-band interaction servers for spotting blind SSRF, XSS, and deserialization issues.",
+    "url": "https://github.com/projectdiscovery/interactsh"
+  },
+  "jaeles": {
+    "summary": "Web security scanning framework. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/jaeles-project/jaeles"
+  },
+  "john": {
+    "summary": "John the Ripper is a widely used password security auditing tool with extensive format support documented on openwall.com.",
+    "url": "https://www.openwall.com/john/doc/"
+  },
+  "joomscan": {
+    "summary": "Joomla vulnerability scanner. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/OWASP/joomscan"
+  },
+  "jwt-analyzer": {
+    "summary": "JWT testing aligns with OWASP JWT guidance on algorithm confusion, weak HMAC secrets, and token validation bypass patterns.",
+    "url": "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html"
+  },
+  "katana": {
+    "summary": "Web crawler for endpoint discovery. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/projectdiscovery/katana"
+  },
+  "kismet": {
+    "summary": "Wireless network detector, sniffer, and IDS. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.kismetwireless.net/docs/"
+  },
+  "kube-bench": {
+    "summary": "CIS Kubernetes Benchmark \u2014 check cluster node/master security config. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/aquasecurity/kube-bench"
+  },
+  "kube-hunter": {
+    "summary": "Kubernetes penetration testing. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/aquasecurity/kube-hunter"
+  },
+  "ldapdomaindump": {
+    "summary": "Dump LDAP information from Active Directory. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/dirkjanm/ldapdomaindump"
+  },
+  "libc-database": {
+    "summary": "Look up libc version by symbol offsets. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/niklasb/libc-database"
+  },
+  "maltego": {
+    "summary": "Link analysis and data mining for OSINT investigations. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://docs.maltego.com/"
+  },
+  "masscan": {
+    "summary": "Masscan is an asynchronous Internet-scale port scanner; the README documents rate limits, output formats, and BPF usage.",
+    "url": "https://github.com/robertdavidgraham/masscan"
+  },
+  "massdns": {
+    "summary": "High-performance DNS stub resolver for bulk subdomain resolution. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/blechschmidt/massdns"
+  },
+  "mdk4": {
+    "summary": "WiFi DoS and attack tool for deauth, fake auth, beacon flood, and more. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/aircrack-ng/mdk4"
+  },
+  "medusa": {
+    "summary": "Network login brute-forcer. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/jmk-foofus/medusa"
+  },
+  "msfconsole": {
+    "summary": "The Metasploit Framework console drives exploit modules, auxiliary scanners, and sessions; official docs cover workspace safety and post-exploitation flows.",
+    "url": "https://docs.metasploit.com/"
+  },
+  "msfvenom": {
+    "summary": "msfvenom generates Metasploit payloads and encoders; Rapid7's documentation explains payload selection, output formats, and encoding iterations.",
+    "url": "https://docs.metasploit.com/docs/using-metasploit/basics/how-to-use-msfvenom.html"
+  },
+  "mysql": {
+    "summary": "MySQL command-line client for database management and querying. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://dev.mysql.com/doc/refman/8.0/en/mysql.html"
+  },
+  "nbtscan": {
+    "summary": "NetBIOS name scanner \u2014 discover Windows hosts on a subnet. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/resurrecting-open-source-projects/nbtscan"
+  },
+  "nikto": {
+    "summary": "Nikto is a web server scanner that checks for dangerous files, outdated versions, and server misconfigurations.",
+    "url": "https://github.com/sullo/nikto"
+  },
+  "nmap": {
+    "summary": "Nmap discovers live hosts, open ports, services, and can run Nmap Scripting Engine checks; it is the reference implementation for sanctioned network discovery work.",
+    "url": "https://nmap.org/book/man.html"
+  },
+  "nmap_advanced": {
+    "summary": "Advanced Nmap profiles expose timing, NSE script lists, and OS/version toggles described in the Nmap Reference Guide; use them when standard presets need finer grained control.",
+    "url": "https://nmap.org/book/man.html"
+  },
+  "nuclei": {
+    "summary": "Nuclei is a fast template-driven scanner from ProjectDiscovery; YAML templates describe how to probe for misconfigurations and CVE-style issues across HTTP and many other protocols.",
+    "url": "https://docs.projectdiscovery.io/tools/nuclei/"
+  },
+  "nxc": {
+    "summary": "NetExec (nxc) is the community successor to CrackMapExec for coercing, spraying, and executing against network services; the wiki documents protocols and OPSEC notes.",
+    "url": "https://www.netexec.wiki/"
+  },
+  "objdump": {
+    "summary": "Disassemble and inspect object files and binaries. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://sourceware.org/binutils/docs/binutils/objdump.html"
+  },
+  "one-gadget": {
+    "summary": "Find one-gadget RCE offsets in libc. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/david942j/one_gadget"
+  },
+  "ophcrack": {
+    "summary": "Windows hash cracker using rainbow tables. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://ophcrack.sourceforge.io/"
+  },
+  "outguess": {
+    "summary": "Universal steganographic tool for JPEG images. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://manpages.debian.org/bullseye/outguess/outguess.1.en.html"
+  },
+  "pacu": {
+    "summary": "AWS exploitation framework for post-compromise activities. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/RhinoSecurityLabs/pacu"
+  },
+  "paramspider": {
+    "summary": "Mine URL parameters from web archives for a domain. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/devanshbatham/paramspider"
+  },
+  "parsero": {
+    "summary": " Reads the Robots.txt file of a web server and looks at the Disallow entries. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/behindthefirewall/Parsero"
+  },
+  "patator": {
+    "summary": "Multi-purpose brute-forcer. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/lanjelot/patator"
+  },
+  "photorec": {
+    "summary": "File recovery \u2014 carve deleted files from disk images or drives. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.cgsecurity.org/wiki/PhotoRec"
+  },
+  "preview-attack-chain": {
+    "summary": "Preview an intelligent attack chain without persisting a session. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "url": ""
+  },
+  "prowler": {
+    "summary": "Prowler automates compliance and security checks across AWS, Azure, and GCP APIs with configurable check lists.",
+    "url": "https://docs.prowler.com/"
+  },
+  "pwninit": {
+    "summary": "Patch a CTF binary to use the provided libc, generate exploit template. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/io12/pwninit"
+  },
+  "pwntools": {
+    "summary": "Run a pwntools exploit script against a local or remote target. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://docs.pwntools.com/en/stable/"
+  },
+  "qsreplace": {
+    "summary": "Replace query-string parameter values in a list of URLs. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/tomnomnom/qsreplace"
+  },
+  "radare2": {
+    "summary": "radare2 is a scriptable reversing environment with disassembly, debugging, and binary analysis features documented in the official radare book.",
+    "url": "https://book.rada.re/"
+  },
+  "recon-ng": {
+    "summary": "Web reconnaissance framework with modular architecture. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/lanmaster53/recon-ng"
+  },
+  "responder": {
+    "summary": "Responder poisons LLMNR/NBT-NS/mDNS to harvest credential challenges on local segments during controlled assessments.",
+    "url": "https://github.com/lgandx/Responder"
+  },
+  "ropgadget": {
+    "summary": "Find ROP gadgets in binary. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/JonathanSalwan/ROPgadget"
+  },
+  "ropper": {
+    "summary": "ROP/JOP gadget finder with quality filtering. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/sashs/Ropper"
+  },
+  "rpcclient": {
+    "summary": "Windows RPC enumeration \u2014 users, groups, shares via MSRPC. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.samba.org/samba/docs/current/man-html/rpcclient.1.html"
+  },
+  "rustscan": {
+    "summary": "RustScan wraps mass-port discovery quickly then optionally hands off to Nmap for deeper enumeration, as described in its GitHub documentation.",
+    "url": "https://github.com/RustScan/RustScan"
+  },
+  "scalpel": {
+    "summary": "File carving tool with configurable headers and footers. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/sleuthkit/scalpel"
+  },
+  "schemathesis": {
+    "summary": "Property-based API testing driven by OpenAPI/GraphQL schemas (schemathesis). Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://schemathesis.readthedocs.io/"
+  },
+  "scout-suite": {
+    "summary": "Multi-cloud security auditing \u2014 AWS, Azure, GCP, OCI. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/nccgroup/ScoutSuite"
+  },
+  "searchsploit": {
+    "summary": "Search Exploit-DB offline for public exploits and PoCs. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.exploit-db.com/searchsploit"
+  },
+  "sherlock": {
+    "summary": "Username investigation across 400+ social networks. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/sherlock-project/sherlock"
+  },
+  "shuffledns": {
+    "summary": "Active subdomain bruteforce and resolution with wildcard handling. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/projectdiscovery/shuffledns"
+  },
+  "sleuthkit": {
+    "summary": "Collection of command-line digital forensics tools (fls, icat, mmls\u2026). Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://wiki.sleuthkit.org/"
+  },
+  "smart-scan": {
+    "summary": "Execute an intelligent scan using AI-driven tool selection and parameter optimization with parallel execution. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "url": ""
+  },
+  "smbmap": {
+    "summary": "SMB share enumeration. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/ShawnDEvans/smbmap"
+  },
+  "spiderfoot": {
+    "summary": "OSINT automation with 200+ data-gathering modules. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.spiderfoot.net/documentation/"
+  },
+  "sqlite3": {
+    "summary": "SQLite command-line client for database management and querying. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.sqlite.org/cli.html"
+  },
+  "sqlmap": {
+    "summary": "sqlmap automates detection and exploitation of SQL injection flaws against many DBMS backends; its wiki documents tampering, enumeration, and operational safety considerations.",
+    "url": "https://github.com/sqlmapproject/sqlmap/wiki/usage"
+  },
+  "steghide": {
+    "summary": "Steganography \u2014 embed or extract hidden data from image/audio files. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://steghide.sourceforge.net/documentation.php"
+  },
+  "stegsolve": {
+    "summary": "Steganography analysis \u2014 visual inspection and bit-plane analysis. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/Giotino/stegsolve"
+  },
+  "strings": {
+    "summary": "Extract printable strings from binary. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://man7.org/linux/man-pages/man1/strings.1.html"
+  },
+  "subfinder": {
+    "summary": "Subfinder passively enumerates subdomains using curated OSINT sources; documentation explains resolver tuning and source configuration.",
+    "url": "https://github.com/projectdiscovery/subfinder"
+  },
+  "sublist3r": {
+    "summary": "Subdomain enumeration using OSINT sources. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/aboul3la/Sublist3r"
+  },
+  "tcpdump": {
+    "summary": "Low-level packet capture and analysis. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.tcpdump.org/manpages/tcpdump.1.html"
+  },
+  "technology-detection": {
+    "summary": "Detect technologies and create technology-specific testing recommendations. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "url": ""
+  },
+  "terrascan": {
+    "summary": "Terrascan detects IaC misconfigurations across multiple providers using OPA-backed policies.",
+    "url": "https://runterrascan.io/docs/"
+  },
+  "testdisk": {
+    "summary": "Disk partition recovery and repair tool. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.cgsecurity.org/wiki/TestDisk"
+  },
+  "testssl": {
+    "summary": "testssl.sh evaluates TLS/SSL ciphers, protocols, and common weaknesses locally over sockets without relying on third-party test sites.",
+    "url": "https://testssl.sh/"
+  },
+  "theHarvester": {
+    "summary": "Passive information gathering from public sources. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/laramies/theHarvester"
+  },
+  "trivy": {
+    "summary": "Trivy scans container images, IaC, and filesystems for CVEs and misconfigurations; Aqua Security's documentation details scanners and severities.",
+    "url": "https://aquasecurity.github.io/trivy/"
+  },
+  "tshark": {
+    "summary": "Terminal-based Wireshark \u2014 scriptable packet capture and analysis. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.wireshark.org/docs/man-pages/tshark.html"
+  },
+  "uro": {
+    "summary": "Filter and deduplicate URL lists \u2014 remove noise from recon output. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/s0md3v/uro"
+  },
+  "vol": {
+    "summary": "This entry mirrors the Volatility memory forensics workflow for analyst shortcuts; module names follow upstream Volatility 3 documentation.",
+    "url": "https://github.com/volatilityfoundation/volatility3"
+  },
+  "volatility": {
+    "summary": "The Volatility 3 framework analyses memory dumps with pluggable modules for processes, networking, and malware artefacts.",
+    "url": "https://github.com/volatilityfoundation/volatility3"
+  },
+  "vulnx": {
+    "summary": "ProjectDiscovery's vulnx (evolved from CVEmap data tooling) searches, filters, and analyses public vulnerability intelligence including CVE records.",
+    "url": "https://github.com/projectdiscovery/vulnx"
+  },
+  "wafw00f": {
+    "summary": "wafw00f fingerprints web application firewalls by sending provocation requests and interpreting responses.",
+    "url": "https://github.com/EnableSecurity/wafw00f"
+  },
+  "waybackurls": {
+    "summary": "Fetch URLs from Wayback Machine. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/tomnomnom/waybackurls"
+  },
+  "waymore": {
+    "summary": "waymore harvests URLs and archived HTTP responses from Wayback, Common Crawl, URLScan, and other OSINT feeds for deep recon.",
+    "url": "https://github.com/xnl-h4ck3r/waymore"
+  },
+  "wfuzz": {
+    "summary": "Web fuzzer for directories, parameters, and authentication. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/xmendez/wfuzz"
+  },
+  "whatweb": {
+    "summary": "Web scanner for technology fingerprinting and version detection. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/urbanadventurer/WhatWeb"
+  },
+  "whois": {
+    "summary": "WHOIS lookup for domains and IPs. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://datatracker.ietf.org/doc/rfc3912/"
+  },
+  "wifite": {
+    "summary": "Automated wireless attack tool for WEP/WPA/WPA2 networks. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/kimocoder/wifite2"
+  },
+  "wireshark": {
+    "summary": "Network protocol analyser \u2014 capture and dissect packets. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://www.wireshark.org/docs/"
+  },
+  "wpscan": {
+    "summary": "WordPress vulnerability scanner. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/wpscanteam/wpscan"
+  },
+  "x8": {
+    "summary": "Hidden HTTP parameter discovery via response diffing. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/Sh1r0-h1g4sh1/x8"
+  },
+  "xsser": {
+    "summary": "Cross-site scripting scanner. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/epsylon/xsser"
+  },
+  "xxd": {
+    "summary": "Hex dump a file with optional offset and length. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://man7.org/linux/man-pages/man1/xxd.1.html"
+  },
+  "zaproxy": {
+    "summary": "OWASP ZAP is an open-source web app scanner and proxy with spidering, passive scanning, and automation APIs suitable for CI pipelines.",
+    "url": "https://www.zaproxy.org/docs/"
+  },
+  "zsteg": {
+    "summary": "PNG/BMP steganography detection and extraction. Further operational context, flags, and limitations are described in the linked upstream documentation.",
+    "url": "https://github.com/zed-0xff/zsteg"
+  }
+}

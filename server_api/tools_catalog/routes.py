@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 import logging
 
+from server_api.tools_catalog.catalog_user_docs import augment_catalog_row
 from tool_registry import TOOLS
 from server_core.singletons import tool_stats
 
@@ -17,7 +18,7 @@ def get_tools():
         baseline = meta.get("effectiveness", 0.0)
         stats = tool_stats.get_stats(name)
         effective = tool_stats.blended_effectiveness(name, baseline)
-        tools.append({
+        row = {
             "name": name,
             "desc": meta.get("desc", ""),
             "category": meta.get("category", ""),
@@ -29,7 +30,9 @@ def get_tools():
             "effectiveness_runs": stats["runs"],
             "effectiveness_live": stats["runs"] >= 5,
             "parent_tool": meta.get("parent_tool", None),
-        })
+        }
+        augment_catalog_row(name, row)
+        tools.append(row)
 
     categories = sorted({t["category"] for t in tools})
 
