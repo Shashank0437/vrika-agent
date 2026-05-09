@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 _REPORTLAB_INSTALL_HINT = (
     "Install on the agent host: pip install 'reportlab>=4.0.0' "
-    "or pip install -r agent/requirements.txt (from the NyxStrike/CipherStrike repo)."
+    "or pip install -r agent/requirements.txt "
+    "or pip install -r agent/dependencies/requirements.txt (from the NyxStrike/CipherStrike repo)."
 )
 
 
