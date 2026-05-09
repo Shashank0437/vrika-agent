@@ -1,7 +1,19 @@
 # ============================================================================
+# TRANSITIVE PINS (Python 3.10–3.11 + mitmproxy 11)
+# ============================================================================
+# mitmproxy 11.x requires h11<=0.14 and Flask<=3.1.0; httpcore 1.0.9+ (httpx →
+# fastmcp) requires h11>=0.16 — unsatisfiable together. Pin httpcore 1.0.8 so
+# h11 0.14.x works for both and pip avoids resolution-too-deep.
+# mitmproxy 11 on Python 3.10 also caps typing-extensions<=4.11.0.
+httpcore==1.0.8; python_version>="3.10" and python_version<"3.12"
+h11>=0.13,<0.15; python_version>="3.10" and python_version<"3.12"
+typing-extensions>=4.3.0,<=4.11.0; python_version>="3.10" and python_version<"3.11"
+PySocks>=1.7.0,<2
+
+# ============================================================================
 # CORE FRAMEWORK DEPENDENCIES (ACTUALLY USED)
 # ============================================================================
-flask>=2.3.0,<4.0.0             # Web framework for API server (flask import)
+flask>=3.0.0,<=3.1.0,<4.0.0     # Web API; mitmproxy 11 needs <=3.1.0; 3.1.0 is also <=3.1.2 for mitmproxy 12
 requests>=2.31.0,<3.0.0         # HTTP library (requests import)
 psutil>=5.9.0,<6.0.0            # System utilities (psutil import)
 fastmcp[tasks]>=3.1.0    	# MCP framework with background task support (Docket backend)
@@ -10,6 +22,6 @@ selenium>=4.15.0,<5.0.0         # Browser automation (selenium imports)
 webdriver-manager>=4.0.0,<5.0.0 # ChromeDriver management (referenced in code)
 aiohttp>=3.8.0,<4.0.0           # Async HTTP (aiohttp import)
 mitmproxy>=12.2.0,<13.0.0; python_version>="3.12"
-mitmproxy>=11.0.0,<12.0.0; python_version>="3.10" and python_version<"3.12"
+mitmproxy==11.0.2; python_version>="3.10" and python_version<"3.12"
 PyMySQL>=1.1.2,<2.0.0      # MySQL database connector (conditionally used for database interactions)
 redis>=5.0.0,<6.0.0             # Optional: live tool logs via Redis Streams
