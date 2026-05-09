@@ -1,5 +1,9 @@
 # Optional Python dependencies for tool integrations.
 # Installed by: ./scripts/install.sh --install-tools
+#
+# Pin transitive SOCKS support so pip does not exhaust resolver depth while
+# reconciling bbot / pwntools / selenium / httpx / requests stacks (resolution-too-deep).
+PySocks>=1.7.0,<2
 
 bbot>=2.8.3
 httpx>=0.28.1
