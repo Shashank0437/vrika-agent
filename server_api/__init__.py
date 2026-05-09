@@ -53,6 +53,7 @@ from .wifi_pentest import *
 from .active_directory import *
 from .osint import *
 from .burp_agent import *
+from .cipherstrike_bridge import *
 
 def register_blueprints(app):
   """Register all API blueprints with the Flask app."""
@@ -316,6 +317,7 @@ def register_blueprints(app):
 
   # AI Assist
   app.register_blueprint(api_chat_bp)
+  app.register_blueprint(api_cipherstrike_bridge_bp)
   app.register_blueprint(api_ai_assist_advanced_payload_generation_bp)
   app.register_blueprint(api_ai_assist_llm_agent_bp)
   app.register_blueprint(api_ai_assist_ai_recon_session_bp)
