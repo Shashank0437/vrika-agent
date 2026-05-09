@@ -303,7 +303,17 @@ TOOLS: Dict[str, dict] = {
         "method": "POST",
         "category": "web_recon",
         "params": {"target": {"required": True}},
-        "optional": {"probe": True, "tech_detect": False, "status_code": False, "title": False, "additional_args": ""},
+        "optional": {
+            "url": "",
+            "probe": True,
+            "tech_detect": False,
+            "status_code": False,
+            "content_length": False,
+            "title": False,
+            "web_server": False,
+            "threads": 50,
+            "additional_args": "",
+        },
         "effectiveness": 0.85,
     },
     "hurl": {

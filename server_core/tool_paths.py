@@ -55,6 +55,47 @@ def resolve_cli_tool(*names: str) -> Optional[str]:
     return None
 
 
+def resolve_cli_tool_go_paths_first(*names: str) -> Optional[str]:
+    """
+    Resolve a binary preferring Go installs (``$GOPATH/bin``, ``~/go/bin``) and common
+    Homebrew prefixes **before** ``shutil.which`` (system PATH).
+
+    Use when the same executable name is shadowed by an unrelated tool earlier on PATH
+    (e.g. PyPI ``httpx`` vs ProjectDiscovery ``httpx``).
+    """
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for n in names:
+        if not n or n in seen:
+            continue
+        seen.add(n)
+        ordered.append(n)
+
+    gopath = (os.environ.get("GOPATH") or "").strip() or os.path.expanduser(os.path.join("~", "go"))
+    go_bins = (
+        os.path.join(gopath, "bin"),
+        os.path.expanduser("~/go/bin"),
+    )
+    for bindir in go_bins:
+        for name in ordered:
+            p = os.path.join(bindir, name)
+            if os.path.isfile(p) and os.access(p, os.X_OK):
+                return p
+
+    for extra in ("/usr/local/bin", "/opt/homebrew/bin"):
+        for name in ordered:
+            p = os.path.join(extra, name)
+            if os.path.isfile(p) and os.access(p, os.X_OK):
+                return p
+
+    for name in ordered:
+        w = shutil.which(name)
+        if w:
+            return w
+
+    return None
+
+
 def resolve_wordlist_path(
     requested: Optional[str],
     *,
