@@ -11,6 +11,22 @@ from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
+_REPORTLAB_INSTALL_HINT = (
+    "Install on the agent host: pip install 'reportlab>=4.0.0' "
+    "or pip install -r agent/requirements.txt (from the NyxStrike/CipherStrike repo)."
+)
+
+
+def _ensure_reportlab_available() -> None:
+    """Fail fast with an operator-actionable message (PDF layout depends on ReportLab)."""
+    try:
+        import reportlab  # noqa: F401
+    except ImportError as e:
+        raise RuntimeError(
+            "Missing optional dependency 'reportlab' required for penetration-report PDF generation. "
+            + _REPORTLAB_INSTALL_HINT
+        ) from e
+
 _JSON_FENCE = re.compile(r"\{[\s\S]*\}")
 
 
@@ -245,13 +261,18 @@ def _llm_fill_report(transcript: str, llm_client: Any) -> Dict[str, Any]:
 
 
 def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
-    from reportlab.lib import colors
-    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.lib.units import inch
-    from reportlab.pdfgen import canvas as pdfcanvas
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import inch
+        from reportlab.pdfgen import canvas as pdfcanvas
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except ImportError as e:
+        raise RuntimeError(
+            "Could not import 'reportlab' while building the PDF. " + _REPORTLAB_INSTALL_HINT
+        ) from e
 
     styles = getSampleStyleSheet()
     h_cover = ParagraphStyle(
@@ -507,6 +528,8 @@ def generate_penetration_report(
     """Return (pdf_bytes, filename, summary_for_llm)."""
     if not session_transcript or not str(session_transcript).strip():
         raise ValueError("session_transcript is required")
+
+    _ensure_reportlab_available()
 
     extra = ""
     if ui_context and ui_context.strip():
