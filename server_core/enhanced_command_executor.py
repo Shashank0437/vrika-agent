@@ -10,6 +10,7 @@ from wcwidth import wcswidth as _wcswidth
 import server_core.config_core as config_core
 from server_core.process_manager import ProcessManager
 from server_core.modern_visual_engine import ModernVisualEngine
+from server_core.tool_run_stream import ToolRunStreamPublisher
 
 _ANSI = _re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
 _BOX_WIDTH = 66  # visible columns between the two │ borders
@@ -118,9 +119,18 @@ COMMAND_MAX_RUNTIME = config_core.get("COMMAND_MAX_RUNTIME", 86400)
 class EnhancedCommandExecutor:
     """Enhanced command executor with caching, progress tracking, and better output handling"""
 
-    def __init__(self, command: str, timeout: Optional[int] = COMMAND_TIMEOUT):
+    def __init__(
+        self,
+        command: str,
+        timeout: Optional[int] = COMMAND_TIMEOUT,
+        stream_run_id: Optional[str] = None,
+    ):
         self.command = command
         self.timeout = timeout
+        self.stream_run_id = stream_run_id or ""
+        self._stream_pub: ToolRunStreamPublisher | None = (
+            ToolRunStreamPublisher(self.stream_run_id) if self.stream_run_id else None
+        )
         self.process = None
         self.stdout_data = ""
         self.stderr_data = ""
@@ -144,6 +154,8 @@ class EnhancedCommandExecutor:
                 if line:
                     self._stdout_chunks.append(line)
                     self.last_output_time = time.time()
+                    if self._stream_pub:
+                        self._stream_pub.push_stdout(_strip_ansi(line))
                     # Real-time output display
                     logger.info(f"📤 STDOUT: {_strip_ansi(line).strip()}")
         except Exception as e:
@@ -160,6 +172,8 @@ class EnhancedCommandExecutor:
                 if line:
                     self._stderr_chunks.append(line)
                     self.last_output_time = time.time()
+                    if self._stream_pub:
+                        self._stream_pub.push_stderr(_strip_ansi(line))
                     # Real-time error output display
                     logger.warning(f"📥 STDERR: {_strip_ansi(line).strip()}")
         except Exception as e:
@@ -361,6 +375,9 @@ class EnhancedCommandExecutor:
             ]
             print('\n'.join(box_lines), flush=True)
 
+            if self._stream_pub:
+                self._stream_pub.flush(force=True)
+
             return {
                 "stdout": self.stdout_data,
                 "stderr": self.stderr_data,
@@ -380,6 +397,9 @@ class EnhancedCommandExecutor:
             logger.error(f"💥 ERROR: Command execution failed: {str(e)}")
             logger.error(f"🔍 TRACEBACK: {traceback.format_exc()}")
             telemetry.record_execution(False, execution_time)
+
+            if self._stream_pub:
+                self._stream_pub.flush(force=True)
 
             return {
                 "stdout": self.stdout_data,

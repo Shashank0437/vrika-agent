@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 from server_core import config_core
 from server_core.enhanced_command_executor import EnhancedCommandExecutor
 from server_core.singletons import cache as _cache
+from server_core.tool_run_context import current_stream_run_id
 
 # CPU threshold above which tool commands are niced down.
 _CPU_NICE_THRESHOLD = config_core.get("CPU_NICE_THRESHOLD", 85)
@@ -73,6 +74,7 @@ def execute_command(
   tool: Optional[str] = None,
   endpoint: Optional[str] = None,
   params: Optional[Dict[str, Any]] = None,
+  stream_run_id: Optional[str] = None,
 ) -> Dict[str, Any]:
   """
   Execute a shell command with enhanced features.
@@ -98,6 +100,7 @@ def execute_command(
       return cached_result
 
   effective_timeout = _resolve_timeout(command, tool, timeout)
+  rid = stream_run_id if stream_run_id else current_stream_run_id()
 
   # Apply CPU niceness after the cache check so the cache key is unaffected.
   # interval=None is non-blocking — uses CPU% measured since the last psutil call.
@@ -109,7 +112,7 @@ def execute_command(
   except Exception:
     pass  # never let a psutil hiccup block a tool call
 
-  _executor = EnhancedCommandExecutor(exec_command, timeout=effective_timeout)
+  _executor = EnhancedCommandExecutor(exec_command, timeout=effective_timeout, stream_run_id=rid)
   result = _executor.execute()
 
   if active_cache is not None and result.get("success", False):
