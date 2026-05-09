@@ -24,7 +24,7 @@ from server_core.tool_schema import build_tool_schemas
 
 logger = logging.getLogger(__name__)
 
-_MAX_MULTI_TOOL_CALLS = max(1, int(os.environ.get("CIPHERSTRIKE_MAX_MULTI_TOOL_CALLS", "8")))
+_MAX_MULTI_TOOL_CALLS = max(1, int(os.environ.get("CIPHERSTRIKE_MAX_MULTI_TOOL_CALLS", "16")))
 
 api_cipherstrike_bridge_bp = Blueprint("api_cipherstrike_bridge", __name__)
 
@@ -77,7 +77,7 @@ Rules:
 - intent **operational** when the user wants scans, enumeration, exploitation workflows, CVE lookup, concrete tooling on targets, URLs/hosts to assess, penetration tests, or any request where starting security tools would help (even if they also ask "how" or "can you").
 - If the message contains **http:// or https://** and asks for testing, assessment, or a pentest → **operational** and pick suitable tools from the list (e.g. HTTP probe, tech fingerprint, vuln templates, web scanner — use names that exist below).
 - intent **conversational** only for pure greetings, thanks, meta chat, or conceptual questions with **no target** and **no request to run or plan tooling**.
-- **tool_names**: when operational, include **2–{max_tools}** distinct tool **names** from the list (exact spelling) whenever the catalog offers multiple complementary scanners (e.g. combine HTTP probe + tech fingerprint + vuln scanning + crawl/dir discovery **when those names exist**).
+- **tool_names**: when operational, include **as many distinct complementary tools as fit the ask**, up to **{max_tools}** names from the list (exact spelling). Use **several** tools for routine checks; for **full / comprehensive pentests** or explicit requests to run many scanners, prefer **closer to {max_tools}** parallel starters covering different roles (probe, fingerprint, vuln templates, crawling/dirs, DNS/subdomain, ports, auth, etc.) **when those names exist**.
 - Prefer **several complementary discrete scanners** over relying on **only** meta-orchestrators such as **smart-scan** or **analyze-target**. Use **smart-scan** (alone or in the mix) only when the user explicitly asks for an intelligent / smart / orchestrated / automated scan, or when discrete scanners are not available below.
 - If fewer than two suitable discrete scanners appear in the list, include every relevant tool available (even if that is a single meta-tool).
 - Do not leave tool_names empty when intent is operational.
