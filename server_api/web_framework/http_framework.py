@@ -84,13 +84,13 @@ class HTTPTestingFramework:
             })
 
             # Analyze for vulnerabilities
-            self._analyze_response_for_vulns(url, response)
+            vulns_this_request = self._analyze_response_for_vulns(url, response)
 
             return {
                 'success': True,
                 'request': request_data,
                 'response': response_data,
-                'vulnerabilities': self._get_recent_vulns()
+                'vulnerabilities': vulns_this_request,
             }
 
         except Exception as e:
@@ -220,8 +220,30 @@ class HTTPTestingFramework:
             'interesting': interesting[:50]
         }
 
-    def _analyze_response_for_vulns(self, url: str, response):
-        """Analyze HTTP response for common vulnerabilities"""
+    @staticmethod
+    def _vulnerability_dedupe_key(v: Dict[str, Any]) -> tuple:
+        """Stable key so the same finding is not stored repeatedly across requests."""
+        t = str(v.get("type") or "")
+        u = str(v.get("url") or "")
+        if t == "missing_security_header":
+            return (t, u, str(v.get("header") or ""))
+        if t == "information_disclosure":
+            return (t, u, str(v.get("description") or ""))
+        if t == "sql_injection_indicator":
+            return (t, u, str(v.get("description") or ""))
+        return (t, u, str(v.get("description") or ""))
+
+    def _extend_vulnerabilities_unique(self, vulns: list) -> None:
+        existing = {self._vulnerability_dedupe_key(x) for x in self.vulnerabilities}
+        for v in vulns:
+            k = self._vulnerability_dedupe_key(v)
+            if k in existing:
+                continue
+            self.vulnerabilities.append(v)
+            existing.add(k)
+
+    def _analyze_response_for_vulns(self, url: str, response) -> list:
+        """Analyze HTTP response for common vulnerabilities; return findings for this response only."""
         vulns = []
 
         # Check for missing security headers
@@ -280,7 +302,8 @@ class HTTPTestingFramework:
                     'url': url
                 })
 
-        self.vulnerabilities.extend(vulns)
+        self._extend_vulnerabilities_unique(vulns)
+        return vulns
 
     def _get_recent_vulns(self, limit: int = 10):
         """Get recent vulnerabilities found"""

@@ -168,7 +168,7 @@ function ThinkingBlock({ content, streaming }: { content: string; streaming: boo
       <button className="chat-thinking-header" onClick={toggle} type="button">
         <Brain size={14} className="chat-thinking-icon" />
         <span className="chat-thinking-label">
-          {streaming ? 'Thinking…' : 'Thought process'}
+          {streaming ? 'Thinking' : 'Thought process'}
         </span>
         {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
@@ -213,7 +213,7 @@ export function ChatMessageBubble({ message, onRetry, onConfirmTool }: ChatMessa
               />
             )}
             {isWaitingForFirstToken ? (
-              <span className="chat-thinking-indicator">Thinking…</span>
+              <span className="chat-thinking-indicator">Thinking</span>
             ) : isUser ? (
               <span className="chat-message-text">{message.content}</span>
             ) : message.content ? (
