@@ -191,6 +191,76 @@ def _theme_hex(key: str) -> Any:
     return colors.HexColor(_CIPHERSTRIKE_THEME[key])
 
 
+# ``` fenced ``` blocks (optional info string on opening line).
+_MD_FENCE = re.compile(r"```(?:[^\n]*)\n?([\s\S]*?)```")
+
+
+def _rl_courier_markup(inner_esc: str) -> str:
+    """Monospace spans using UI on_surface_variant for readability."""
+    c = _CIPHERSTRIKE_THEME["on_surface_variant"]
+    return f'<font name="Courier" color="{c}">{inner_esc}</font>'
+
+
+def _md_italic_only(segment: str) -> str:
+    """Single *emphasis* segments (no inline code — caller splits code first)."""
+    if not segment:
+        return ""
+    out: List[str] = []
+    pos = 0
+    for m in re.finditer(r"(?<!\*)\*([^*\n]+)\*(?!\*)", segment):
+        out.append(_xml_escape(segment[pos : m.start()]))
+        out.append(f"<i>{_xml_escape(m.group(1))}</i>")
+        pos = m.end()
+    out.append(_xml_escape(segment[pos:]))
+    return "".join(out)
+
+
+def _md_code_and_italic(segment: str) -> str:
+    """Inline `code` plus italics in plain spans."""
+    if not segment:
+        return ""
+    parts = re.split(r"(`[^`\n]+`)", segment)
+    buf: List[str] = []
+    for part in parts:
+        if len(part) >= 2 and part.startswith("`") and part.endswith("`"):
+            buf.append(_rl_courier_markup(_xml_escape(part[1:-1])))
+        else:
+            buf.append(_md_italic_only(part))
+    return "".join(buf)
+
+
+def _md_outer_bold_then_rest(text: str) -> str:
+    """**bold** with recursion so bold can wrap inline code; outside bold runs code+italic."""
+    if not text:
+        return ""
+    out: List[str] = []
+    pos = 0
+    for m in re.finditer(r"\*\*(.+?)\*\*", text):
+        out.append(_md_code_and_italic(text[pos : m.start()]))
+        out.append(f"<b>{markdown_to_reportlab_markup(m.group(1))}</b>")
+        pos = m.end()
+    out.append(_md_code_and_italic(text[pos:]))
+    return "".join(out)
+
+
+def markdown_to_reportlab_markup(text: str) -> str:
+    """
+    Convert a small Markdown subset to ReportLab Paragraph markup:
+    **bold**, *italic*, `inline code`, and ``` fenced ``` blocks (Courier + line breaks).
+    """
+    if not text:
+        return ""
+    m = _MD_FENCE.search(text)
+    if not m:
+        return _md_outer_bold_then_rest(text)
+    before = markdown_to_reportlab_markup(text[: m.start()])
+    body = m.group(1).strip("\n")
+    inner = _xml_escape(body).replace("\n", "<br/>").replace("\r", "")
+    block = _rl_courier_markup(inner)
+    after = markdown_to_reportlab_markup(text[m.end() :])
+    return before + block + after
+
+
 def _cipherstrike_table_surface_style(*, num_rows: int) -> Any:
     """Backgrounds + grid + padding only; typography comes from Paragraph cells (readable wrapping)."""
     from reportlab.platypus import TableStyle
@@ -295,6 +365,8 @@ Rules:
 - Derive appendix_tools from techniques/tools referenced (neutral methodology labels).
 - Counts must match the transcript when stated; otherwise "Not quantified in session".
 - Never invent critical exploits not evidenced in the transcript; use "not observed in completed testing" where appropriate.
+- For PDF rendering you may use Markdown sparingly: **bold labels** for bullet leads, `inline code` for paths/URLs/hostnames,
+  and ``` fenced ``` blocks only when a raw snippet materially helps the client (otherwise prefer prose).
 """
 
 
@@ -588,7 +660,9 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
 
     def P_cell(text: object, *, header: bool = False, compact: bool = False) -> Paragraph:
         st = tbl_hdr if header else (tbl_compact if compact else tbl_body)
-        return Paragraph(_xml_escape(str(text)), st)
+        raw = str(text)
+        markup = _xml_escape(raw) if header else markdown_to_reportlab_markup(raw)
+        return Paragraph(markup, st)
 
     def para_table(headers: List[str], rows: List[List[str]], col_widths: List[float], *, compact_data: bool = False) -> Table:
         header_row = [P_cell(h, header=True) for h in headers]
@@ -645,8 +719,9 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     )
     story: List[Any] = []
 
-    def p(text: str, style=body):
-        story.append(Paragraph(_xml_escape(text), style))
+    def p(text: str, style=body, *, md: bool = True):
+        markup = markdown_to_reportlab_markup(text) if md else _xml_escape(text)
+        story.append(Paragraph(markup, style))
         story.append(Spacer(1, 6))
 
     def bullet_list(items: List[str]):
@@ -674,8 +749,8 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         "CONFIDENTIAL",
         ParagraphStyle("conf", parent=body, alignment=TA_CENTER, fontSize=11, textColor=_theme_hex("error")),
     )
-    p(f"Date: {data.get('assessment_date_iso')}", ParagraphStyle("dt", parent=body, alignment=TA_CENTER, fontSize=10))
-    p(f"Prepared for client distribution · {generated_by}", small)
+    p(f"Date: {data.get('assessment_date_iso')}", ParagraphStyle("dt", parent=body, alignment=TA_CENTER, fontSize=10), md=False)
+    p(f"Prepared for client distribution · {generated_by}", small, md=False)
     story.append(Spacer(1, 0.35 * inch))
 
     # 1 Executive summary
@@ -691,7 +766,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         story.append(para_table(hdr, rows_ov, [tw * 0.34, tw * 0.66], compact_data=False))
         story.append(Spacer(1, 10))
     p("1.2 Security Posture Assessment", h2)
-    p(f"Overall security rating: {data.get('security_posture_rating')}", body)
+    p(f"Overall security rating: {data.get('security_posture_rating')}", body, md=False)
     p("Strengths", ParagraphStyle("lb", parent=h2, fontSize=11, spaceBefore=4))
     bullet_list(data.get("strengths") or [])
     p("Areas of concern", ParagraphStyle("lb2", parent=h2, fontSize=11, spaceBefore=4))
@@ -763,7 +838,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     p("5. CONCLUSION", h1)
     for para in data.get("conclusion_paragraphs") or []:
         p(str(para), body)
-    p(f"Overall security posture grade: {data.get('overall_grade')}", ParagraphStyle("gr", parent=body, fontName="Helvetica-Bold"))
+    p(f"Overall security posture grade: {data.get('overall_grade')}", ParagraphStyle("gr", parent=body, fontName="Helvetica-Bold"), md=False)
 
     # Appendices
     p("APPENDIX A — METHODOLOGY & TOOLS REFERENCED", h1)
