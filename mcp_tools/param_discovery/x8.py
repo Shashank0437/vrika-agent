@@ -5,7 +5,7 @@ import asyncio
 
 def register_x8_tool(mcp, api_client, logger):
     @mcp.tool()
-    async def x8_parameter_discovery(url: str, wordlist: str = "/usr/share/wordlists/x8/params.txt",
+    async def x8_parameter_discovery(url: str, wordlist: str = "",
                               method: str = "GET", body: str = "", headers: str = "",
                               additional_args: str = "") -> Dict[str, Any]:
         """
@@ -13,7 +13,7 @@ def register_x8_tool(mcp, api_client, logger):
 
         Args:
             url: The target URL
-            wordlist: Parameter wordlist
+            wordlist: Parameter wordlist path (empty = agent picks first existing: SecLists, Kali, or bundled)
             method: HTTP method
             body: Request body
             headers: Custom headers

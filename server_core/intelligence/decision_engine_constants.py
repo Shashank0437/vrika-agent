@@ -164,7 +164,7 @@ def initialize_attack_patterns() -> Dict[str, List[Dict[str, Any]]]:
         "api_testing": [
             {"tool": "httpx", "priority": 1, "params": {"probe": True, "tech_detect": True}},
             {"tool": "arjun", "priority": 2, "params": {"method": "GET,POST", "stable": True}},
-            {"tool": "x8", "priority": 3, "params": {"method": "GET", "wordlist": "/usr/share/wordlists/x8/params.txt"}},
+            {"tool": "x8", "priority": 3, "params": {"method": "GET", "wordlist": ""}},
             {"tool": "paramspider", "priority": 4, "params": {"level": 2}},
             {"tool": "api-schema-analyzer", "priority": 5, "params": {"schema_type": "openapi"}},
             {

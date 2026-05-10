@@ -1207,7 +1207,7 @@ TOOLS: Dict[str, dict] = {
         "method": "POST",
         "category": "web_recon",
         "params": {"url": {"required": True}},
-        "optional": {"wordlist": "/usr/share/wordlists/x8/params.txt", "method": "GET", "body": "", "headers": "", "additional_args": ""},
+        "optional": {"wordlist": "", "method": "GET", "body": "", "headers": "", "additional_args": ""},
         "effectiveness": 0.83,
     },
 

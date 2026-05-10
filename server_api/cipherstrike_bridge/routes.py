@@ -290,6 +290,7 @@ def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dic
     except Exception as exc:
         logger.error("cipherstrike_bridge blocking tools stream: %s", exc)
         yield f"data: [ERROR] {str(exc)}\n\n"
+        yield "data: [DONE]\n\n"
 
 
 def _stream_llm_sse(
@@ -331,6 +332,7 @@ def _stream_llm_sse(
     except Exception as exc:
         logger.error("cipherstrike_bridge llm-stream: %s", exc)
         yield f"data: [ERROR] {str(exc)}\n\n"
+        yield "data: [DONE]\n\n"
 
 
 @api_cipherstrike_bridge_bp.route("/api/cipherstrike/schemas-from-tools", methods=["POST"])
