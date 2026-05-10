@@ -32,7 +32,7 @@ UPDATE_SELF=false
 UPDATE_PYTHON_PACKAGES=false
 PIP_BOOTSTRAPPED=false
 CONFIGURE_GEMINI_LLM=false
-GEMINI_DEFAULT_MODEL="gemini-2.0-flash"
+GEMINI_DEFAULT_MODEL="gemini-2.5-flash"
 
 # --- run flags ---
 RUN_SERVER=false

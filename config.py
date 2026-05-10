@@ -44,12 +44,12 @@ _config = {
 
     # ── LLM client ────────────────────────────────────────────────────────────
     "NYXSTRIKE_LLM_PROVIDER": "gemini",                         # gemini | openai | anthropic
-    "NYXSTRIKE_LLM_MODEL":    "gemini-2.0-flash",               # e.g. gemini-2.0-flash, gpt-4o, claude-3-5-sonnet-latest
+    "NYXSTRIKE_LLM_MODEL":    "gemini-2.5-flash",               # e.g. gemini-2.5-flash, gpt-4o, claude-3-5-sonnet-latest
     "NYXSTRIKE_LLM_URL":      "",                              # optional: custom OpenAI-compatible base URL only (OpenAI provider)
     "NYXSTRIKE_LLM_API_KEY":  "",                               # or set GOOGLE_API_KEY / GEMINI_API_KEY (Gemini) in the environment
     "NYXSTRIKE_LLM_TIMEOUT":  600,                              # seconds
     "NYXSTRIKE_LLM_MAX_LOOPS": 9,
-    "NYXSTRIKE_LLM_THINK":    True,                             # Gemini: maps to thinkingConfig.includeThoughts (use a thinking-capable model, e.g. gemini-2.0-flash)
+    "NYXSTRIKE_LLM_THINK":    True,                             # Gemini: maps to thinkingConfig.includeThoughts (use a thinking-capable model, e.g. gemini-2.5-flash)
     "NYXSTRIKE_LLM_NUM_CTX":  8192,                             # hints max output tokens for Gemini; context sizing for other paths
     "NYXSTRIKE_LLM_NUM_CTX_ANALYSE": 16384,                     # analysis / report context hint
 

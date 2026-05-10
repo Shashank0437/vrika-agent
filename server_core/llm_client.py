@@ -12,7 +12,7 @@ Supported backends:
 
 Config keys:
   NYXSTRIKE_LLM_PROVIDER       gemini | openai | anthropic
-  NYXSTRIKE_LLM_MODEL          e.g. gemini-2.0-flash, gpt-4o, claude-3-5-sonnet-latest
+  NYXSTRIKE_LLM_MODEL          e.g. gemini-2.5-flash, gpt-4o, claude-3-5-sonnet-latest
   NYXSTRIKE_LLM_URL            optional (OpenAI custom base URL only; ignored for gemini / anthropic)
   NYXSTRIKE_LLM_API_KEY        primary secret (also checks provider-specific env vars)
   NYXSTRIKE_LLM_MAX_LOOPS
@@ -730,7 +730,7 @@ class LLMClient:
       return
 
     provider = (_cfg("NYXSTRIKE_LLM_PROVIDER") or "gemini").lower()
-    model = _cfg("NYXSTRIKE_LLM_MODEL") or "gemini-2.0-flash"
+    model = _cfg("NYXSTRIKE_LLM_MODEL") or "gemini-2.5-flash"
     base_url = (_cfg("NYXSTRIKE_LLM_URL") or "").strip()
     api_key = (_cfg("NYXSTRIKE_LLM_API_KEY") or "").strip()
     timeout = int(_cfg("NYXSTRIKE_LLM_TIMEOUT") or 300)
