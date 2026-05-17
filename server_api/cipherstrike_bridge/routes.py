@@ -114,7 +114,7 @@ _ROUTER_CATEGORY_ENUM = ", ".join(sorted(CATEGORIES.keys()))
 
 _ROUTER_SYSTEM_TEMPLATE = """You are a router for CipherStrike (authorized security testing assistant).
 
-Given the user message and the compact tool list below, respond with **only** valid JSON (no markdown):
+Given the recent conversation context (if any), the latest user message, and the compact tool list below, respond with **only** valid JSON (no markdown):
 {{"intent":"operational"|"conversational","tool_names":[],"reply":"","category":"<slug>"}}
 
 Rules:
@@ -122,6 +122,7 @@ Rules:
 - If the user asks for a **penetration test report**, **security report**, **PDF report**, **executive summary / write-up** of findings, or to **create / generate / export a report** from the session → **operational**, **category** **reporting**, and include **penetration-report** in **tool_names** when that exact name appears in the tool list (often as the only tool for that request).
 - If the message contains **http:// or https://** and asks for testing, assessment, or a pentest → **operational** and pick suitable tools from the list (e.g. HTTP probe, tech fingerprint, vuln templates, web scanner — use names that exist below).
 - If the user asks to **run nmap** (or port scan) on a **URL, hostname, or IP** → **operational**, **category** **network_recon** (or **essential**), and include **nmap** in **tool_names** when listed. URLs are valid targets for the backend.
+- If the user uses pronouns or shortcuts like **"same"**, **"this"**, **"that"**, **"it"**, **"the target"**, **"same target"** (e.g. "run dig on same", "scan it with nuclei", "try nikto on the target") → resolve them using the conversation context above. If a target (URL/host/IP) was mentioned in the recent context, treat the request as **operational** on that same target. Do NOT ask "what target?" when the answer is obvious from the prior turns.
 - If the user gives a **short affirmation** (e.g. "yes", "ok", "use both", "run them", "ok fine use those tools") after the assistant already named specific tools → **operational** and put **those exact tool names** in **tool_names** (e.g. assistant offered amass and subfinder → include both; user approving after batch rejections → only the rejected scanner names, not tools already executed).
 - If the user asks **which tool(s)** to use (recommendation) without asking to **run/execute/scan** them now → **conversational**, suggest tool names in **reply**, leave **tool_names** empty.
 - intent **conversational** only for pure greetings, thanks, meta chat, or conceptual questions with **no target** and **no request to run or plan tooling**. Do not ask what "both" means when the prior assistant message already named two tools.
@@ -154,6 +155,10 @@ def route_intent():
         if not isinstance(tools, list):
             return jsonify({"success": False, "error": "tools must be a list"}), 400
         max_pick = max(1, min(int(body.get("max_tool_names") or 12), 24))
+        context_str = body.get("context")
+        if not isinstance(context_str, str):
+            context_str = ""
+        context_str = context_str.strip()
         allowed_names = {
             str(t.get("name") or "").strip()
             for t in tools
@@ -177,13 +182,16 @@ def route_intent():
             catalog=catalog_text,
             categories=_ROUTER_CATEGORY_ENUM,
         )
-        result = llm_client.chat(
-            [
-                {"role": "system", "content": sys_prompt},
-                {"role": "user", "content": message.strip()},
-            ],
-            tools=None,
-        )
+        chat_messages: List[Dict[str, Any]] = [{"role": "system", "content": sys_prompt}]
+        if context_str:
+            # Trim defensively; the server already caps this, but be safe.
+            ctx_trim = context_str if len(context_str) <= 2000 else context_str[-2000:]
+            chat_messages.append({
+                "role": "system",
+                "content": f"Recent conversation context (most recent last):\n{ctx_trim}",
+            })
+        chat_messages.append({"role": "user", "content": message.strip()})
+        result = llm_client.chat(chat_messages, tools=None)
         text_out = result if isinstance(result, str) else str((result or {}).get("content") or "")
         parsed = _extract_json_object(text_out) or {}
         intent = str(parsed.get("intent") or "conversational").lower().strip()
@@ -217,10 +225,48 @@ def route_intent():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
+def _resolve_tool_name(raw_name: str) -> tuple[str, Any]:
+    """Resolve a model-emitted tool name to (canonical_name, tool_def).
+    Handles Gemini's namespaced output (e.g. 'default_api.httpx', 'tools.nmap'),
+    case differences, and hyphen/underscore swaps. Returns ('', None) if not found.
+    """
+    from tool_registry import get_tool, TOOLS  # TOOLS is the registry dict
+    if not raw_name:
+        return "", None
+    candidates: list[str] = []
+    n = raw_name.strip()
+    candidates.append(n)
+    # Strip common namespace prefixes (e.g. "default_api.httpx", "tools.nmap", "functions.nmap")
+    if "." in n:
+        candidates.append(n.rsplit(".", 1)[-1])
+    # Try a few normalizations
+    for base in list(candidates):
+        b = base.strip()
+        if not b:
+            continue
+        candidates.append(b.lower())
+        candidates.append(b.replace("_", "-"))
+        candidates.append(b.replace("-", "_"))
+        candidates.append(b.lower().replace("_", "-"))
+        candidates.append(b.lower().replace("-", "_"))
+    seen: set[str] = set()
+    for c in candidates:
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        td = get_tool(c)
+        if td:
+            return c, td
+    # Last resort: case-insensitive scan of registry keys
+    rn_lower = (candidates[-1] if candidates else n).lower()
+    for k in TOOLS.keys():
+        if k.lower() == rn_lower:
+            return k, TOOLS[k]
+    return "", None
+
+
 def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Generator[str, None, None]:
     """Emit TOOL_CALL_PENDING / TOOL_CALL_BATCH_PENDING SSE frames for registry-resolved tools."""
-    from tool_registry import get_tool
-
     batch_payloads: List[Dict[str, Any]] = []
     if not isinstance(tool_calls, list):
         return
@@ -230,15 +276,21 @@ def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Ge
         fn = tc.get("function", {})
         if not isinstance(fn, dict):
             continue
-        tool_name = str(fn.get("name") or "").strip()
+        raw_tool_name = str(fn.get("name") or "").strip()
         arguments = fn.get("arguments", {})
         if not isinstance(arguments, dict):
             arguments = {}
-        tool_def = get_tool(tool_name)
+        canonical_name, tool_def = _resolve_tool_name(raw_tool_name)
         if tool_def:
+            if canonical_name != raw_tool_name:
+                logger.info(
+                    "cipherstrike_bridge: normalized tool name %r -> %r",
+                    raw_tool_name,
+                    canonical_name,
+                )
             batch_payloads.append(
                 {
-                    "tool_name": tool_name,
+                    "tool_name": canonical_name,
                     "arguments": arguments,
                     "description": str(tool_def.get("desc") or ""),
                     "endpoint": str(tool_def.get("endpoint") or ""),
@@ -246,8 +298,8 @@ def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Ge
             )
         else:
             logger.warning(
-                "cipherstrike_bridge: unknown tool %r from model, skipping",
-                tool_name,
+                "cipherstrike_bridge: unknown tool %r from model (no normalization match), skipping",
+                raw_tool_name,
             )
 
     if len(batch_payloads) == 1:
