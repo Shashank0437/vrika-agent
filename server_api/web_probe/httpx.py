@@ -19,11 +19,11 @@ def httpx():
         params = request.json or {}
         target = (params.get("target") or params.get("url") or "").strip()
         probe = params.get("probe", True)
-        tech_detect = params.get("tech_detect", False)
-        status_code = params.get("status_code", False)
-        content_length = params.get("content_length", False)
-        title = params.get("title", False)
-        web_server = params.get("web_server", False)
+        tech_detect = params.get("tech_detect", True)
+        status_code = params.get("status_code", True)
+        content_length = params.get("content_length", True)
+        title = params.get("title", True)
+        web_server = params.get("web_server", True)
         threads = params.get("threads", 50)
         additional_args = params.get("additional_args", "")
 
