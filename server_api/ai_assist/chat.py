@@ -584,6 +584,7 @@ def confirm_tool_call(chat_session_id: str):
         llm_messages.append({
           "role": "tool",
           "content": result_text,
+          "name": tool_name,
         })
       else:
         logger.info(
@@ -594,6 +595,7 @@ def confirm_tool_call(chat_session_id: str):
         llm_messages.append({
           "role": "tool",
           "content": f"The operator chose not to run {tool_name}.",
+          "name": tool_name,
         })
 
       # Stream the LLM follow-up — inject tool schemas so any new tool request
