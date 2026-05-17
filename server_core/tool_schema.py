@@ -18,6 +18,28 @@ from typing import Any, Dict, List
 
 # Parameter type hints: registry values look like "REQUIRED" or "default=X".
 # We map them to JSON-schema "string" by default; numeric defaults get "number".
+# Per-tool parameter hints for the LLM (compact catalog path).
+_PARAM_DESCRIPTION_OVERRIDES: Dict[tuple[str, str], str] = {
+    ("nmap", "target"): (
+        "Hostname, IP, CIDR, or URL (e.g. https://example.com — backend strips to host automatically)"
+    ),
+    ("nmap_advanced", "target"): (
+        "Hostname, IP, CIDR, or URL (e.g. https://example.com — backend strips to host automatically)"
+    ),
+    ("masscan", "target"): "Hostname, IP, CIDR, or URL (URL normalized to host)",
+    ("rustscan", "target"): "Hostname, IP, or URL (URL normalized to host)",
+}
+
+
+def _param_description(tool_name: str, param_name: str, *, required: bool, default_str: str = "") -> str:
+    override = _PARAM_DESCRIPTION_OVERRIDES.get((tool_name, param_name))
+    if override:
+        return override
+    if required:
+        return f"{param_name} (required)"
+    return f"{param_name} (optional, default: {default_str})"
+
+
 def _infer_type(default_value: Any) -> str:
   if isinstance(default_value, bool):
     return "boolean"
@@ -35,14 +57,20 @@ def _registry_entry_to_schema(name: str, tool_def: Dict[str, Any]) -> Dict[str, 
 
   # Required params (params dict — keys are param names, values are {required:True} or similar)
   for param_name, param_meta in tool_def.get("params", {}).items():
-    properties[param_name] = {"type": "string", "description": f"{param_name} (required)"}
+    properties[param_name] = {
+      "type": "string",
+      "description": _param_description(name, param_name, required=True),
+    }
     required.append(param_name)
 
   # Optional params (optional dict — keys are param names, values are defaults)
   for param_name, default_val in tool_def.get("optional", {}).items():
     param_type = _infer_type(default_val)
-    desc = f"{param_name} (optional, default: {default_val!r})"
-    properties[param_name] = {"type": param_type, "description": desc}
+    default_str = str(default_val).replace("default=", "", 1) if str(default_val).startswith("default=") else str(default_val)
+    properties[param_name] = {
+      "type": param_type,
+      "description": _param_description(name, param_name, required=False, default_str=default_str),
+    }
 
   return {
     "type": "function",
@@ -80,14 +108,17 @@ def build_tool_schemas(tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
     for param_name, param_val in params_compact.items():
       if param_val == "REQUIRED":
-        properties[param_name] = {"type": "string", "description": f"{param_name} (required)"}
+        properties[param_name] = {
+          "type": "string",
+          "description": _param_description(name, param_name, required=True),
+        }
         required.append(param_name)
       else:
         # "default=X" string — extract default for description
         default_str = str(param_val).replace("default=", "", 1) if str(param_val).startswith("default=") else str(param_val)
         properties[param_name] = {
           "type": "string",
-          "description": f"{param_name} (optional, default: {default_str})",
+          "description": _param_description(name, param_name, required=False, default_str=default_str),
         }
 
     schemas.append({

@@ -60,6 +60,13 @@ _PENETRATION_REPORT_SCHEMA_NUDGE = (
     "Do not refuse by claiming reportlab or Python dependencies are missing—that is wrong for this system."
 )
 
+_NMAP_TARGET_SCHEMA_NUDGE = (
+    "CipherStrike nmap accepts target as hostname, IP, CIDR, or full URL. "
+    "When the user says run nmap on https://example.com (or http://…), call the nmap function immediately "
+    'with target set to that URL string (e.g. "https://example.com"). Do not ask them to reformat—the agent '
+    "strips the scheme and path to the host before running nmap. Never reply that only bare hostnames are allowed."
+)
+
 
 def _schemas_include_tool_name(schemas: List[Dict[str, Any]] | None, tool_name: str) -> bool:
     want = tool_name.strip()
@@ -74,13 +81,16 @@ def _schemas_include_tool_name(schemas: List[Dict[str, Any]] | None, tool_name: 
     return False
 
 
-def _messages_with_penetration_report_nudge(
+def _messages_with_schema_nudges(
     messages: List[Dict[str, Any]],
     schemas: List[Dict[str, Any]] | None,
 ) -> List[Dict[str, Any]]:
-    if not _schemas_include_tool_name(schemas, "penetration-report"):
-        return messages
-    return [*messages, {"role": "system", "content": _PENETRATION_REPORT_SCHEMA_NUDGE}]
+    out = list(messages)
+    if _schemas_include_tool_name(schemas, "penetration-report"):
+        out.append({"role": "system", "content": _PENETRATION_REPORT_SCHEMA_NUDGE})
+    if _schemas_include_tool_name(schemas, "nmap"):
+        out.append({"role": "system", "content": _NMAP_TARGET_SCHEMA_NUDGE})
+    return out
 
 
 def _extract_json_object(text: str) -> Dict[str, Any] | None:
@@ -111,6 +121,7 @@ Rules:
 - intent **operational** when the user wants scans, enumeration, exploitation workflows, CVE lookup, concrete tooling on targets, URLs/hosts to assess, penetration tests, or any request where starting security tools would help (even if they also ask "how" or "can you").
 - If the user asks for a **penetration test report**, **security report**, **PDF report**, **executive summary / write-up** of findings, or to **create / generate / export a report** from the session → **operational**, **category** **reporting**, and include **penetration-report** in **tool_names** when that exact name appears in the tool list (often as the only tool for that request).
 - If the message contains **http:// or https://** and asks for testing, assessment, or a pentest → **operational** and pick suitable tools from the list (e.g. HTTP probe, tech fingerprint, vuln templates, web scanner — use names that exist below).
+- If the user asks to **run nmap** (or port scan) on a **URL, hostname, or IP** → **operational**, **category** **network_recon** (or **essential**), and include **nmap** in **tool_names** when listed. URLs are valid targets for the backend.
 - intent **conversational** only for pure greetings, thanks, meta chat, or conceptual questions with **no target** and **no request to run or plan tooling**.
 - **category**: exactly **one** workflow slug when intent is **operational**, chosen from: {categories}. Pick the best primary fit (e.g. web pentest with vuln scanners → web_vuln; passive subdomain gathering → osint). When intent is **conversational**, use **""** (empty string) for category.
 - **tool_names**: when operational, include **as many distinct complementary tools as fit the ask**, up to **{max_tools}** names from the list (exact spelling). Use **several** tools for routine checks; for **full / comprehensive pentests** or explicit requests to run many scanners, prefer **closer to {max_tools}** parallel starters covering different roles (probe, fingerprint, vuln templates, crawling/dirs, DNS/subdomain, ports, auth, etc.) **when those names exist**.
@@ -263,7 +274,7 @@ def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dic
     """
     try:
         yield "data: [THINKING]\n\n"
-        messages_adj = _messages_with_penetration_report_nudge(messages, schemas)
+        messages_adj = _messages_with_schema_nudges(messages, schemas)
         result = llm_client.chat(messages_adj, tools=schemas)
         tool_calls = result.get("tool_calls") if isinstance(result, dict) else None
         _raw = result.get("content", "") if isinstance(result, dict) else result
@@ -307,7 +318,7 @@ def _stream_llm_sse(
         return
 
     tools_arg = schemas if schemas_ok else None
-    messages_adj = _messages_with_penetration_report_nudge(messages, schemas if schemas_ok else None)
+    messages_adj = _messages_with_schema_nudges(messages, schemas if schemas_ok else None)
     try:
         yield "data: [THINKING]\n\n"
         for chunk in llm_client.stream_chat(messages_adj, tools=tools_arg):

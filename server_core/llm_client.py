@@ -95,6 +95,27 @@ def _want_thoughts(think: Optional[bool]) -> bool:
   return str(raw or "").strip().lower() in ("1", "true", "yes", "y")
 
 
+def _normalize_openai_compatible_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+  """OpenRouter / OpenAI require tool role messages to include ``name`` or ``tool_call_id``."""
+  out: List[Dict[str, Any]] = []
+  for m in messages:
+    if not isinstance(m, dict):
+      continue
+    if str(m.get("role") or "") != "tool":
+      out.append(dict(m))
+      continue
+    nm = dict(m)
+    if not nm.get("tool_call_id") and not nm.get("name"):
+      content = nm.get("content", "")
+      if not isinstance(content, str):
+        content = json.dumps(content)
+      # Google AI Studio via OpenRouter rejects bare tool messages — fold into user turn.
+      out.append({"role": "user", "content": f"[Tool result]\n{content}"})
+      continue
+    out.append(nm)
+  return out
+
+
 def _openai_completion_max_tokens(think: Optional[bool], provider_label: str) -> int:
   """Completion token budget (OpenRouter reasoning + answer often share this cap)."""
   try:
@@ -579,9 +600,10 @@ class OpenAIBackend:
     num_ctx: Optional[int] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
   ) -> Any:
+    msgs = _normalize_openai_compatible_messages(messages)
     kwargs: Dict[str, Any] = {
       "model": self._model,
-      "messages": messages,
+      "messages": msgs,
       "max_tokens": _openai_completion_max_tokens(think, self._provider_label),
       "temperature": 0.7,
     }
@@ -625,9 +647,10 @@ class OpenAIBackend:
     tools: Optional[List[Dict[str, Any]]] = None,
     think: Optional[bool] = None,
   ) -> Generator[Any, None, None]:
+    msgs = _normalize_openai_compatible_messages(messages)
     kwargs: Dict[str, Any] = {
       "model": self._model,
-      "messages": messages,
+      "messages": msgs,
       "max_tokens": _openai_completion_max_tokens(think, self._provider_label),
       "temperature": 0.7,
       "stream": True,

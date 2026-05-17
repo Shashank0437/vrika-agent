@@ -172,7 +172,7 @@ TOOLS: Dict[str, dict] = {
     
     # ---- Network Recon ----
     "nmap": {
-        "desc": "Port scan and service detection",
+        "desc": "Port scan and service detection. target: hostname, IP, CIDR, or URL (https://host/ paths OK — normalized to host server-side).",
         "endpoint": "/api/tools/nmap",
         "method": "POST",
         "category": "essential",
