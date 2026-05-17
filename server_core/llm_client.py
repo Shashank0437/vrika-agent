@@ -548,15 +548,21 @@ class OpenAIBackend:
     self._provider_label = provider_label
     try:
       import openai  # noqa: F401 — optional dependency
-      self._openai = openai
-      kwargs: Dict[str, Any] = {"api_key": api_key}
-      if base_url:
-        kwargs["base_url"] = base_url
-      self._client = openai.OpenAI(**kwargs)
-    except ImportError:
+    except ImportError as exc:
       raise RuntimeError(
-        "openai SDK not installed. Run: pip install openai"
+        "openai SDK not installed. Run: pip install 'openai>=1.40.0'"
+      ) from exc
+    if not hasattr(openai, "OpenAI"):
+      ver = getattr(openai, "__version__", "unknown")
+      raise RuntimeError(
+        f"openai package is too old ({ver}); need openai>=1.40.0 for openai.OpenAI(). "
+        "Run: pip install -U 'openai>=1.40.0'"
       )
+    self._openai = openai
+    kwargs: Dict[str, Any] = {"api_key": api_key}
+    if base_url:
+      kwargs["base_url"] = base_url
+    self._client = openai.OpenAI(**kwargs)
 
   def _apply_openrouter_reasoning(self, kwargs: Dict[str, Any], think: Optional[bool]) -> None:
     if self._provider_label != "openrouter" or not _want_thoughts(think):
