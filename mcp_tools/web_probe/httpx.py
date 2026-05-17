@@ -5,9 +5,9 @@ import asyncio
 
 def register_httpx_tool(mcp, api_client, logger):
     @mcp.tool()
-    async def httpx_probe(target: str, probe: bool = True, tech_detect: bool = False,
-                   status_code: bool = False, content_length: bool = False,
-                   title: bool = False, web_server: bool = False, threads: int = 50,
+    async def httpx_probe(target: str, probe: bool = True, tech_detect: bool = True,
+                   status_code: bool = True, content_length: bool = True,
+                   title: bool = True, web_server: bool = True, threads: int = 50,
                    additional_args: str = "") -> Dict[str, Any]:
         """
         Execute httpx for fast HTTP probing and technology detection.

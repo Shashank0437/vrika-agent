@@ -596,24 +596,13 @@ def confirm_tool_call(chat_session_id: str):
           "content": f"The operator chose not to run {tool_name}.",
         })
 
-      # Stream the LLM follow-up (no tools this round — just interpret the result)
-      full_response: list = []
-      response_stats = None
+      # Stream the LLM follow-up — inject tool schemas so any new tool request
+      # goes through the approval gate instead of silently looping.
+      followup_schemas = _get_tool_schemas_for_message(llm_messages[-2].get("content", "") if len(llm_messages) >= 2 else "")
       try:
-        for chunk in llm_client.stream_chat(llm_messages):
-          if isinstance(chunk, dict):
-            response_stats = chunk
-            yield f"data: [STATS] {json.dumps(chunk)}\n\n"
-            continue
-          full_response.append(chunk)
-          yield f"data: {json.dumps(chunk)}\n\n"
-        complete = "".join(full_response)
-        stats_json = json.dumps(response_stats) if response_stats else None
-        db.add_chat_message(chat_session_id, "assistant", complete, stats=stats_json)
-        yield "data: [DONE]\n\n"
+        yield from _stream_llm_with_tools(chat_session_id, llm_messages, followup_schemas)
       except GeneratorExit:
-        if full_response:
-          db.add_chat_message(chat_session_id, "assistant", "".join(full_response))
+        pass
       except Exception as exc:
         logger.error("chat: tool-confirm stream error: %s", exc)
         yield f"data: [ERROR] {str(exc)}\n\n"
