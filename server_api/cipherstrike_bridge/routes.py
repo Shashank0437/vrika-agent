@@ -123,6 +123,7 @@ Rules:
 - If the message contains **http:// or https://** and asks for testing, assessment, or a pentest → **operational** and pick suitable tools from the list (e.g. HTTP probe, tech fingerprint, vuln templates, web scanner — use names that exist below).
 - If the user asks to **run nmap** (or port scan) on a **URL, hostname, or IP** → **operational**, **category** **network_recon** (or **essential**), and include **nmap** in **tool_names** when listed. URLs are valid targets for the backend.
 - If the user uses pronouns or shortcuts like **"same"**, **"this"**, **"that"**, **"it"**, **"the target"**, **"same target"** (e.g. "run dig on same", "scan it with nuclei", "try nikto on the target") → resolve them using the conversation context above. If a target (URL/host/IP) was mentioned in the recent context, treat the request as **operational** on that same target. Do NOT ask "what target?" when the answer is obvious from the prior turns.
+- **CRITICAL CONTEXT RULE**: If the conversation context contains a line starting with **"Most recent target(s) in this conversation:"** the user's current request is on that target **even if the request does NOT explicitly name a target**. Examples that MUST be treated as operational on the recent target: "run nuclei", "do a comprehensive scan", "full network scan", "scan it", "run all the tools", "pentest this". Never ask the user to re-specify a target that is already listed in the context. Pick suitable tools and respond with **operational** + appropriate **tool_names**.
 - If the user gives a **short affirmation** (e.g. "yes", "ok", "use both", "run them", "ok fine use those tools") after the assistant already named specific tools → **operational** and put **those exact tool names** in **tool_names** (e.g. assistant offered amass and subfinder → include both; user approving after batch rejections → only the rejected scanner names, not tools already executed).
 - If the user asks **which tool(s)** to use (recommendation) without asking to **run/execute/scan** them now → **conversational**, suggest tool names in **reply**, leave **tool_names** empty.
 - intent **conversational** only for pure greetings, thanks, meta chat, or conceptual questions with **no target** and **no request to run or plan tooling**. Do not ask what "both" means when the prior assistant message already named two tools.
@@ -383,6 +384,9 @@ def _stream_llm_sse(
     tools_arg = schemas if schemas_ok else None
     messages_adj = _messages_with_schema_nudges(messages, schemas if schemas_ok else None)
     saw_visible_output = False
+    stream_tool_call_chunk_seen = False
+    stream_tool_call_count = 0
+    stream_text_chars = 0
     try:
         yield "data: [THINKING]\n\n"
         for chunk in llm_client.stream_chat(messages_adj, tools=tools_arg):
@@ -391,36 +395,89 @@ def _stream_llm_sse(
                     yield f"data: [THINK_TOKEN] {json.dumps(chunk.get('content', ''))}\n\n"
                     continue
                 if chunk.get("type") == "_cipherstrike_tool_calls":
+                    stream_tool_call_chunk_seen = True
                     tcalls = chunk.get("tool_calls") or []
+                    stream_tool_call_count = len(tcalls) if isinstance(tcalls, list) else 0
+                    raw_names = [
+                        str(((tc or {}).get("function") or {}).get("name") or "")
+                        for tc in (tcalls if isinstance(tcalls, list) else [])
+                    ]
+                    logger.info(
+                        "cipherstrike_bridge: stream tool_calls received count=%d raw_names=%s",
+                        stream_tool_call_count, raw_names,
+                    )
                     pending_sse = list(_yield_cipherstrike_tool_pending_sse(tcalls if isinstance(tcalls, list) else []))
                     if pending_sse:
                         saw_visible_output = True
                         for ln in pending_sse:
                             yield ln
+                    else:
+                        logger.warning(
+                            "cipherstrike_bridge: stream tool_calls present but ALL dropped by _yield_cipherstrike_tool_pending_sse (raw_names=%s)",
+                            raw_names,
+                        )
                     yield "data: [DONE]\n\n"
                     return
                 yield f"data: [STATS] {json.dumps(chunk)}\n\n"
                 continue
             saw_visible_output = True
+            stream_text_chars += len(chunk) if isinstance(chunk, str) else 0
             yield f"data: {json.dumps(chunk)}\n\n"
 
         # Stream ended with no visible output (only thinking or nothing). If tools were
         # offered AND nothing actionable was produced, retry once non-streaming with a
         # strict nudge so the model emits either a tool_call or a visible reply.
         if not saw_visible_output and schemas_ok:
-            logger.info("cipherstrike_bridge: thought-only response with tools available; retrying with strict nudge")
+            logger.info(
+                "cipherstrike_bridge: thought-only response (tool_chunk_seen=%s text_chars=%d) with %d tools; retrying non-stream with strict nudge",
+                stream_tool_call_chunk_seen, stream_text_chars, len(schemas or []),
+            )
             try:
                 retry_msgs = list(messages_adj) + [
                     {"role": "system", "content": _THOUGHT_ONLY_FALLBACK_NUDGE},
                 ]
                 result = llm_client.chat(retry_msgs, tools=tools_arg, think=False)
+                logger.info(
+                    "cipherstrike_bridge: retry result type=%s keys=%s",
+                    type(result).__name__,
+                    list(result.keys()) if isinstance(result, dict) else None,
+                )
                 if isinstance(result, dict):
                     retry_tcalls = result.get("tool_calls") or []
                     retry_text = result.get("content") if isinstance(result.get("content"), str) else ""
+                    retry_raw_names = [
+                        str(((tc or {}).get("function") or {}).get("name") or "")
+                        for tc in (retry_tcalls if isinstance(retry_tcalls, list) else [])
+                    ]
+                    logger.info(
+                        "cipherstrike_bridge: retry returned tool_calls=%d raw_names=%s text_len=%d",
+                        len(retry_tcalls) if isinstance(retry_tcalls, list) else 0,
+                        retry_raw_names,
+                        len(retry_text or ""),
+                    )
                     if retry_tcalls:
                         pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls))
-                        for ln in pending_sse:
-                            yield ln
+                        if pending_sse:
+                            for ln in pending_sse:
+                                yield ln
+                        else:
+                            logger.warning(
+                                "cipherstrike_bridge: retry tool_calls present but ALL dropped by _yield_cipherstrike_tool_pending_sse (raw_names=%s)",
+                                retry_raw_names,
+                            )
+                            # Emit a clearer prompt naming the offered tools.
+                            offered = [
+                                str((s.get("function") or {}).get("name") or s.get("name") or "")
+                                for s in (schemas or [])
+                                if isinstance(s, dict)
+                            ]
+                            offered = [n for n in offered if n][:6]
+                            fallback = (
+                                f"The model requested tools that I couldn't resolve ({', '.join(retry_raw_names) or 'unknown names'}). "
+                                f"Try again, or call one of these directly: {', '.join(offered) if offered else '(no tools available)'}"
+                            )
+                            for slice_ in _iter_sse_text_chunks(fallback):
+                                yield f"data: {json.dumps(slice_)}\n\n"
                     elif retry_text.strip():
                         for slice_ in _iter_sse_text_chunks(retry_text):
                             yield f"data: {json.dumps(slice_)}\n\n"
