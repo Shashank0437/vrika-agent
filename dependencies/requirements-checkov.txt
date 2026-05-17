@@ -1,0 +1,4 @@
+# Optional IaC scanner — NOT installed with ./nyxstrike.sh -t (conflicts with bbot on tabulate).
+# Install in a separate venv or use pipx:  pipx install 'checkov>=3.2.417'
+# NyxStrike /api/tools/checkov only needs the `checkov` CLI on PATH.
+checkov>=3.2.417,<4.0.0
