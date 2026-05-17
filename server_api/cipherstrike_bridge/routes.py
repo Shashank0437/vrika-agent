@@ -306,6 +306,15 @@ def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dic
         yield "data: [DONE]\n\n"
 
 
+_THOUGHT_ONLY_FALLBACK_NUDGE = (
+    "Your previous turn produced only internal thinking and no tool_call or visible reply. "
+    "The user's request requires an action. You MUST now either: "
+    "(a) emit a tool_call using one of the available tools, OR "
+    "(b) reply with a short user-visible message asking for clarification. "
+    "Do not produce only thinking content again."
+)
+
+
 def _stream_llm_sse(
     messages: List[Dict[str, Any]],
     schemas: List[Dict[str, Any]] | None = None,
@@ -321,6 +330,7 @@ def _stream_llm_sse(
 
     tools_arg = schemas if schemas_ok else None
     messages_adj = _messages_with_schema_nudges(messages, schemas if schemas_ok else None)
+    saw_visible_output = False
     try:
         yield "data: [THINKING]\n\n"
         for chunk in llm_client.stream_chat(messages_adj, tools=tools_arg):
@@ -332,13 +342,47 @@ def _stream_llm_sse(
                     tcalls = chunk.get("tool_calls") or []
                     pending_sse = list(_yield_cipherstrike_tool_pending_sse(tcalls if isinstance(tcalls, list) else []))
                     if pending_sse:
+                        saw_visible_output = True
                         for ln in pending_sse:
                             yield ln
                     yield "data: [DONE]\n\n"
                     return
                 yield f"data: [STATS] {json.dumps(chunk)}\n\n"
                 continue
+            saw_visible_output = True
             yield f"data: {json.dumps(chunk)}\n\n"
+
+        # Stream ended with no visible output (only thinking or nothing). If tools were
+        # offered AND nothing actionable was produced, retry once non-streaming with a
+        # strict nudge so the model emits either a tool_call or a visible reply.
+        if not saw_visible_output and schemas_ok:
+            logger.info("cipherstrike_bridge: thought-only response with tools available; retrying with strict nudge")
+            try:
+                retry_msgs = list(messages_adj) + [
+                    {"role": "system", "content": _THOUGHT_ONLY_FALLBACK_NUDGE},
+                ]
+                result = llm_client.chat(retry_msgs, tools=tools_arg, think=False)
+                if isinstance(result, dict):
+                    retry_tcalls = result.get("tool_calls") or []
+                    retry_text = result.get("content") if isinstance(result.get("content"), str) else ""
+                    if retry_tcalls:
+                        pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls))
+                        for ln in pending_sse:
+                            yield ln
+                    elif retry_text.strip():
+                        for slice_ in _iter_sse_text_chunks(retry_text):
+                            yield f"data: {json.dumps(slice_)}\n\n"
+                    else:
+                        # Last resort: emit a visible prompt asking what they want.
+                        fallback = (
+                            "I have tools available but I'm not sure how to act on this. "
+                            "Could you rephrase or pick a specific tool to run?"
+                        )
+                        for slice_ in _iter_sse_text_chunks(fallback):
+                            yield f"data: {json.dumps(slice_)}\n\n"
+            except Exception as retry_exc:
+                logger.warning("cipherstrike_bridge: thought-only retry failed: %s", retry_exc)
+
         yield "data: [DONE]\n\n"
     except GeneratorExit:
         raise
