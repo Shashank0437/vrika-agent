@@ -95,6 +95,18 @@ def _want_thoughts(think: Optional[bool]) -> bool:
   return str(raw or "").strip().lower() in ("1", "true", "yes", "y")
 
 
+def _openai_completion_max_tokens(think: Optional[bool], provider_label: str) -> int:
+  """Completion token budget (OpenRouter reasoning + answer often share this cap)."""
+  try:
+    base = int(_cfg("NYXSTRIKE_LLM_NUM_CTX") or 8192)
+  except (TypeError, ValueError):
+    base = 8192
+  base = min(max(base, 1024), 65_536)
+  if provider_label == "openrouter" and _want_thoughts(think):
+    return min(max(base, 12_288), 65_536)
+  return min(max(base, 4096), 65_536)
+
+
 def _openrouter_reasoning_extra(model: str = "") -> Dict[str, Any]:
   """OpenRouter unified reasoning param (Gemini: reasoning.max_tokens → thinking_budget)."""
   effort = (_cfg("NYXSTRIKE_LLM_REASONING_EFFORT") or "").strip().lower()
@@ -564,7 +576,7 @@ class OpenAIBackend:
     kwargs: Dict[str, Any] = {
       "model": self._model,
       "messages": messages,
-      "max_tokens": 4096,
+      "max_tokens": _openai_completion_max_tokens(think, self._provider_label),
       "temperature": 0.7,
     }
     if stop:
@@ -610,7 +622,7 @@ class OpenAIBackend:
     kwargs: Dict[str, Any] = {
       "model": self._model,
       "messages": messages,
-      "max_tokens": 4096,
+      "max_tokens": _openai_completion_max_tokens(think, self._provider_label),
       "temperature": 0.7,
       "stream": True,
     }
