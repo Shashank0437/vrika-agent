@@ -423,6 +423,25 @@ def _stream_llm_sse(
     stream_tool_call_chunk_seen = False
     stream_tool_call_count = 0
     stream_text_chars = 0
+    # Log the offered tool names and the user message that triggered this stream so we can
+    # diagnose "model produced nothing" cases from agent logs alone.
+    try:
+        offered_names_dbg = [
+            str((s.get("function") or {}).get("name") or s.get("name") or "")
+            for s in (schemas or [])
+            if isinstance(s, dict)
+        ]
+        last_user_dbg = ""
+        for _m in reversed(messages_adj):
+            if isinstance(_m, dict) and str(_m.get("role") or "") == "user":
+                last_user_dbg = str(_m.get("content") or "")[:200]
+                break
+        logger.info(
+            "cipherstrike_bridge: llm-stream start provider=%s schemas=%d offered=%s last_user=%r",
+            provider, len(schemas or []), offered_names_dbg[:8], last_user_dbg,
+        )
+    except Exception:
+        pass
     try:
         yield "data: [THINKING]\n\n"
         for chunk in llm_client.stream_chat(messages_adj, tools=tools_arg):
