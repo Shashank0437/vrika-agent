@@ -6,7 +6,7 @@ set -euo pipefail
 # Usage:
 #   ./nyxstrike.sh                        # MCP launcher mode (default, used by 5ire)
 #   ./nyxstrike.sh -a                     # Update + start server  (recommended)
-#   ./nyxstrike.sh -a -ai                 # Same + Gemini LLM defaults + warmup (needs GOOGLE_API_KEY or GEMINI_API_KEY)
+#   ./nyxstrike.sh -a -ai                 # Same + OpenRouter LLM defaults + warmup (needs GOOGLE_API_KEY or OPENROUTER_API_KEY)
 #
 #   ./nyxstrike.sh --server               # Start server only (no update/install)
 #   ./nyxstrike.sh --mcp                  # Start MCP client only
@@ -17,7 +17,7 @@ set -euo pipefail
 #   ./nyxstrike.sh -t -b                  # Install tools + heavy Python extras
 #   ./nyxstrike.sh -u                     # Update already-cloned git_tools
 #   ./nyxstrike.sh -y                     # Force reinstall Python requirements
-#   ./nyxstrike.sh -ai                    # Write Gemini defaults to config + enable LLM warmup
+#   ./nyxstrike.sh -ai                    # Write OpenRouter defaults to config + enable LLM warmup
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${ROOT_DIR}/nyxstrike-env"
@@ -31,8 +31,8 @@ UPDATE_GIT_TOOLS=false
 UPDATE_SELF=false
 UPDATE_PYTHON_PACKAGES=false
 PIP_BOOTSTRAPPED=false
-CONFIGURE_GEMINI_LLM=false
-GEMINI_DEFAULT_MODEL="gemini-2.5-flash"
+CONFIGURE_OPENROUTER_LLM=false
+OPENROUTER_DEFAULT_MODEL="google/gemini-2.5-flash-lite"
 
 # --- run flags ---
 RUN_SERVER=false
@@ -332,8 +332,8 @@ install_requirements_file() {
   touch "${stamp_file}"
 }
 
-write_gemini_llm_config_local() {
-  local model="${1:-${GEMINI_DEFAULT_MODEL}}"
+write_openrouter_llm_config_local() {
+  local model="${1:-${OPENROUTER_DEFAULT_MODEL}}"
   local data_dir="${NYXSTRIKE_DATA_DIR:-${ROOT_DIR}/.nyxstrike_data}"
   local config_file="${NYXSTRIKE_CONFIG_FILE:-${data_dir}/config/config_local.json}"
   local config_dir
@@ -341,7 +341,7 @@ write_gemini_llm_config_local() {
 
   if ! command -v python3 >/dev/null 2>&1; then
     echo "Warning: python3 not found; merge these into ${config_file} manually:"
-    echo '  NYXSTRIKE_LLM_PROVIDER=gemini, NYXSTRIKE_LLM_MODEL='"${model}"', NYXSTRIKE_LLM_URL=""'
+    echo '  NYXSTRIKE_LLM_PROVIDER=openrouter, NYXSTRIKE_LLM_MODEL='"${model}"', NYXSTRIKE_LLM_URL=https://openrouter.ai/api/v1'
     return
   fi
 
@@ -359,14 +359,14 @@ try:
     data = json.loads(existing_json)
 except Exception:
     data = {}
-data["NYXSTRIKE_LLM_PROVIDER"] = "gemini"
+data["NYXSTRIKE_LLM_PROVIDER"] = "openrouter"
 data["NYXSTRIKE_LLM_MODEL"] = model
-data["NYXSTRIKE_LLM_URL"] = ""
+data["NYXSTRIKE_LLM_URL"] = "https://openrouter.ai/api/v1"
 with open(config_file, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
 PYEOF
-  echo "Gemini LLM configured in ${config_file} (provider=gemini, model=${model})."
-  echo "Set an API key before starting the server, e.g.: export GOOGLE_API_KEY=\"<key from https://ai.google.dev/ >\""
+  echo "OpenRouter LLM configured in ${config_file} (provider=openrouter, model=${model})."
+  echo "Set an API key before starting the server, e.g.: export GOOGLE_API_KEY=\"<your OpenRouter API key>\""
 }
 
 clone_or_update_git_tools() {
@@ -440,9 +440,9 @@ run_setup() {
     echo "[4/4] Skipping git tool repositories (use -t to enable)."
   fi
 
-  if [[ "${CONFIGURE_GEMINI_LLM}" == true ]]; then
-    echo "[5/5] Configuring Google Gemini LLM defaults..."
-    write_gemini_llm_config_local "${GEMINI_DEFAULT_MODEL}"
+  if [[ "${CONFIGURE_OPENROUTER_LLM}" == true ]]; then
+    echo "[5/5] Configuring OpenRouter LLM defaults..."
+    write_openrouter_llm_config_local "${OPENROUTER_DEFAULT_MODEL}"
   fi
 
   echo "Setup complete."
@@ -492,7 +492,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -ai)
-      CONFIGURE_GEMINI_LLM=true
+      CONFIGURE_OPENROUTER_LLM=true
       export NYXSTRIKE_LLM_WARMUP=1
       DO_SETUP=true
       shift
@@ -524,7 +524,7 @@ while [[ $# -gt 0 ]]; do
       echo "  -u, --update-git-tools  Pull latest for already-cloned git_tools repos (implies -t)"
       echo "  -y, --update-python-packages  Force reinstall of Python requirements"
       echo "  -p, --python <bin>      Python binary to use (default: python3)"
-    echo "  -ai                     Configure Gemini (writes config_local.json; set GOOGLE_API_KEY or GEMINI_API_KEY)"
+    echo "  -ai                     Configure OpenRouter (writes config_local.json; set GOOGLE_API_KEY or OPENROUTER_API_KEY)"
       echo ""
       echo "Run:"
       echo "  --server                Start the NyxStrike API server"
@@ -535,7 +535,7 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "Examples:"
       echo "  ./nyxstrike.sh -a               # start here (first run + daily driver)"
-      echo "  ./nyxstrike.sh -a -ai           # with Gemini defaults + LLM warmup"
+      echo "  ./nyxstrike.sh -a -ai           # with OpenRouter defaults + LLM warmup"
       echo "  ./nyxstrike.sh --server         # just start the server"
       exit 0
       ;;

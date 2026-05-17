@@ -43,13 +43,14 @@ _config = {
     "METASPLOIT_SESSION_WAIT": 10,  # Seconds to wait after exploit -j before listing sessions
 
     # ── LLM client ────────────────────────────────────────────────────────────
-    "NYXSTRIKE_LLM_PROVIDER": "gemini",                         # gemini | openai | anthropic
-    "NYXSTRIKE_LLM_MODEL":    "gemini-2.5-flash",               # e.g. gemini-2.5-flash, gpt-4o, claude-3-5-sonnet-latest
-    "NYXSTRIKE_LLM_URL":      "",                              # optional: custom OpenAI-compatible base URL only (OpenAI provider)
-    "NYXSTRIKE_LLM_API_KEY":  "",                               # or set GOOGLE_API_KEY / GEMINI_API_KEY (Gemini) in the environment
+    "NYXSTRIKE_LLM_PROVIDER": "openrouter",                     # openrouter | gemini | openai | anthropic
+    "NYXSTRIKE_LLM_MODEL":    "google/gemini-2.5-flash-lite",    # OpenRouter model id (bare gemini-* names are auto-prefixed)
+    "NYXSTRIKE_LLM_URL":      "https://openrouter.ai/api/v1",   # OpenRouter base URL (openrouter / openai providers)
+    "NYXSTRIKE_LLM_API_KEY":  "",                               # or NYXSTRIKE_LLM_API_KEY / GOOGLE_API_KEY / OPENROUTER_API_KEY in env
     "NYXSTRIKE_LLM_TIMEOUT":  600,                              # seconds
     "NYXSTRIKE_LLM_MAX_LOOPS": 9,
-    "NYXSTRIKE_LLM_THINK":    True,                             # Gemini: maps to thinkingConfig.includeThoughts (use a thinking-capable model, e.g. gemini-2.5-flash)
+    "NYXSTRIKE_LLM_THINK":    True,                             # OpenRouter reasoning API + Gemini thinkingConfig.includeThoughts
+    "NYXSTRIKE_LLM_REASONING_MAX_TOKENS": 1000,                 # OpenRouter reasoning.max_tokens (Gemini thinking_budget); 0 = use enabled/effort
     "NYXSTRIKE_LLM_NUM_CTX":  8192,                             # hints max output tokens for Gemini; context sizing for other paths
     "NYXSTRIKE_LLM_NUM_CTX_ANALYSE": 16384,                     # analysis / report context hint
 

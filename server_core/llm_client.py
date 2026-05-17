@@ -6,18 +6,22 @@ Provider-agnostic LLM adapter for NyxStrike.
 Reads configuration from env vars, config_local.json, and config.py defaults.
 
 Supported backends:
-  gemini      — Google Generative AI (Gemini). API key: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY
+  openrouter  — OpenRouter (OpenAI-compatible). API key: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY
+  gemini      — Google Generative AI (Gemini direct). API key: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY
   openai      — OpenAI or Azure OpenAI via the openai SDK
   anthropic   — Anthropic Claude via the anthropic SDK
 
 Config keys:
-  NYXSTRIKE_LLM_PROVIDER       gemini | openai | anthropic
-  NYXSTRIKE_LLM_MODEL          e.g. gemini-2.5-flash, gpt-4o, claude-3-5-sonnet-latest
-  NYXSTRIKE_LLM_URL            optional (OpenAI custom base URL only; ignored for gemini / anthropic)
+  NYXSTRIKE_LLM_PROVIDER       openrouter | gemini | openai | anthropic
+  NYXSTRIKE_LLM_MODEL          e.g. google/gemini-2.5-flash-lite, gpt-4o, claude-3-5-sonnet-latest
+  NYXSTRIKE_LLM_URL            OpenRouter / OpenAI base URL (default https://openrouter.ai/api/v1 for openrouter)
   NYXSTRIKE_LLM_API_KEY        primary secret (also checks provider-specific env vars)
   NYXSTRIKE_LLM_MAX_LOOPS
   NYXSTRIKE_LLM_TIMEOUT
   NYXSTRIKE_LLM_NUM_CTX        max output-ish hint for Gemini / context sizing hints
+  NYXSTRIKE_LLM_THINK          enable reasoning (OpenRouter reasoning API / Gemini thoughts)
+  NYXSTRIKE_LLM_REASONING_MAX_TOKENS  OpenRouter reasoning.max_tokens (default 1000 for Gemini)
+  NYXSTRIKE_LLM_REASONING_EFFORT  optional OpenRouter effort (overrides max_tokens if set)
 """
 
 import logging
@@ -69,6 +73,96 @@ _LEGACY_OPENAI_BASE_IGNORE = frozenset({
 })
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
+OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
+
+
+def _resolve_openrouter_api_key(api_key: str) -> str:
+  """OpenRouter key from config or legacy env names (GOOGLE_API_KEY holds the OpenRouter key)."""
+  return (
+    (api_key or "").strip()
+    or (os.environ.get("NYXSTRIKE_LLM_API_KEY") or "").strip()
+    or (os.environ.get("GOOGLE_API_KEY") or "").strip()
+    or (os.environ.get("OPENROUTER_API_KEY") or "").strip()
+  )
+
+
+def _want_thoughts(think: Optional[bool]) -> bool:
+  if think is not None:
+    return bool(think)
+  raw = _cfg("NYXSTRIKE_LLM_THINK")
+  if isinstance(raw, bool):
+    return raw
+  return str(raw or "").strip().lower() in ("1", "true", "yes", "y")
+
+
+def _openrouter_reasoning_extra(model: str = "") -> Dict[str, Any]:
+  """OpenRouter unified reasoning param (Gemini: reasoning.max_tokens → thinking_budget)."""
+  effort = (_cfg("NYXSTRIKE_LLM_REASONING_EFFORT") or "").strip().lower()
+  if effort in ("xhigh", "high", "medium", "low", "minimal", "none"):
+    return {"reasoning": {"effort": effort, "exclude": False}}
+
+  max_tokens = 0
+  raw_max = _cfg("NYXSTRIKE_LLM_REASONING_MAX_TOKENS")
+  if raw_max not in ("", None, False):
+    try:
+      max_tokens = int(raw_max)
+    except (TypeError, ValueError):
+      max_tokens = 0
+
+  if max_tokens <= 0 and "gemini" in (model or "").lower():
+    max_tokens = 1000
+
+  if max_tokens > 0:
+    return {"reasoning": {"max_tokens": max_tokens, "exclude": False}}
+  return {"reasoning": {"enabled": True, "exclude": False}}
+
+
+def _reasoning_text_from_message(msg: Any) -> str:
+  if msg is None:
+    return ""
+  for attr in ("reasoning", "reasoning_content"):
+    val = getattr(msg, attr, None)
+    if isinstance(val, str) and val.strip():
+      return val.strip()
+  details = getattr(msg, "reasoning_details", None)
+  return _reasoning_text_from_details(details)
+
+
+def _reasoning_text_from_details(details: Any) -> str:
+  if not details:
+    return ""
+  parts: List[str] = []
+  for item in details:
+    if isinstance(item, dict):
+      txt = item.get("text") or item.get("content")
+      if txt:
+        parts.append(str(txt))
+    else:
+      txt = getattr(item, "text", None) or getattr(item, "content", None)
+      if txt:
+        parts.append(str(txt))
+  return "".join(parts).strip()
+
+
+def _reasoning_text_from_delta(delta_obj: Any) -> str:
+  if delta_obj is None:
+    return ""
+  for attr in ("reasoning", "reasoning_content"):
+    val = getattr(delta_obj, attr, None)
+    if isinstance(val, str) and val:
+      return val
+  return _reasoning_text_from_details(getattr(delta_obj, "reasoning_details", None))
+
+
+def _normalize_openrouter_model_id(model: str) -> str:
+  m = (model or "").strip()
+  if not m:
+    return "google/gemini-2.5-flash-lite"
+  if "/" in m:
+    return m
+  if m.startswith("gemini-"):
+    return f"google/{m}"
+  return m
 
 
 def _normalize_gemini_model_id(model: str) -> str:
@@ -200,14 +294,6 @@ class GeminiBackend:
         answer_chunks.append(txt)
     return "".join(thought_chunks).strip(), "".join(answer_chunks).strip()
 
-  def _want_thoughts(self, think: Optional[bool]) -> bool:
-    if think is not None:
-      return bool(think)
-    raw = _cfg("NYXSTRIKE_LLM_THINK")
-    if isinstance(raw, bool):
-      return raw
-    return str(raw or "").strip().lower() in ("1", "true", "yes", "y")
-
   def _apply_thinking_config(self, gen_cfg: Dict[str, Any], want: bool) -> None:
     if not want:
       return
@@ -222,7 +308,7 @@ class GeminiBackend:
     tools: Optional[List[Dict[str, Any]]] = None,
   ) -> Dict[str, Any]:
     sys_text, contents = self._build_contents(messages)
-    want_thoughts = self._want_thoughts(think)
+    want_thoughts = _want_thoughts(think)
     gen_cfg: Dict[str, Any] = {
       "temperature": 0.7,
       "maxOutputTokens": self._max_output_tokens,
@@ -290,7 +376,7 @@ class GeminiBackend:
   ) -> Generator:
     sys_text, contents = self._build_contents(messages)
     mo = min(max((num_ctx or self._max_output_tokens), 256), 8192)
-    want_thoughts = self._want_thoughts(None)
+    want_thoughts = _want_thoughts(None)
     gen_cfg: Dict[str, Any] = {"temperature": 0.7, "maxOutputTokens": mo}
     self._apply_thinking_config(gen_cfg, want_thoughts)
     body: Dict[str, Any] = {
@@ -434,11 +520,20 @@ class GeminiBackend:
 
 
 class OpenAIBackend:
-  """OpenAI / Azure OpenAI backend via the openai SDK."""
+  """OpenAI-compatible backend (OpenAI, Azure, OpenRouter) via the openai SDK."""
 
-  def __init__(self, model: str, api_key: str, base_url: Optional[str], timeout: int) -> None:
+  def __init__(
+    self,
+    model: str,
+    api_key: str,
+    base_url: Optional[str],
+    timeout: int,
+    *,
+    provider_label: str = "openai",
+  ) -> None:
     self._model = model
     self._timeout = timeout
+    self._provider_label = provider_label
     try:
       import openai  # noqa: F401 — optional dependency
       self._openai = openai
@@ -450,6 +545,13 @@ class OpenAIBackend:
       raise RuntimeError(
         "openai SDK not installed. Run: pip install openai"
       )
+
+  def _apply_openrouter_reasoning(self, kwargs: Dict[str, Any], think: Optional[bool]) -> None:
+    if self._provider_label != "openrouter" or not _want_thoughts(think):
+      return
+    extra = dict(kwargs.get("extra_body") or {})
+    extra.update(_openrouter_reasoning_extra(self._model))
+    kwargs["extra_body"] = extra
 
   def chat(
     self,
@@ -470,9 +572,11 @@ class OpenAIBackend:
     if tools:
       kwargs["tools"] = tools
       kwargs["tool_choice"] = "auto"
+    self._apply_openrouter_reasoning(kwargs, think)
     try:
       resp = self._client.chat.completions.create(**kwargs)
       msg = resp.choices[0].message
+      thought_text = _reasoning_text_from_message(msg)
       if getattr(msg, "tool_calls", None):
         tcs = []
         for tc in msg.tool_calls:
@@ -485,8 +589,14 @@ class OpenAIBackend:
           else:
             ad = dict(args) if isinstance(args, dict) else {}
           tcs.append({"id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": ad}})
-        return {"content": (msg.content or "").strip(), "tool_calls": tcs}
-      return {"content": (msg.content or "").strip(), "tool_calls": None}
+        out: Dict[str, Any] = {"content": (msg.content or "").strip(), "tool_calls": tcs}
+        if thought_text:
+          out["thinking_content"] = thought_text
+        return out
+      out = {"content": (msg.content or "").strip(), "tool_calls": None}
+      if thought_text:
+        out["thinking_content"] = thought_text
+      return out
     except Exception as exc:
       raise RuntimeError(f"OpenAI API error: {exc}")
 
@@ -495,6 +605,7 @@ class OpenAIBackend:
     messages: List[Dict[str, Any]],
     num_ctx: Optional[int] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
+    think: Optional[bool] = None,
   ) -> Generator[Any, None, None]:
     kwargs: Dict[str, Any] = {
       "model": self._model,
@@ -506,6 +617,7 @@ class OpenAIBackend:
     if tools:
       kwargs["tools"] = tools
       kwargs["tool_choice"] = "auto"
+    self._apply_openrouter_reasoning(kwargs, think)
     try:
       stream = self._client.chat.completions.create(**kwargs)
       tool_call_parts: Dict[int, Dict[str, Any]] = {}
@@ -513,6 +625,10 @@ class OpenAIBackend:
         if not chunk.choices:
           continue
         delta_obj = chunk.choices[0].delta
+        reasoning_delta = _reasoning_text_from_delta(delta_obj)
+        if reasoning_delta:
+          for piece in _slice_stream_text(reasoning_delta, max_chars=48):
+            yield {"type": "thinking", "content": piece}
         delta = getattr(delta_obj, "content", None)
         if delta:
           yield delta
@@ -578,11 +694,25 @@ class OpenAIBackend:
 
   @property
   def provider(self) -> str:
-    return "openai"
+    return self._provider_label
 
   @property
   def model(self) -> str:
     return self._model
+
+
+class OpenRouterBackend(OpenAIBackend):
+  """OpenRouter — OpenAI-compatible API for routed models (e.g. google/gemini-2.5-flash-lite)."""
+
+  def __init__(self, model: str, api_key: str, base_url: Optional[str], timeout: int) -> None:
+    url = (base_url or "").strip() or OPENROUTER_API_BASE
+    super().__init__(
+      _normalize_openrouter_model_id(model),
+      api_key,
+      url,
+      timeout,
+      provider_label="openrouter",
+    )
 
 
 def _anthropic_tools_from_openai_schemas(openai_tools: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
@@ -726,11 +856,8 @@ class LLMClient:
     self._backend: Any = None
     self._init_error: str = ""
 
-    if os.environ.get("NYXSTRIKE_LLM_WARMUP") != "1":
-      return
-
-    provider = (_cfg("NYXSTRIKE_LLM_PROVIDER") or "gemini").lower()
-    model = _cfg("NYXSTRIKE_LLM_MODEL") or "gemini-2.5-flash"
+    provider = (_cfg("NYXSTRIKE_LLM_PROVIDER") or "openrouter").lower()
+    model = _cfg("NYXSTRIKE_LLM_MODEL") or "google/gemini-2.5-flash-lite"
     base_url = (_cfg("NYXSTRIKE_LLM_URL") or "").strip()
     api_key = (_cfg("NYXSTRIKE_LLM_API_KEY") or "").strip()
     timeout = int(_cfg("NYXSTRIKE_LLM_TIMEOUT") or 300)
@@ -738,20 +865,26 @@ class LLMClient:
     self._num_ctx_analyse = int(_cfg("NYXSTRIKE_LLM_NUM_CTX_ANALYSE") or 16384)
 
     gemini_key = api_key or (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY") or "").strip()
+    openrouter_key = _resolve_openrouter_api_key(api_key)
+    openai_key = api_key or openrouter_key
 
     openai_base: Optional[str] = None
     if base_url and base_url.strip() not in _LEGACY_OPENAI_BASE_IGNORE:
       openai_base = base_url.strip()
 
     try:
-      if provider == "gemini":
+      if provider == "openrouter":
+        self._backend = OpenRouterBackend(model, openrouter_key, openai_base, timeout)
+      elif provider == "gemini":
         self._backend = GeminiBackend(model, gemini_key, timeout, max_output_tokens=num_ctx)
       elif provider == "openai":
-        self._backend = OpenAIBackend(model, api_key, openai_base, timeout)
+        self._backend = OpenAIBackend(model, openai_key, openai_base, timeout)
       elif provider == "anthropic":
         self._backend = AnthropicBackend(model, api_key, timeout)
       else:
-        raise ValueError(f"Unknown LLM provider: {provider!r}. Choose: gemini, openai, anthropic")
+        raise ValueError(
+          f"Unknown LLM provider: {provider!r}. Choose: openrouter, gemini, openai, anthropic",
+        )
 
       logger.info(
         "llm_client: initialized provider=%s model=%s",

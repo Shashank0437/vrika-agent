@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Smoke-test Gemini streaming via NyxStrike ``LLMClient`` (requires API key in env).
+"""Smoke-test OpenRouter streaming via NyxStrike ``LLMClient`` (requires API key in env).
 
-Set one of: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY.
+Set one of: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY.
 """
 
 import os
@@ -11,10 +11,10 @@ def main() -> None:
   if not (
     os.environ.get("NYXSTRIKE_LLM_API_KEY")
     or os.environ.get("GOOGLE_API_KEY")
-    or os.environ.get("GEMINI_API_KEY")
+    or os.environ.get("OPENROUTER_API_KEY")
   ):
     print(
-      "Set NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY, "
+      "Set NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY, "
       "then run: python3 test_gemini_stream.py"
     )
     return
