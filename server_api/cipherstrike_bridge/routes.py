@@ -226,42 +226,78 @@ def route_intent():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
+_TOOL_NAME_PREFIX_STRIPS = (
+    "run_", "run-",
+    "execute_", "execute-",
+    "exec_", "exec-",
+    "launch_", "launch-",
+    "start_", "start-",
+    "call_", "call-",
+    "do_", "do-",
+    "tool_", "tool-",
+    "use_", "use-",
+)
+
+
 def _resolve_tool_name(raw_name: str) -> tuple[str, Any]:
     """Resolve a model-emitted tool name to (canonical_name, tool_def).
-    Handles Gemini's namespaced output (e.g. 'default_api.httpx', 'tools.nmap'),
-    case differences, and hyphen/underscore swaps. Returns ('', None) if not found.
+
+    Handles common model name variations:
+      - Namespace prefixes: 'default_api.httpx', 'tools.nmap', 'functions.nmap'
+      - Verb prefixes:      'run_httpx', 'execute-nmap', 'launch_nuclei', 'call_dig'
+      - Case differences:   'HTTPX', 'Nmap'
+      - Hyphen/underscore swaps: 'graphql-scanner' <-> 'graphql_scanner'
+
+    Returns ('', None) if no normalization matches a registry entry.
     """
     from tool_registry import get_tool, TOOLS  # TOOLS is the registry dict
     if not raw_name:
         return "", None
-    candidates: list[str] = []
     n = raw_name.strip()
-    candidates.append(n)
-    # Strip common namespace prefixes (e.g. "default_api.httpx", "tools.nmap", "functions.nmap")
+    candidates: list[str] = [n]
+
+    # Strip namespace prefix once (e.g. "default_api.httpx" -> "httpx").
     if "." in n:
         candidates.append(n.rsplit(".", 1)[-1])
-    # Try a few normalizations
-    for base in list(candidates):
+
+    # For every candidate so far, also produce verb-prefix-stripped variants.
+    verb_stripped: list[str] = []
+    for base in candidates:
+        b_lower = base.lower()
+        for pfx in _TOOL_NAME_PREFIX_STRIPS:
+            if b_lower.startswith(pfx) and len(base) > len(pfx):
+                verb_stripped.append(base[len(pfx):])
+                break
+    candidates.extend(verb_stripped)
+
+    # Case + hyphen/underscore variations for every candidate.
+    expanded: list[str] = []
+    for base in candidates:
         b = base.strip()
         if not b:
             continue
-        candidates.append(b.lower())
-        candidates.append(b.replace("_", "-"))
-        candidates.append(b.replace("-", "_"))
-        candidates.append(b.lower().replace("_", "-"))
-        candidates.append(b.lower().replace("-", "_"))
+        expanded.extend([
+            b,
+            b.lower(),
+            b.replace("_", "-"),
+            b.replace("-", "_"),
+            b.lower().replace("_", "-"),
+            b.lower().replace("-", "_"),
+        ])
+
     seen: set[str] = set()
-    for c in candidates:
+    for c in expanded:
         if not c or c in seen:
             continue
         seen.add(c)
         td = get_tool(c)
         if td:
             return c, td
-    # Last resort: case-insensitive scan of registry keys
-    rn_lower = (candidates[-1] if candidates else n).lower()
+
+    # Last resort: case-insensitive scan of every registry key.
+    target_lower = (expanded[-1] if expanded else n).lower()
     for k in TOOLS.keys():
-        if k.lower() == rn_lower:
+        if k.lower() == target_lower:
             return k, TOOLS[k]
     return "", None
 
