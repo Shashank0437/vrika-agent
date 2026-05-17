@@ -1,5 +1,7 @@
 # Optional pip constraints (used by nyxstrike.sh when present).
 # Mitmproxy 11 needs h11<=0.14 and Flask<=3.1.0; httpcore 1.0.9+ needs h11>=0.16 — pin httpcore 1.0.8 so h11 0.14.x satisfies both.
+# LLM (OpenRouter) needs openai>=1.40 (openai.OpenAI). Old checkov (<3.2.417) pins openai<1 — use newer checkov or skip -t.
+openai>=1.40.0,<3.0.0
 httpcore==1.0.8
 h11>=0.13,<0.15
 flask>=3.0.0,<=3.1.0
