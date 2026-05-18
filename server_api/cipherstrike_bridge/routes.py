@@ -305,6 +305,8 @@ def _resolve_tool_name(raw_name: str) -> tuple[str, Any]:
 def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Generator[str, None, None]:
     """Emit TOOL_CALL_PENDING / TOOL_CALL_BATCH_PENDING SSE frames for registry-resolved tools."""
     batch_payloads: List[Dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    duplicate_count = 0
     if not isinstance(tool_calls, list):
         return
     for tc in tool_calls[:_MAX_MULTI_TOOL_CALLS]:
@@ -325,6 +327,15 @@ def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Ge
                     raw_tool_name,
                     canonical_name,
                 )
+            try:
+                args_key = json.dumps(arguments, sort_keys=True, separators=(",", ":"), default=str)
+            except Exception:
+                args_key = str(arguments)
+            dedupe_key = (canonical_name.strip().lower(), args_key)
+            if dedupe_key in seen:
+                duplicate_count += 1
+                continue
+            seen.add(dedupe_key)
             batch_payloads.append(
                 {
                     "tool_name": canonical_name,
@@ -338,6 +349,9 @@ def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Ge
                 "cipherstrike_bridge: unknown tool %r from model (no normalization match), skipping",
                 raw_tool_name,
             )
+
+    if duplicate_count:
+        logger.info("cipherstrike_bridge: dropped %d duplicate tool_calls before SSE emit", duplicate_count)
 
     if len(batch_payloads) == 1:
         yield f"data: [TOOL_CALL_PENDING] {json.dumps(batch_payloads[0])}\n\n"
