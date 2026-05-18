@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 import logging
+import shlex
 from server_core.command_executor import execute_command
 
 logger = logging.getLogger(__name__)
@@ -24,13 +25,13 @@ def arjun():
             logger.warning("🌐 Arjun called without URL parameter")
             return jsonify({"error": "URL parameter is required"}), 400
 
-        command = f"arjun -u {url} -m {method} -t {threads}"
+        command = f"arjun -u {shlex.quote(url)} -m {shlex.quote(str(method))} -t {int(threads)}"
 
         if wordlist:
-            command += f" -w {wordlist}"
+            command += f" -w {shlex.quote(str(wordlist))}"
 
-        if delay > 0:
-            command += f" -d {delay}"
+        if delay and int(delay) > 0:
+            command += f" -d {int(delay)}"
 
         if stable:
             command += " --stable"

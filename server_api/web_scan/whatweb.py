@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 import logging
+import shlex
 from server_core.command_executor import execute_command
 
 logger = logging.getLogger(__name__)
@@ -10,8 +11,8 @@ api_web_scan_whatweb_bp = Blueprint("api_web_scan_whatweb", __name__)
 def whatweb():
     """Execute whatweb with enhanced logging"""
     try:
-        params = request.json
-        url = params.get("url", "")
+        params = request.json or {}
+        url = (params.get("url") or "").strip()
 
         if not url:
             logger.warning("🌐 WhatWeb called without URL parameter")
@@ -19,7 +20,7 @@ def whatweb():
                 "error": "URL parameter is required"
             }), 400
 
-        command = f"whatweb -v -a 3 {url}"
+        command = f"whatweb -v -a 3 {shlex.quote(url)}"
 
         logger.info(f"🔍 Starting WhatWeb: {url}")
         result = execute_command(command)

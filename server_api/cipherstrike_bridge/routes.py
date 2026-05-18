@@ -397,11 +397,90 @@ def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dic
 
 _THOUGHT_ONLY_FALLBACK_NUDGE = (
     "Your previous turn produced only internal thinking and no tool_call or visible reply. "
-    "The user's request requires an action. You MUST now either: "
-    "(a) emit a tool_call using one of the available tools, OR "
-    "(b) reply with a short user-visible message asking for clarification. "
+    "You MUST now emit a function call using one of the available tools. "
+    "If the user named a target, pass it as the tool's target/url argument. "
     "Do not produce only thinking content again."
 )
+
+
+def _force_tool_call_retry(messages: List[Dict[str, Any]], tools: List[Dict[str, Any]] | None) -> Dict[str, Any]:
+    """Force the model to emit a function call by setting tool_choice='required'.
+
+    Bypasses LLMClient.chat (which hardcodes tool_choice='auto') to talk to the OpenAI-compatible
+    client directly. Falls back to LLMClient.chat with 'auto' if the direct call fails.
+    """
+    backend = getattr(llm_client, "_backend", None)
+    inner_client = getattr(backend, "_client", None)
+    model = getattr(backend, "_model", None)
+    if inner_client is None or not model:
+        # Backend doesn't expose an OpenAI-compatible client — fall back to abstract chat.
+        try:
+            res = llm_client.chat(messages, tools=tools, think=False)
+            return res if isinstance(res, dict) else {"content": str(res or ""), "tool_calls": None}
+        except Exception as exc:
+            logger.warning("force_tool_call_retry: abstract chat failed: %s", exc)
+            return {"content": "", "tool_calls": None}
+
+    try:
+        kwargs: Dict[str, Any] = {
+            "model": model,
+            "messages": _normalize_openai_compatible_messages_local(messages),
+            "max_tokens": 4096,
+            "temperature": 0.3,  # low temperature to keep it focused on tool selection
+        }
+        if tools:
+            kwargs["tools"] = tools
+            # CRITICAL: force the model to emit a function call (cannot return empty).
+            kwargs["tool_choice"] = "required"
+        resp = inner_client.chat.completions.create(**kwargs)
+        msg = resp.choices[0].message
+        content = (msg.content or "").strip() if hasattr(msg, "content") else ""
+        out_calls: List[Dict[str, Any]] = []
+        for tc in getattr(msg, "tool_calls", None) or []:
+            args = tc.function.arguments
+            if isinstance(args, str):
+                try:
+                    parsed = json.loads(args)
+                except json.JSONDecodeError:
+                    parsed = {"_raw": args}
+            else:
+                parsed = dict(args) if isinstance(args, dict) else {}
+            out_calls.append(
+                {
+                    "id": str(getattr(tc, "id", "") or ""),
+                    "type": "function",
+                    "function": {"name": tc.function.name, "arguments": parsed},
+                }
+            )
+        return {"content": content, "tool_calls": out_calls or None}
+    except Exception as exc:
+        logger.warning("force_tool_call_retry: direct OpenAI client call failed: %s; falling back to auto", exc)
+        try:
+            res = llm_client.chat(messages, tools=tools, think=False)
+            return res if isinstance(res, dict) else {"content": str(res or ""), "tool_calls": None}
+        except Exception as exc2:
+            logger.warning("force_tool_call_retry: abstract chat also failed: %s", exc2)
+            return {"content": "", "tool_calls": None}
+
+
+def _normalize_openai_compatible_messages_local(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Mirror LLMClient's tool-message normalization so a direct call uses the same shape."""
+    out: List[Dict[str, Any]] = []
+    for m in messages:
+        if not isinstance(m, dict):
+            continue
+        if str(m.get("role") or "") != "tool":
+            out.append(dict(m))
+            continue
+        nm = dict(m)
+        if not nm.get("tool_call_id") and not nm.get("name"):
+            content = nm.get("content", "")
+            if not isinstance(content, str):
+                content = json.dumps(content)
+            out.append({"role": "user", "content": f"[Tool result]\n{content}"})
+            continue
+        out.append(nm)
+    return out
 
 
 def _stream_llm_sse(
@@ -480,18 +559,18 @@ def _stream_llm_sse(
             yield f"data: {json.dumps(chunk)}\n\n"
 
         # Stream ended with no visible output (only thinking or nothing). If tools were
-        # offered AND nothing actionable was produced, retry once non-streaming with a
-        # strict nudge so the model emits either a tool_call or a visible reply.
+        # offered AND nothing actionable was produced, retry once non-streaming with
+        # tool_choice="required" so the model is FORCED to emit a function call.
         if not saw_visible_output and schemas_ok:
             logger.info(
-                "cipherstrike_bridge: thought-only response (tool_chunk_seen=%s text_chars=%d) with %d tools; retrying non-stream with strict nudge",
+                "cipherstrike_bridge: thought-only response (tool_chunk_seen=%s text_chars=%d) with %d tools; retrying non-stream with tool_choice=required",
                 stream_tool_call_chunk_seen, stream_text_chars, len(schemas or []),
             )
             try:
                 retry_msgs = list(messages_adj) + [
                     {"role": "system", "content": _THOUGHT_ONLY_FALLBACK_NUDGE},
                 ]
-                result = llm_client.chat(retry_msgs, tools=tools_arg, think=False)
+                result = _force_tool_call_retry(retry_msgs, tools_arg)
                 logger.info(
                     "cipherstrike_bridge: retry result type=%s keys=%s",
                     type(result).__name__,

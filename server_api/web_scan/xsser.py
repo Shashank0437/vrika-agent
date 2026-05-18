@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 import logging
+import shlex
 from server_core.command_executor import execute_command
 
 logger = logging.getLogger(__name__)
@@ -22,10 +23,10 @@ def xsser():
                 "error": "URL parameter is required"
             }), 400
 
-        command = f"xsser --url '{url}'"
+        command = f"xsser --url {shlex.quote(url)}"
 
         if params_str:
-            command += f" --param='{params_str}'"
+            command += f" --param={shlex.quote(str(params_str))}"
 
         if additional_args:
             command += f" {additional_args}"

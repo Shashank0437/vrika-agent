@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 import logging
+import shlex
 from server_core.command_executor import execute_command
 
 logger = logging.getLogger(__name__)
@@ -23,13 +24,13 @@ def jaeles():
             logger.warning("🌐 Jaeles called without URL parameter")
             return jsonify({"error": "URL parameter is required"}), 400
 
-        command = f"jaeles scan -u {url} -c {threads} --timeout {timeout}"
+        command = f"jaeles scan -u {shlex.quote(url)} -c {int(threads)} --timeout {int(timeout)}"
 
         if signatures:
-            command += f" -s {signatures}"
+            command += f" -s {shlex.quote(str(signatures))}"
 
         if config:
-            command += f" --config {config}"
+            command += f" --config {shlex.quote(str(config))}"
 
         if additional_args:
             command += f" {additional_args}"
