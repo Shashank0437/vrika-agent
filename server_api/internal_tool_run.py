@@ -9,7 +9,7 @@ from typing import Any
 from flask import Blueprint, current_app, jsonify, request
 
 from server_core.tool_run_context import stream_run_scope
-from server_core.tool_run_stream import publish_terminal
+from server_core.tool_run_stream import configure_redis_url, publish_terminal
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +78,8 @@ def internal_tool_run():
 
     stream_run_id = data.get("stream_run_id")
     sr_id = str(stream_run_id).strip() if stream_run_id else ""
+    if data.get("redis_url"):
+        configure_redis_url(data.get("redis_url"))
 
     status_code = 500
     body_out: Any = {"success": False, "error": "internal_tool_run failed"}

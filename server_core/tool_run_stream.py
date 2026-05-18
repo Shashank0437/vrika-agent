@@ -21,14 +21,31 @@ _FLUSH_INTERVAL_SEC = float(os.environ.get("TOOL_RUN_STREAM_FLUSH_INTERVAL", "0.
 _FLUSH_MAX_BYTES = int(os.environ.get("TOOL_RUN_STREAM_FLUSH_BYTES", "8192"))
 
 _redis_client: redis.Redis | None | bool = False
+_redis_url_override = ""
 
 
 def _redis_url() -> str:
     return (
-        os.environ.get("REDIS_URL", "").strip()
+        _redis_url_override
+        or os.environ.get("REDIS_URL", "").strip()
         or os.environ.get("CIPHERSTRIKE_REDIS_URL", "").strip()
         or str(config_core.get("REDIS_URL", "") or "").strip()
     )
+
+
+def configure_redis_url(url: str | None) -> None:
+    """Set/clear a process-local Redis URL override for live tool-run streams."""
+    global _redis_client, _redis_url_override
+    next_url = str(url or "").strip()
+    if next_url == _redis_url_override:
+        return
+    _redis_url_override = next_url
+    if isinstance(_redis_client, redis.Redis):
+        try:
+            _redis_client.close()
+        except Exception:
+            pass
+    _redis_client = False
 
 
 def _get_redis() -> redis.Redis | None:
