@@ -1,4 +1,4 @@
-"""Publish incremental stdout/stderr during subprocess execution to Redis Streams."""
+"""Publish incremental tool execution events to Redis Streams."""
 
 from __future__ import annotations
 
@@ -78,7 +78,7 @@ def publish_terminal(stream_run_id: str, http_status: int, body: Any) -> None:
 
 
 class ToolRunStreamPublisher:
-    """Batch stdout/stderr lines into Redis stream chunks (thread-safe)."""
+    """Batch stdout/stderr lines and publish UI log/progress events (thread-safe)."""
 
     def __init__(self, stream_run_id: str):
         self.stream_run_id = stream_run_id
@@ -97,6 +97,16 @@ class ToolRunStreamPublisher:
         if not text:
             return
         self._push("stderr", text)
+
+    def push_log(self, text: str) -> None:
+        if not text:
+            return
+        publish_event(self.stream_run_id, {"type": "log", "text": text})
+
+    def push_progress(self, text: str) -> None:
+        if not text:
+            return
+        publish_event(self.stream_run_id, {"type": "progress", "text": text})
 
     def _push(self, channel: str, text: str) -> None:
         with self._lock:

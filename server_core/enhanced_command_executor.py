@@ -145,6 +145,14 @@ class EnhancedCommandExecutor:
         self.end_time = None
         self.last_output_time = time.time()
 
+    def _publish_log(self, text: str) -> None:
+        if self._stream_pub and text:
+            self._stream_pub.push_log(_strip_ansi(text).strip())
+
+    def _publish_progress(self, text: str) -> None:
+        if self._stream_pub and text:
+            self._stream_pub.push_progress(_strip_ansi(text).strip())
+
     def _read_stdout(self):
         """Thread function to continuously read and display stdout"""
         if not self.process or not self.process.stdout:
@@ -156,6 +164,7 @@ class EnhancedCommandExecutor:
                     self.last_output_time = time.time()
                     if self._stream_pub:
                         self._stream_pub.push_stdout(_strip_ansi(line))
+                        self._publish_log(f"STDOUT: {_strip_ansi(line).strip()}")
                     # Real-time output display
                     logger.info(f"📤 STDOUT: {_strip_ansi(line).strip()}")
         except Exception as e:
@@ -174,6 +183,7 @@ class EnhancedCommandExecutor:
                     self.last_output_time = time.time()
                     if self._stream_pub:
                         self._stream_pub.push_stderr(_strip_ansi(line))
+                        self._publish_log(f"STDERR: {_strip_ansi(line).strip()}")
                     # Real-time error output display
                     logger.warning(f"📥 STDERR: {_strip_ansi(line).strip()}")
         except Exception as e:
@@ -222,7 +232,9 @@ class EnhancedCommandExecutor:
                 speed=speed
             )
 
-            logger.info(f"{progress_bar} | {elapsed:.1f}s | PID: {self.process.pid}")
+            progress_line = f"{progress_bar} | {elapsed:.1f}s | PID: {self.process.pid}"
+            self._publish_progress(progress_line)
+            logger.info(progress_line)
             time.sleep(0.8)
             i += 1
             if isinstance(self.timeout, int) and self.timeout > 0 and elapsed > self.timeout:
@@ -245,9 +257,13 @@ class EnhancedCommandExecutor:
         self.start_time = time.time()
         self.last_output_time = self.start_time
 
-        logger.info(f"🚀 EXECUTING: {self.command}")
+        exec_line = f"EXECUTING: {self.command}"
+        self._publish_log(exec_line)
+        logger.info(f"🚀 {exec_line}")
         timeout_label = f"{self.timeout}s" if isinstance(self.timeout, int) and self.timeout > 0 else "none"
-        logger.info(f"⏱️  TIMEOUT: {timeout_label} | PID: Starting...")
+        timeout_line = f"TIMEOUT: {timeout_label} | PID: Starting..."
+        self._publish_log(timeout_line)
+        logger.info(f"⏱️  {timeout_line}")
 
         try:
             self.process = subprocess.Popen(
@@ -260,10 +276,13 @@ class EnhancedCommandExecutor:
             )
 
             pid = self.process.pid
-            logger.info(f"🆔 PROCESS: PID {pid} started")
+            process_line = f"PROCESS: PID {pid} started"
+            self._publish_log(process_line)
+            logger.info(f"🆔 {process_line}")
 
             # Register process with ProcessManager (v5.0 enhancement)
             ProcessManager.register_process(pid, self.command, self.process)
+            self._publish_log(f"REGISTERED: Process {pid} - {self.command[:80]}{'...' if len(self.command) > 80 else ''}")
 
             # Start threads to read output continuously
             self.stdout_thread = threading.Thread(target=self._read_stdout)
@@ -313,12 +332,17 @@ class EnhancedCommandExecutor:
 
                 # Cleanup process from registry (v5.0 enhancement)
                 ProcessManager.cleanup_process(pid)
+                self._publish_log(f"CLEANUP: Process {pid} removed from registry")
 
                 if self.return_code == 0:
-                    logger.info(f"✅ SUCCESS: Command completed | Exit Code: {self.return_code} | Duration: {execution_time:.2f}s")
+                    success_line = f"SUCCESS: Command completed | Exit Code: {self.return_code} | Duration: {execution_time:.2f}s"
+                    self._publish_log(success_line)
+                    logger.info(f"✅ {success_line}")
                     telemetry.record_execution(True, execution_time)
                 else:
-                    logger.warning(f"⚠️  WARNING: Command completed with errors | Exit Code: {self.return_code} | Duration: {execution_time:.2f}s")
+                    warn_line = f"WARNING: Command completed with errors | Exit Code: {self.return_code} | Duration: {execution_time:.2f}s"
+                    self._publish_log(warn_line)
+                    logger.warning(f"⚠️  {warn_line}")
                     telemetry.record_execution(False, execution_time)
 
             except subprocess.TimeoutExpired:
@@ -328,7 +352,9 @@ class EnhancedCommandExecutor:
                 # Process timed out but we might have partial results
                 self.timed_out = True
                 reason = self.timeout_reason or (f"configured timeout ({self.timeout}s)" if self.timeout else "watchdog timeout")
-                logger.warning(f"⏰ TIMEOUT: Command stopped due to {reason} | Terminating PID {self.process.pid}")
+                timeout_stop_line = f"TIMEOUT: Command stopped due to {reason} | Terminating PID {self.process.pid}"
+                self._publish_log(timeout_stop_line)
+                logger.warning(f"⏰ {timeout_stop_line}")
 
                 # Try to terminate gracefully first
                 self.process.terminate()
@@ -336,7 +362,9 @@ class EnhancedCommandExecutor:
                     self.process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
                     # Force kill if it doesn't terminate
-                    logger.error(f"🔪 FORCE KILL: Process {self.process.pid} not responding to termination")
+                    force_line = f"FORCE KILL: Process {self.process.pid} not responding to termination"
+                    self._publish_log(force_line)
+                    logger.error(f"🔪 {force_line}")
                     self.process.kill()
 
                 self.return_code = -1
@@ -374,6 +402,8 @@ class EnhancedCommandExecutor:
                 f"{C['MATRIX_GREEN']}{C['BOLD']}╰{_hr}╯{C['RESET']}",
             ]
             print('\n'.join(box_lines), flush=True)
+            for line in box_lines:
+                self._publish_log(line)
 
             if self._stream_pub:
                 self._stream_pub.flush(force=True)
@@ -394,8 +424,12 @@ class EnhancedCommandExecutor:
             self.end_time = time.time()
             execution_time = self.end_time - self.start_time if self.start_time else 0
 
-            logger.error(f"💥 ERROR: Command execution failed: {str(e)}")
-            logger.error(f"🔍 TRACEBACK: {traceback.format_exc()}")
+            error_line = f"ERROR: Command execution failed: {str(e)}"
+            traceback_text = f"TRACEBACK: {traceback.format_exc()}"
+            self._publish_log(error_line)
+            self._publish_log(traceback_text)
+            logger.error(f"💥 {error_line}")
+            logger.error(f"🔍 {traceback_text}")
             telemetry.record_execution(False, execution_time)
 
             if self._stream_pub:
