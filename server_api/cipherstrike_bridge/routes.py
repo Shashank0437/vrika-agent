@@ -24,7 +24,7 @@ from server_core.tool_schema import build_tool_schemas
 
 logger = logging.getLogger(__name__)
 
-_MAX_MULTI_TOOL_CALLS = max(1, int(os.environ.get("CIPHERSTRIKE_MAX_MULTI_TOOL_CALLS", "16")))
+_MAX_MULTI_TOOL_CALLS = max(1, int(os.environ.get("CIPHERSTRIKE_MAX_MULTI_TOOL_CALLS", "30")))
 
 api_cipherstrike_bridge_bp = Blueprint("api_cipherstrike_bridge", __name__)
 
@@ -155,7 +155,7 @@ def route_intent():
         tools = body.get("tools")
         if not isinstance(tools, list):
             return jsonify({"success": False, "error": "tools must be a list"}), 400
-        max_pick = max(1, min(int(body.get("max_tool_names") or 12), 24))
+        max_pick = max(1, min(int(body.get("max_tool_names") or 12), 30))
         context_str = body.get("context")
         if not isinstance(context_str, str):
             context_str = ""
