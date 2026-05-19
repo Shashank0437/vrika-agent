@@ -29,6 +29,7 @@ import json
 import os
 import time
 import uuid
+import hashlib
 from typing import Any, Dict, Generator, List, Optional
 from urllib.parse import quote
 
@@ -196,6 +197,89 @@ def _normalize_openrouter_model_id(model: str) -> str:
   if m.startswith("gemini-"):
     return f"google/{m}"
   return m
+
+
+def _message_content_len(message: Dict[str, Any]) -> int:
+  content = message.get("content", "")
+  if isinstance(content, str):
+    return len(content)
+  try:
+    return len(json.dumps(content, ensure_ascii=False))
+  except Exception:
+    return len(str(content))
+
+
+def _messages_shape(messages: List[Dict[str, Any]]) -> Dict[str, Any]:
+  total_chars = sum(_message_content_len(m) for m in messages if isinstance(m, dict))
+  roles: Dict[str, int] = {}
+  largest: List[Dict[str, Any]] = []
+  for i, m in enumerate(messages):
+    if not isinstance(m, dict):
+      continue
+    role = str(m.get("role") or "unknown")
+    roles[role] = roles.get(role, 0) + 1
+    largest.append({"index": i, "role": role, "chars": _message_content_len(m)})
+  largest.sort(key=lambda x: int(x.get("chars") or 0), reverse=True)
+  return {
+    "count": len(messages),
+    "roles": roles,
+    "content_chars": total_chars,
+    "largest": largest[:5],
+  }
+
+
+def _tools_shape(tools: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
+  rows = tools or []
+  names: List[str] = []
+  for t in rows:
+    if not isinstance(t, dict):
+      continue
+    fn = t.get("function") if isinstance(t.get("function"), dict) else {}
+    name = str(fn.get("name") or t.get("name") or "").strip()
+    if name:
+      names.append(name)
+  return {"count": len(rows), "names": names[:40]}
+
+
+def _safe_json_preview(value: Any, max_chars: int = 2400) -> str:
+  try:
+    text = json.dumps(value, ensure_ascii=False, default=str, sort_keys=True)
+  except Exception:
+    text = str(value)
+  text = text.replace("\n", "\\n")
+  return text[:max_chars] + ("..." if len(text) > max_chars else "")
+
+
+def _openrouter_error_payload_from_exc(exc: Exception) -> Dict[str, Any]:
+  payload: Dict[str, Any] = {
+    "type": exc.__class__.__name__,
+    "message": str(exc),
+  }
+  for attr in ("status_code", "code", "request_id"):
+    val = getattr(exc, attr, None)
+    if val is not None:
+      payload[attr] = val
+  response = getattr(exc, "response", None)
+  if response is not None:
+    payload["response_status_code"] = getattr(response, "status_code", None)
+    try:
+      payload["response_headers"] = {
+        k: v
+        for k, v in dict(getattr(response, "headers", {}) or {}).items()
+        if k.lower() in ("retry-after", "x-request-id", "cf-ray", "content-type")
+      }
+    except Exception:
+      pass
+    try:
+      text = getattr(response, "text", "")
+      if text:
+        payload["response_text"] = str(text)[:1200]
+    except Exception:
+      pass
+  body = getattr(exc, "body", None)
+  if body is not None:
+    payload["body"] = body
+  return payload
 
 
 def _normalize_gemini_model_id(model: str) -> str:
@@ -583,6 +667,11 @@ class OpenAIBackend:
     kwargs: Dict[str, Any] = {"api_key": api_key}
     if base_url:
       kwargs["base_url"] = base_url
+    try:
+      kwargs["timeout"] = max(float(timeout), 120.0)
+    except (TypeError, ValueError):
+      kwargs["timeout"] = 120.0
+    kwargs["max_retries"] = 2
     self._client = openai.OpenAI(**kwargs)
 
   def _apply_openrouter_reasoning(self, kwargs: Dict[str, Any], think: Optional[bool]) -> None:
@@ -648,6 +737,7 @@ class OpenAIBackend:
     think: Optional[bool] = None,
   ) -> Generator[Any, None, None]:
     msgs = _normalize_openai_compatible_messages(messages)
+    request_id = uuid.uuid4().hex[:10]
     kwargs: Dict[str, Any] = {
       "model": self._model,
       "messages": msgs,
@@ -659,22 +749,91 @@ class OpenAIBackend:
       kwargs["tools"] = tools
       kwargs["tool_choice"] = "auto"
     self._apply_openrouter_reasoning(kwargs, think)
+    if self._provider_label == "openrouter" and str(_cfg("OPENROUTER_DEBUG", "")).strip().lower() in ("1", "true", "yes", "y"):
+      extra = dict(kwargs.get("extra_body") or {})
+      extra["debug"] = {"echo_upstream_body": True}
+      kwargs["extra_body"] = extra
+    request_shape = {
+      "request_id": request_id,
+      "provider": self._provider_label,
+      "model": self._model,
+      "messages": _messages_shape(msgs),
+      "tools": _tools_shape(tools),
+      "max_tokens": kwargs.get("max_tokens"),
+      "temperature": kwargs.get("temperature"),
+      "has_extra_body": bool(kwargs.get("extra_body")),
+      "extra_body_keys": sorted(list((kwargs.get("extra_body") or {}).keys())),
+    }
+    logger.info("llm_stream_start %s", _safe_json_preview(request_shape, 2200))
+    started = time.time()
+    chunk_count = 0
+    content_chars = 0
+    reasoning_chars = 0
+    tool_delta_count = 0
     try:
       stream = self._client.chat.completions.create(**kwargs)
       tool_call_parts: Dict[int, Dict[str, Any]] = {}
       for chunk in stream:
+        chunk_count += 1
+        top_error = getattr(chunk, "error", None)
+        if top_error:
+          logger.error(
+            "llm_stream_openrouter_chunk_error request_id=%s provider=%s model=%s error=%s chunk=%s",
+            request_id,
+            getattr(chunk, "provider", None) or self._provider_label,
+            getattr(chunk, "model", None) or self._model,
+            _safe_json_preview(top_error, 1200),
+            _safe_json_preview(chunk.model_dump() if hasattr(chunk, "model_dump") else chunk, 1800),
+          )
+          raise RuntimeError(f"OpenRouter stream chunk error: {_safe_json_preview(top_error, 800)}")
+        debug_obj = getattr(chunk, "debug", None)
+        if debug_obj:
+          echo = debug_obj.get("echo_upstream_body") if isinstance(debug_obj, dict) else debug_obj
+          try:
+            digest_src = json.dumps(echo, sort_keys=True, default=str).encode("utf-8")
+            digest = hashlib.sha1(digest_src).hexdigest()[:12]
+          except Exception:
+            digest = "unknown"
+          logger.warning(
+            "llm_stream_openrouter_debug request_id=%s provider=%s model=%s upstream_body_sha1=%s upstream_body_preview=%s",
+            request_id,
+            getattr(chunk, "provider", None) or self._provider_label,
+            getattr(chunk, "model", None) or self._model,
+            digest,
+            _safe_json_preview(echo, 3500),
+          )
         if not chunk.choices:
           continue
-        delta_obj = chunk.choices[0].delta
+        choice = chunk.choices[0]
+        finish_reason = getattr(choice, "finish_reason", None)
+        native_finish_reason = getattr(choice, "native_finish_reason", None)
+        if finish_reason:
+          logger.info(
+            "llm_stream_finish request_id=%s finish_reason=%r native_finish_reason=%r chunks=%d content_chars=%d reasoning_chars=%d tool_deltas=%d duration=%.2fs",
+            request_id,
+            finish_reason,
+            native_finish_reason,
+            chunk_count,
+            content_chars,
+            reasoning_chars,
+            tool_delta_count,
+            time.time() - started,
+          )
+          if str(finish_reason).lower() == "error":
+            raise RuntimeError(f"OpenRouter stream finished with error native_finish_reason={native_finish_reason!r}")
+        delta_obj = choice.delta
         reasoning_delta = _reasoning_text_from_delta(delta_obj)
         if reasoning_delta:
+          reasoning_chars += len(reasoning_delta)
           for piece in _slice_stream_text(reasoning_delta, max_chars=48):
             yield {"type": "thinking", "content": piece}
         delta = getattr(delta_obj, "content", None)
         if delta:
+          content_chars += len(delta)
           yield delta
 
         for tc_delta in getattr(delta_obj, "tool_calls", None) or []:
+          tool_delta_count += 1
           idx = int(getattr(tc_delta, "index", 0) or 0)
           slot = tool_call_parts.setdefault(
             idx,
@@ -717,7 +876,28 @@ class OpenAIBackend:
           })
         if parsed_tool_calls:
           yield {"type": "_cipherstrike_tool_calls", "tool_calls": parsed_tool_calls}
+      logger.info(
+        "llm_stream_done request_id=%s chunks=%d content_chars=%d reasoning_chars=%d tool_deltas=%d duration=%.2fs",
+        request_id,
+        chunk_count,
+        content_chars,
+        reasoning_chars,
+        tool_delta_count,
+        time.time() - started,
+      )
     except Exception as exc:
+      logger.exception(
+        "llm_stream_exception request_id=%s provider=%s model=%s chunks=%d content_chars=%d reasoning_chars=%d tool_deltas=%d duration=%.2fs error=%s",
+        request_id,
+        self._provider_label,
+        self._model,
+        chunk_count,
+        content_chars,
+        reasoning_chars,
+        tool_delta_count,
+        time.time() - started,
+        _safe_json_preview(_openrouter_error_payload_from_exc(exc), 2500),
+      )
       raise RuntimeError(f"OpenAI streaming error: {exc}")
 
   def generate_summary(self, messages: List[Dict[str, Any]]) -> str:
