@@ -238,6 +238,26 @@ _TOOL_NAME_PREFIX_STRIPS = (
     "use_", "use-",
 )
 
+_GENERIC_SINGLE_TOOL_NAMES = frozenset({"run", "execute", "call", "tool", "function"})
+
+
+def _schema_tool_names(schemas: List[Dict[str, Any]] | None) -> list[str]:
+    out: list[str] = []
+    if not isinstance(schemas, list):
+        return out
+    for s in schemas:
+        if not isinstance(s, dict):
+            continue
+        fn = s.get("function")
+        name = ""
+        if isinstance(fn, dict):
+            name = str(fn.get("name") or "").strip()
+        if not name:
+            name = str(s.get("name") or "").strip()
+        if name:
+            out.append(name)
+    return out
+
 
 def _resolve_tool_name(raw_name: str) -> tuple[str, Any]:
     """Resolve a model-emitted tool name to (canonical_name, tool_def).
@@ -302,11 +322,17 @@ def _resolve_tool_name(raw_name: str) -> tuple[str, Any]:
     return "", None
 
 
-def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Generator[str, None, None]:
+def _yield_cipherstrike_tool_pending_sse(
+    tool_calls: List[Dict[str, Any]],
+    schemas: List[Dict[str, Any]] | None = None,
+) -> Generator[str, None, None]:
     """Emit TOOL_CALL_PENDING / TOOL_CALL_BATCH_PENDING SSE frames for registry-resolved tools."""
+    from tool_registry import get_tool
+
     batch_payloads: List[Dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
     duplicate_count = 0
+    offered_tool_names = _schema_tool_names(schemas)
     if not isinstance(tool_calls, list):
         return
     for tc in tool_calls[:_MAX_MULTI_TOOL_CALLS]:
@@ -320,6 +346,15 @@ def _yield_cipherstrike_tool_pending_sse(tool_calls: List[Dict[str, Any]]) -> Ge
         if not isinstance(arguments, dict):
             arguments = {}
         canonical_name, tool_def = _resolve_tool_name(raw_tool_name)
+        if not tool_def and raw_tool_name.lower() in _GENERIC_SINGLE_TOOL_NAMES and len(offered_tool_names) == 1:
+            canonical_name = offered_tool_names[0]
+            tool_def = get_tool(canonical_name)
+            if tool_def:
+                logger.info(
+                    "cipherstrike_bridge: normalized generic tool name %r -> sole offered tool %r",
+                    raw_tool_name,
+                    canonical_name,
+                )
         if tool_def:
             if canonical_name != raw_tool_name:
                 logger.info(
@@ -390,7 +425,7 @@ def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dic
             yield f"data: [THINK_TOKEN] {json.dumps(thinking_extra)}\n\n"
 
         if tool_calls:
-            pending_sse = list(_yield_cipherstrike_tool_pending_sse(tool_calls if isinstance(tool_calls, list) else []))
+            pending_sse = list(_yield_cipherstrike_tool_pending_sse(tool_calls if isinstance(tool_calls, list) else [], schemas))
             if pending_sse:
                 for ln in pending_sse:
                     yield ln
@@ -554,7 +589,7 @@ def _stream_llm_sse(
                         "cipherstrike_bridge: stream tool_calls received count=%d raw_names=%s",
                         stream_tool_call_count, raw_names,
                     )
-                    pending_sse = list(_yield_cipherstrike_tool_pending_sse(tcalls if isinstance(tcalls, list) else []))
+                    pending_sse = list(_yield_cipherstrike_tool_pending_sse(tcalls if isinstance(tcalls, list) else [], schemas))
                     if pending_sse:
                         saw_visible_output = True
                         for ln in pending_sse:
@@ -604,7 +639,7 @@ def _stream_llm_sse(
                         len(retry_text or ""),
                     )
                     if retry_tcalls:
-                        pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls))
+                        pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls, schemas))
                         if pending_sse:
                             for ln in pending_sse:
                                 yield ln
