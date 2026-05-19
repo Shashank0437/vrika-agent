@@ -44,7 +44,7 @@ _config = {
 
     # ── LLM client ────────────────────────────────────────────────────────────
     "NYXSTRIKE_LLM_PROVIDER": "openrouter",                     # openrouter | gemini | openai | anthropic
-    "NYXSTRIKE_LLM_MODEL":    "google/gemini-2.5-flash",          # OpenRouter model id (bare gemini-* names are auto-prefixed)
+    "NYXSTRIKE_LLM_MODEL":    "google/gemini-2.5-flash-lite",          # OpenRouter model id (bare gemini-* names are auto-prefixed)
     "NYXSTRIKE_LLM_URL":      "https://openrouter.ai/api/v1",   # OpenRouter base URL (openrouter / openai providers)
     "NYXSTRIKE_LLM_API_KEY":  "",                               # or NYXSTRIKE_LLM_API_KEY / GOOGLE_API_KEY / OPENROUTER_API_KEY in env
     "NYXSTRIKE_LLM_TIMEOUT":  600,                              # seconds
