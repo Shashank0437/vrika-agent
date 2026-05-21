@@ -589,6 +589,9 @@ def _stream_llm_sse(
                         "cipherstrike_bridge: stream tool_calls received count=%d raw_names=%s",
                         stream_tool_call_count, raw_names,
                     )
+                    if "usage" in chunk:
+                        usage_chunk = {"type": "usage", "usage": chunk["usage"]}
+                        yield f"data: [STATS] {json.dumps(usage_chunk)}\n\n"
                     pending_sse = list(_yield_cipherstrike_tool_pending_sse(tcalls if isinstance(tcalls, list) else [], schemas))
                     if pending_sse:
                         saw_visible_output = True
@@ -725,6 +728,8 @@ def llm_chat():
                 "tool_calls": result.get("tool_calls"),
                 "thinking_content": result.get("thinking_content"),
             }
+            if "usage" in result:
+                out["usage"] = result["usage"]
             return jsonify(out)
 
         text = result if isinstance(result, str) else ("" if result is None else str(result))

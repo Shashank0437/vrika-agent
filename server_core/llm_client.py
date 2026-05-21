@@ -706,6 +706,19 @@ class OpenAIBackend:
       resp = self._client.chat.completions.create(**kwargs)
       msg = resp.choices[0].message
       thought_text = _reasoning_text_from_message(msg)
+      usage_obj = getattr(resp, "usage", None)
+      usage_dict = None
+      if usage_obj is not None:
+        if isinstance(usage_obj, dict):
+          usage_dict = {
+            "prompt_tokens": usage_obj.get("prompt_tokens", 0),
+            "completion_tokens": usage_obj.get("completion_tokens", 0)
+          }
+        else:
+          usage_dict = {
+            "prompt_tokens": getattr(usage_obj, "prompt_tokens", 0),
+            "completion_tokens": getattr(usage_obj, "completion_tokens", 0)
+          }
       if getattr(msg, "tool_calls", None):
         tcs = []
         for tc in msg.tool_calls:
@@ -721,10 +734,14 @@ class OpenAIBackend:
         out: Dict[str, Any] = {"content": (msg.content or "").strip(), "tool_calls": tcs}
         if thought_text:
           out["thinking_content"] = thought_text
+        if usage_dict:
+          out["usage"] = usage_dict
         return out
       out = {"content": (msg.content or "").strip(), "tool_calls": None}
       if thought_text:
         out["thinking_content"] = thought_text
+      if usage_dict:
+        out["usage"] = usage_dict
       return out
     except Exception as exc:
       raise RuntimeError(f"OpenAI API error: {exc}")
@@ -744,6 +761,7 @@ class OpenAIBackend:
       "max_tokens": _openai_completion_max_tokens(think, self._provider_label),
       "temperature": 0.7,
       "stream": True,
+      "stream_options": {"include_usage": True},
     }
     if tools:
       kwargs["tools"] = tools
@@ -773,8 +791,12 @@ class OpenAIBackend:
     try:
       stream = self._client.chat.completions.create(**kwargs)
       tool_call_parts: Dict[int, Dict[str, Any]] = {}
+      usage_obj = None
       for chunk in stream:
         chunk_count += 1
+        u_val = getattr(chunk, "usage", None)
+        if u_val is not None:
+          usage_obj = u_val
         top_error = getattr(chunk, "error", None)
         if top_error:
           logger.error(
@@ -855,6 +877,19 @@ class OpenAIBackend:
           if args_delta:
             slot["function"]["arguments"] += args_delta
 
+      usage_dict = None
+      if usage_obj is not None:
+        if isinstance(usage_obj, dict):
+          usage_dict = {
+            "prompt_tokens": usage_obj.get("prompt_tokens", 0),
+            "completion_tokens": usage_obj.get("completion_tokens", 0)
+          }
+        else:
+          usage_dict = {
+            "prompt_tokens": getattr(usage_obj, "prompt_tokens", 0),
+            "completion_tokens": getattr(usage_obj, "completion_tokens", 0)
+          }
+
       if tool_call_parts:
         parsed_tool_calls = []
         for _, tc in sorted(tool_call_parts.items()):
@@ -875,7 +910,14 @@ class OpenAIBackend:
             },
           })
         if parsed_tool_calls:
-          yield {"type": "_cipherstrike_tool_calls", "tool_calls": parsed_tool_calls}
+          payload = {"type": "_cipherstrike_tool_calls", "tool_calls": parsed_tool_calls}
+          if usage_dict:
+            payload["usage"] = usage_dict
+          yield payload
+      else:
+        if usage_dict:
+          yield {"type": "usage", "usage": usage_dict}
+
       logger.info(
         "llm_stream_done request_id=%s chunks=%d content_chars=%d reasoning_chars=%d tool_deltas=%d duration=%.2fs",
         request_id,
