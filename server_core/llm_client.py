@@ -531,7 +531,7 @@ class GeminiBackend:
         last_usage: Dict[str, Any] = {}
         last_parts: List[Dict[str, Any]] = []
         function_call_parts: List[Dict[str, Any]] = []
-        for raw in resp.iter_lines(decode_unicode=True):
+        for raw in resp.iter_lines(chunk_size=1, decode_unicode=True):
           if not raw or not isinstance(raw, str):
             continue
           line = raw.strip()
