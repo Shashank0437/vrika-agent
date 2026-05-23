@@ -49,7 +49,7 @@ Stamp files are stored in the venv, e.g.:
 | `-s` | `--update-self` | Run `git pull --ff-only` on this repo (skips when local changes exist) |
 | `-r` | `--run` | Start server after install (`./scripts/run.sh --server`) |
 | `-h` | `--help` | Show install script help |
-| `-ai` | *(none)* | When using `./nyxstrike.sh`: writes OpenRouter DeepSeek defaults to `config_local.json` and enables LLM warmup (`NYXSTRIKE_LLM_WARMUP`). Set `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `NYXSTRIKE_LLM_API_KEY`. |
+| `-ai` | *(none)* | When using `./nyxstrike.sh`: writes OpenRouter Gemini 2.5 Flash defaults to `config_local.json` and enables LLM warmup (`NYXSTRIKE_LLM_WARMUP`). Set `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `NYXSTRIKE_LLM_API_KEY`. |
 
 ## Common Command Examples
 
@@ -89,12 +89,12 @@ bash scripts/install.sh -u -r
 bash scripts/install.sh --all
 ```
 
-### LLM setup (DeepSeek via OpenRouter API key)
+### LLM setup (Gemini 2.5 Flash via OpenRouter API key)
 
-The server uses DeepSeek (via OpenRouter) when `NYXSTRIKE_LLM_PROVIDER` is `openrouter` (the default in `config.py`).
+The server uses Gemini 2.5 Flash (via OpenRouter) when `NYXSTRIKE_LLM_PROVIDER` is `openrouter` (the default in `config.py`).
 Set `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `NYXSTRIKE_LLM_API_KEY` in your environment — do not commit keys.
 
-When using `./nyxstrike.sh -ai`, the installer merges DeepSeek defaults into `config_local.json` and sets `NYXSTRIKE_LLM_WARMUP=1`.
+When using `./nyxstrike.sh -ai`, the installer merges Gemini 2.5 Flash defaults into `config_local.json` and sets `NYXSTRIKE_LLM_WARMUP=1`.
 
 ```bash
 ./nyxstrike.sh -a -ai
