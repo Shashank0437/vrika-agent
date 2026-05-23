@@ -2030,18 +2030,27 @@ SUGGESTED_APPROACHES: Dict[str, str] = {
 }
 
 
-_CLASSIFY_PROMPT = """Classify this security task into exactly one category.
-Categories: network_recon, web_recon, web_vuln, exploitation, brute_force, osint, binary, cloud, wifi_pentest, forensics
-Task: {input}
+_CLASSIFY_SYSTEM_PROMPT = (
+    "You are an automated security task classification utility. "
+    "Your sole job is to classify the provided task into exactly one of the allowed categories: "
+    "network_recon, web_recon, web_vuln, exploitation, brute_force, osint, "
+    "binary, cloud, wifi_pentest, forensics.\n"
+    "Respond ONLY with the category name, nothing else."
+)
+
+_CLASSIFY_USER_PROMPT = """Task: {input}
 Category:"""
 
 
 def _classify_with_llm(user_input: str, llm_client) -> str:
-    """Use a single cheap LLM call to classify ambiguous input."""
-    prompt = _CLASSIFY_PROMPT.format(input=user_input)
+    """Use a single cheap LLM call with system/user prompt separation to classify ambiguous input."""
+    user_prompt = _CLASSIFY_USER_PROMPT.format(input=user_input)
     try:
         response = llm_client.chat(
-            [{"role": "user", "content": prompt}],
+            [
+                {"role": "system", "content": _CLASSIFY_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
             stop=["\n"],
         )
         text = response if isinstance(response, str) else str(response or "")
@@ -2077,7 +2086,6 @@ def classify_intent(user_input: str, llm_client=None) -> tuple:
     runner_up_score = ranked[1][1] if len(ranked) > 1 else 0
 
     if best_score == 0:
-        # No keyword matches at all
         if llm_client:
             category = _classify_with_llm(user_input, llm_client)
             if category in CATEGORIES:

@@ -220,8 +220,22 @@ _CONVERSATIONAL_PATTERNS = (
 )
 
 
-def _is_conversational(message: str) -> bool:
-  """Return True if the message looks like casual chat rather than a task request."""
+_CONVERSATIONAL_SYSTEM_PROMPT = (
+  "You are a routing classification assistant. Your job is to determine "
+  "whether a user's chat message is conversational/informational OR operational.\n\n"
+  "Definitions:\n"
+  "- 'conversational': Greetings (hi, hello), general Q&A ('what is X', 'explain Y'), "
+  "conversation history queries ('summarize what we found'), or acknowledgments ('thanks', 'ok').\n"
+  "- 'operational': Direct instructions to run security tools, scan a target, execute commands, "
+  "or launch automated actions (e.g., 'run nmap', 'scan target.com', 'brute force ssh').\n\n"
+  "Respond with exactly one word: 'conversational' or 'operational'."
+)
+
+_CONVERSATIONAL_USER_PROMPT = "Message: {message}\nClassification:"
+
+
+def _is_conversational_heuristic(message: str) -> bool:
+  """Return True if the message looks like casual chat using quick heuristics."""
   lower = message.lower().strip()
   # Very short messages are almost always conversational
   if len(lower) < 20:
@@ -230,6 +244,44 @@ def _is_conversational(message: str) -> bool:
     if lower.startswith(pat) or f" {pat}" in lower:
       return True
   return False
+
+
+def _is_conversational(message: str) -> bool:
+  """Return True if the message is conversational, using gpt-oss-20b via OpenRouter, falling back to heuristics."""
+  api_key = (
+    os.environ.get("NYXSTRIKE_LLM_API_KEY")
+    or os.environ.get("GOOGLE_API_KEY")
+    or os.environ.get("OPENROUTER_API_KEY")
+    or config_core.get("NYXSTRIKE_LLM_API_KEY", "")
+  ).strip()
+
+  if not api_key:
+    logger.debug("chat: OpenRouter API key not configured, using heuristics for conversational check")
+    return _is_conversational_heuristic(message)
+
+  try:
+    from server_core.llm_client import OpenRouterBackend
+    # Instantiate backend dynamically with gpt-oss-20b and 15s timeout
+    backend = OpenRouterBackend(
+      model="openai/gpt-oss-20b",
+      api_key=api_key,
+      base_url=config_core.get("NYXSTRIKE_LLM_URL"),
+      timeout=15,
+    )
+    response = backend.chat(
+      [
+        {"role": "system", "content": _CONVERSATIONAL_SYSTEM_PROMPT},
+        {"role": "user", "content": _CONVERSATIONAL_USER_PROMPT.format(message=message)},
+      ],
+      stop=["\n"],
+    )
+    text = response if isinstance(response, str) else str(response or "")
+    classification = text.strip().lower()
+    logger.debug("chat: gpt-oss-20b conversational classification result for %r: %s", message, classification)
+    return "conversational" in classification
+  except Exception as exc:
+    logger.warning("chat: LLM conversational check failed (falling back to heuristics): %s", exc)
+    return _is_conversational_heuristic(message)
 
 
 def _get_tool_schemas_for_message(user_message: str) -> List[Dict[str, Any]]:
