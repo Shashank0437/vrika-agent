@@ -13,3 +13,6 @@ ui/node_modules/
 # Claude worktrees
 .claude/worktrees/
 
+# Environment files
+.env
+.env.*

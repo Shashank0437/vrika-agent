@@ -40,6 +40,45 @@ import server_core.config_core as config_core
 logger = logging.getLogger(__name__)
 
 
+def _load_env_file() -> None:
+  # 1. Try python-dotenv
+  try:
+    from dotenv import load_dotenv
+    if load_dotenv():
+      return
+  except ImportError:
+    pass
+
+  # 2. Fallback: manual .env parser searching up to 3 parent directories
+  dir_path = os.getcwd()
+  for _ in range(4):
+    env_path = os.path.join(dir_path, ".env")
+    if os.path.isfile(env_path):
+      try:
+        with open(env_path, "r", encoding="utf-8") as f:
+          for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+              continue
+            if "=" in line:
+              key, val = line.split("=", 1)
+              key = key.strip()
+              val = val.strip().strip("'").strip('"')
+              if key and val and key not in os.environ:
+                os.environ[key] = val
+        break
+      except Exception:
+        pass
+    parent = os.path.dirname(dir_path)
+    if parent == dir_path:
+      break
+    dir_path = parent
+
+
+_load_env_file()
+
+
+
 def _slice_stream_text(text: str, max_chars: int = 48) -> Generator[str, None, None]:
   """Split large model deltas into smaller SSE chunks so the UI can render progressively."""
   if not text:
@@ -637,7 +676,7 @@ class GeminiBackend:
 
 
 class OpenAIBackend:
-  """OpenAI-compatible backend (OpenAI, Azure, OpenRouter) via the openai SDK."""
+  """OpenRouter-compatible backend via the openrouter SDK."""
 
   def __init__(
     self,
@@ -646,40 +685,44 @@ class OpenAIBackend:
     base_url: Optional[str],
     timeout: int,
     *,
-    provider_label: str = "openai",
+    provider_label: str = "openrouter",
   ) -> None:
     self._model = model
     self._timeout = timeout
     self._provider_label = provider_label
     try:
-      import openai  # noqa: F401 — optional dependency
+      import openrouter  # noqa: F401 — optional dependency
     except ImportError as exc:
       raise RuntimeError(
-        "openai SDK not installed. Run: pip install 'openai>=1.40.0'"
+        "openrouter SDK not installed. Run: pip install 'openrouter>=0.9.1'"
       ) from exc
-    if not hasattr(openai, "OpenAI"):
-      ver = getattr(openai, "__version__", "unknown")
-      raise RuntimeError(
-        f"openai package is too old ({ver}); need openai>=1.40.0 for openai.OpenAI(). "
-        "Run: pip install -U 'openai>=1.40.0'"
+    self._openrouter = openrouter
+    key = (api_key or "").strip()
+    if not key:
+      key = (
+        os.environ.get("NYXSTRIKE_LLM_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+        or os.environ.get("OPENROUTER_API_KEY")
+        or ""
+      ).strip()
+    if not key:
+      raise ValueError(
+        "OpenRouter API key is not configured. "
+        "Please set NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY in your environment."
       )
-    self._openai = openai
-    kwargs: Dict[str, Any] = {"api_key": api_key}
+    kwargs: Dict[str, Any] = {"api_key": key}
     if base_url:
-      kwargs["base_url"] = base_url
+      kwargs["server_url"] = base_url
     try:
-      kwargs["timeout"] = max(float(timeout), 120.0)
+      kwargs["timeout_ms"] = int(max(float(timeout), 120.0) * 1000)
     except (TypeError, ValueError):
-      kwargs["timeout"] = 120.0
-    kwargs["max_retries"] = 2
-    self._client = openai.OpenAI(**kwargs)
+      kwargs["timeout_ms"] = 120000
+    self._client = openrouter.OpenRouter(**kwargs)
 
   def _apply_openrouter_reasoning(self, kwargs: Dict[str, Any], think: Optional[bool]) -> None:
     if self._provider_label != "openrouter" or not _want_thoughts(think):
       return
-    extra = dict(kwargs.get("extra_body") or {})
-    extra.update(_openrouter_reasoning_extra(self._model))
-    kwargs["extra_body"] = extra
+    kwargs.update(_openrouter_reasoning_extra(self._model))
 
   def chat(
     self,
@@ -703,7 +746,7 @@ class OpenAIBackend:
       kwargs["tool_choice"] = "auto"
     self._apply_openrouter_reasoning(kwargs, think)
     try:
-      resp = self._client.chat.completions.create(**kwargs)
+      resp = self._client.chat.send(**kwargs)
       msg = resp.choices[0].message
       thought_text = _reasoning_text_from_message(msg)
       usage_obj = getattr(resp, "usage", None)
@@ -744,7 +787,7 @@ class OpenAIBackend:
         out["usage"] = usage_dict
       return out
     except Exception as exc:
-      raise RuntimeError(f"OpenAI API error: {exc}")
+      raise RuntimeError(f"OpenRouter API error: {exc}")
 
   def stream_chat(
     self,
@@ -789,7 +832,7 @@ class OpenAIBackend:
     reasoning_chars = 0
     tool_delta_count = 0
     try:
-      stream = self._client.chat.completions.create(**kwargs)
+      stream = self._client.chat.send(**kwargs)
       tool_call_parts: Dict[int, Dict[str, Any]] = {}
       usage_obj = None
       for chunk in stream:
@@ -950,7 +993,7 @@ class OpenAIBackend:
         time.time() - started,
         _safe_json_preview(_openrouter_error_payload_from_exc(exc), 2500),
       )
-      raise RuntimeError(f"OpenAI streaming error: {exc}")
+      raise RuntimeError(f"OpenRouter streaming error: {exc}")
 
   def generate_summary(self, messages: List[Dict[str, Any]]) -> str:
     conversation = "\n".join(f"{m['role'].capitalize()}: {m['content']}" for m in messages)

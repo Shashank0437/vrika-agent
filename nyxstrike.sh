@@ -419,14 +419,14 @@ run_setup() {
 
   if [[ "${INSTALL_TOOLS}" == true && -f "${ROOT_DIR}/dependencies/requirements-extra.txt" ]]; then
     install_requirements_file "${ROOT_DIR}/dependencies/requirements-extra.txt"
-    # requirements-extra (legacy checkov, etc.) must not leave openai 0.28.x — LLM needs openai.OpenAI
+    # Ensure openrouter SDK is installed
     ensure_pip_ready
     local pip_constraint=()
     if [[ -f "${ROOT_DIR}/dependencies/pip_constraints.txt" ]]; then
       pip_constraint=(-c "${ROOT_DIR}/dependencies/pip_constraints.txt")
     fi
-    echo "Ensuring openai>=1.40 for OpenRouter LLM after optional extras..."
-    "${VENV_DIR}/bin/python3" -m pip --disable-pip-version-check install "${pip_constraint[@]}" 'openai>=1.40.0,<3.0.0'
+    echo "Ensuring openrouter>=0.9.1 for OpenRouter LLM after optional extras..."
+    "${VENV_DIR}/bin/python3" -m pip --disable-pip-version-check install "${pip_constraint[@]}" 'openrouter>=0.9.1'
   fi
 
   if [[ "${INSTALL_TOOLS}" == true && "${INSTALL_BIG_PACKAGES}" == true && -f "${ROOT_DIR}/dependencies/requirements-big.txt" ]]; then

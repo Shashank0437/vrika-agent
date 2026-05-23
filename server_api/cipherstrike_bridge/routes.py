@@ -481,7 +481,7 @@ def _force_tool_call_retry(messages: List[Dict[str, Any]], tools: List[Dict[str,
             kwargs["tools"] = tools
             # CRITICAL: force the model to emit a function call (cannot return empty).
             kwargs["tool_choice"] = "required"
-        resp = inner_client.chat.completions.create(**kwargs)
+        resp = inner_client.chat.send(**kwargs)
         msg = resp.choices[0].message
         content = (msg.content or "").strip() if hasattr(msg, "content") else ""
         out_calls: List[Dict[str, Any]] = []
