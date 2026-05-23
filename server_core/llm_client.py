@@ -13,7 +13,7 @@ Supported backends:
 
 Config keys:
   NYXSTRIKE_LLM_PROVIDER       openrouter | gemini | openai | anthropic
-  NYXSTRIKE_LLM_MODEL          e.g. google/gemini-2.5-flash, gpt-4o, claude-3-5-sonnet-latest
+  NYXSTRIKE_LLM_MODEL          e.g. google/openai/gpt-4.1-mini, gpt-4o, claude-3-5-sonnet-latest
   NYXSTRIKE_LLM_URL            OpenRouter / OpenAI base URL (default https://openrouter.ai/api/v1 for openrouter)
   NYXSTRIKE_LLM_API_KEY        primary secret (also checks provider-specific env vars)
   NYXSTRIKE_LLM_MAX_LOOPS
@@ -230,7 +230,7 @@ def _reasoning_text_from_delta(delta_obj: Any) -> str:
 def _normalize_openrouter_model_id(model: str) -> str:
   m = (model or "").strip()
   if not m:
-    return "google/gemini-2.5-flash"
+    return "google/openai/gpt-4.1-mini"
   if "/" in m:
     return m
   if m.startswith("gemini-"):
@@ -1018,7 +1018,7 @@ class OpenAIBackend:
 
 
 class OpenRouterBackend(OpenAIBackend):
-  """OpenRouter — OpenAI-compatible API for routed models (e.g. google/gemini-2.5-flash)."""
+  """OpenRouter — OpenAI-compatible API for routed models (e.g. google/openai/gpt-4.1-mini)."""
 
   def __init__(self, model: str, api_key: str, base_url: Optional[str], timeout: int) -> None:
     url = (base_url or "").strip() or OPENROUTER_API_BASE
@@ -1173,7 +1173,7 @@ class LLMClient:
     self._init_error: str = ""
 
     provider = (_cfg("NYXSTRIKE_LLM_PROVIDER") or "openrouter").lower()
-    model = _cfg("NYXSTRIKE_LLM_MODEL") or "google/gemini-2.5-flash"
+    model = _cfg("NYXSTRIKE_LLM_MODEL") or "google/openai/gpt-4.1-mini"
     base_url = (_cfg("NYXSTRIKE_LLM_URL") or "").strip()
     api_key = (_cfg("NYXSTRIKE_LLM_API_KEY") or "").strip()
     timeout = int(_cfg("NYXSTRIKE_LLM_TIMEOUT") or 300)
