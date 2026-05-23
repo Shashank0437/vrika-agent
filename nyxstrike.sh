@@ -32,7 +32,7 @@ UPDATE_SELF=false
 UPDATE_PYTHON_PACKAGES=false
 PIP_BOOTSTRAPPED=false
 CONFIGURE_OPENROUTER_LLM=false
-OPENROUTER_DEFAULT_MODEL="google/gemini-2.5-flash-lite"
+OPENROUTER_DEFAULT_MODEL="deepseek/deepseek-v4-pro"
 
 # --- run flags ---
 RUN_SERVER=false

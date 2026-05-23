@@ -116,8 +116,23 @@ def build_tool_schemas(tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
       else:
         # "default=X" string — extract default for description
         default_str = str(param_val).replace("default=", "", 1) if str(param_val).startswith("default=") else str(param_val)
+        
+        # Infer parameter type from default string value
+        param_type = "string"
+        lower_def = default_str.strip().lower()
+        if lower_def in ("true", "false"):
+          param_type = "boolean"
+        elif lower_def.isdigit():
+          param_type = "integer"
+        else:
+          try:
+            float(lower_def)
+            param_type = "number"
+          except ValueError:
+            pass
+
         properties[param_name] = {
-          "type": "string",
+          "type": param_type,
           "description": _param_description(name, param_name, required=False, default_str=default_str),
         }
 
