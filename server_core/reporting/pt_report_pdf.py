@@ -334,7 +334,7 @@ Include substantive transcript-backed detail: hosts, URLs, IPs, severities, temp
 
 Schema (all keys required; use empty strings or empty arrays where unknown):
 {
-  "report_title": "PENETRATION TESTING REPORT",
+  "report_title": "string (descriptive title of this assessment, e.g. 'Security Assessment Report - demo.canplus.io')",
   "client_name": "string",
   "target_primary": "string (primary domain/host or scope)",
   "assessment_date_iso": "YYYY-MM-DD or empty",
@@ -362,6 +362,7 @@ Schema (all keys required; use empty strings or empty arrays where unknown):
 }
 
 Rules:
+- Generate a customized, descriptive and highly specific "report_title" reflecting the assessment target and type (e.g. "Penetration Testing Report - [Target]" or "Web Security Assessment - [Target]") instead of generic static text.
 - Derive appendix_tools from techniques/tools referenced (neutral methodology labels).
 - Counts must match the transcript when stated; otherwise "Not quantified in session".
 - Never invent critical exploits not evidenced in the transcript; use "not observed in completed testing" where appropriate.
@@ -600,6 +601,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         spaceAfter=10,
         textColor=on_surface,
         fontName="Helvetica-Bold",
+        keepWithNext=True,
     )
     h2 = ParagraphStyle(
         name="H2",
@@ -610,6 +612,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         spaceAfter=8,
         textColor=primary,
         fontName="Helvetica-Bold",
+        keepWithNext=True,
     )
     body = ParagraphStyle(
         name="Body",
@@ -722,7 +725,8 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     def p(text: str, style=body, *, md: bool = True):
         markup = markdown_to_reportlab_markup(text) if md else _xml_escape(text)
         story.append(Paragraph(markup, style))
-        story.append(Spacer(1, 6))
+        if not getattr(style, "keepWithNext", False):
+            story.append(Spacer(1, 6))
 
     def bullet_list(items: List[str]):
         for it in items:
@@ -896,8 +900,10 @@ def generate_penetration_report(
     data = _normalize_report_data(raw_llm, fallback_client=client_name, fallback_target=target_label)
     pdf = _build_pdf_bytes(data, generated_by=generated_by or "CipherStrike")
 
-    safe_target = re.sub(r"[^A-Za-z0-9._-]+", "_", data["target_primary"])[:48] or "report"
-    filename = f"Penetration_Test_Report_{safe_target}.pdf"
+    safe_title = re.sub(r"[^A-Za-z0-9.-]+", "_", data["report_title"]).strip("_")[:64] or "Penetration_Test_Report"
+    while "__" in safe_title:
+        safe_title = safe_title.replace("__", "_")
+    filename = f"{safe_title}.pdf"
 
     summary = (
         f"Generated penetration test PDF ({filename}). "
