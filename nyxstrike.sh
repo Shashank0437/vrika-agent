@@ -32,7 +32,7 @@ UPDATE_SELF=false
 UPDATE_PYTHON_PACKAGES=false
 PIP_BOOTSTRAPPED=false
 CONFIGURE_OPENROUTER_LLM=false
-OPENROUTER_DEFAULT_MODEL="google/openai/gpt-4.1-mini"
+OPENROUTER_DEFAULT_MODEL="openai/gpt-4.1-mini"
 
 # --- run flags ---
 RUN_SERVER=false

@@ -13,7 +13,7 @@ Supported backends:
 
 Config keys:
   NYXSTRIKE_LLM_PROVIDER       openrouter | gemini | openai | anthropic
-  NYXSTRIKE_LLM_MODEL          e.g. google/openai/gpt-4.1-mini, gpt-4o, claude-3-5-sonnet-latest
+  NYXSTRIKE_LLM_MODEL          e.g openai/gpt-4.1-mini, gpt-4o, claude-3-5-sonnet-latest
   NYXSTRIKE_LLM_URL            OpenRouter / OpenAI base URL (default https://openrouter.ai/api/v1 for openrouter)
   NYXSTRIKE_LLM_API_KEY        primary secret (also checks provider-specific env vars)
   NYXSTRIKE_LLM_MAX_LOOPS
@@ -230,7 +230,7 @@ def _reasoning_text_from_delta(delta_obj: Any) -> str:
 def _normalize_openrouter_model_id(model: str) -> str:
   m = (model or "").strip()
   if not m:
-    return "google/openai/gpt-4.1-mini"
+    return "openai/gpt-4.1-mini"
   if "/" in m:
     return m
   if m.startswith("gemini-"):
@@ -675,8 +675,30 @@ class GeminiBackend:
     return self._model
 
 
+class LocalOpenRouterChat:
+  def __init__(self, openai_client) -> None:
+    self._openai_client = openai_client
+
+  def send(self, **kwargs) -> Any:
+    return self._openai_client.chat.completions.create(**kwargs)
+
+
+class LocalOpenRouterClient:
+  def __init__(self, api_key: str, base_url: Optional[str], timeout: float) -> None:
+    import openai
+    url = (base_url or "").strip() or "https://openrouter.ai/api/v1"
+    self._openai_client = openai.OpenAI(api_key=api_key, base_url=url, timeout=timeout)
+    self.chat = LocalOpenRouterChat(self._openai_client)
+
+  def __enter__(self) -> "LocalOpenRouterClient":
+    return self
+
+  def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    self._openai_client.close()
+
+
 class OpenAIBackend:
-  """OpenRouter-compatible backend via the openrouter SDK."""
+  """OpenRouter-compatible backend via standard openai SDK wrapper."""
 
   def __init__(
     self,
@@ -691,12 +713,11 @@ class OpenAIBackend:
     self._timeout = timeout
     self._provider_label = provider_label
     try:
-      import openrouter  # noqa: F401 — optional dependency
+      import openai  # noqa: F401 — optional dependency
     except ImportError as exc:
       raise RuntimeError(
-        "openrouter SDK not installed. Run: pip install 'openrouter>=0.9.1'"
+        "openai SDK not installed. Run: pip install openai"
       ) from exc
-    self._openrouter = openrouter
     key = (api_key or "").strip()
     if not key:
       key = (
@@ -710,14 +731,8 @@ class OpenAIBackend:
         "OpenRouter API key is not configured. "
         "Please set NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY in your environment."
       )
-    kwargs: Dict[str, Any] = {"api_key": key}
-    if base_url:
-      kwargs["server_url"] = base_url
-    try:
-      kwargs["timeout_ms"] = int(max(float(timeout), 120.0) * 1000)
-    except (TypeError, ValueError):
-      kwargs["timeout_ms"] = 120000
-    self._client = openrouter.OpenRouter(**kwargs)
+    url = (base_url or "").strip() or "https://openrouter.ai/api/v1"
+    self._client = LocalOpenRouterClient(key, url, float(timeout))
 
   def _apply_openrouter_reasoning(self, kwargs: Dict[str, Any], think: Optional[bool]) -> None:
     if self._provider_label != "openrouter" or not _want_thoughts(think):
@@ -1018,7 +1033,7 @@ class OpenAIBackend:
 
 
 class OpenRouterBackend(OpenAIBackend):
-  """OpenRouter — OpenAI-compatible API for routed models (e.g. google/openai/gpt-4.1-mini)."""
+  """OpenRouter — OpenAI-compatible API for routed models (e.g openai/gpt-4.1-mini)."""
 
   def __init__(self, model: str, api_key: str, base_url: Optional[str], timeout: int) -> None:
     url = (base_url or "").strip() or OPENROUTER_API_BASE
@@ -1173,7 +1188,7 @@ class LLMClient:
     self._init_error: str = ""
 
     provider = (_cfg("NYXSTRIKE_LLM_PROVIDER") or "openrouter").lower()
-    model = _cfg("NYXSTRIKE_LLM_MODEL") or "google/openai/gpt-4.1-mini"
+    model = _cfg("NYXSTRIKE_LLM_MODEL") or "openai/gpt-4.1-mini"
     base_url = (_cfg("NYXSTRIKE_LLM_URL") or "").strip()
     api_key = (_cfg("NYXSTRIKE_LLM_API_KEY") or "").strip()
     timeout = int(_cfg("NYXSTRIKE_LLM_TIMEOUT") or 300)
