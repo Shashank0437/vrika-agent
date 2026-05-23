@@ -737,7 +737,12 @@ class OpenAIBackend:
   def _apply_openrouter_reasoning(self, kwargs: Dict[str, Any], think: Optional[bool]) -> None:
     if self._provider_label != "openrouter" or not _want_thoughts(think):
       return
-    kwargs.update(_openrouter_reasoning_extra(self._model))
+    reasoning_param = _openrouter_reasoning_extra(self._model)
+    if reasoning_param:
+      extra = dict(kwargs.get("extra_body") or {})
+      extra.update(reasoning_param)
+      kwargs["extra_body"] = extra
+
 
   def chat(
     self,
