@@ -713,6 +713,53 @@ def _stream_llm_sse(
             except Exception as retry_exc:
                 logger.warning("cipherstrike_bridge: thought-only retry failed: %s", retry_exc)
 
+        elif (
+            saw_visible_output
+            and not stream_tool_call_chunk_seen
+            and schemas_ok
+        ):
+            schema_names = _schema_tool_names(schemas)
+            all_deferred = (
+                bool(schema_names)
+                and all(n.strip().lower() in _DEFERRED_POST_SCAN_TOOLS for n in schema_names)
+            )
+            if all_deferred:
+                logger.info(
+                    "cipherstrike_bridge: LLM produced text but skipped deferred tools %s; forcing tool_choice=required retry",
+                    schema_names,
+                )
+                try:
+                    retry_msgs = list(messages_adj) + [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You just summarized tool results, but the user's original request ALSO asked "
+                                "for a report/PDF. You MUST now call the penetration-report tool immediately. "
+                                "Do NOT produce text — emit a tool_call."
+                            ),
+                        },
+                    ]
+                    result = _force_tool_call_retry(retry_msgs, tools_arg)
+                    if isinstance(result, dict):
+                        retry_tcalls = result.get("tool_calls") or []
+                        if retry_tcalls:
+                            retry_raw_names = [
+                                str(((tc or {}).get("function") or {}).get("name") or "")
+                                for tc in retry_tcalls
+                            ]
+                            logger.info(
+                                "cipherstrike_bridge: deferred-tool retry returned tool_calls=%d raw_names=%s",
+                                len(retry_tcalls), retry_raw_names,
+                            )
+                            pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls, schemas))
+                            for ln in pending_sse:
+                                yield ln
+                            # Replace the [DONE] with a tool-call flow — need to return before the final DONE.
+                            yield "data: [DONE]\n\n"
+                            return
+                except Exception as retry_exc:
+                    logger.warning("cipherstrike_bridge: deferred-tool retry failed: %s", retry_exc)
+
         yield "data: [DONE]\n\n"
     except GeneratorExit:
         raise
