@@ -60,14 +60,14 @@ def gobuster():
         if use_subcommands:
             command = (
                 f"{shlex.quote(gobuster_bin)} {mode} -u {shlex.quote(str(url).strip())} "
-                f"-w {shlex.quote(wordlist)}"
+                f"-w {shlex.quote(wordlist)} "
                 f"--exclude-length 0"
             )
         else:
             target_flag = "-d" if mode == "dns" else "-u"
             command = (
                 f"{shlex.quote(gobuster_bin)} {target_flag} {shlex.quote(str(url).strip())} "
-                f"-w {shlex.quote(wordlist)}"
+                f"-w {shlex.quote(wordlist)} "
                 f"--exclude-length 0"
             )
 
