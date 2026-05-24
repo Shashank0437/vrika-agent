@@ -19,10 +19,10 @@ def bbot_endpoint():
     """
     try:
         data = request.get_json()
-        if not data or "target" not in data or "parameters" not in data:
-            return jsonify({"error": "Missing 'target' or 'parameters' in payload"}), 400
+        if not data or "target" not in data:
+            return jsonify({"error": "Missing 'target' in payload"}), 400
         target = data["target"]
-        parameters = data["parameters"]
+        parameters = data.get("parameters", {})
 
         if isinstance(parameters, str):
             parameters = parameters.strip()

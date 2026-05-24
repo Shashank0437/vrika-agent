@@ -1010,8 +1010,8 @@ TOOLS: Dict[str, dict] = {
         "endpoint": "/api/bot/bbot",
         "method": "POST",
         "category": "osint",
-        "params": {"target": {"required": True}, "parameters": {"required": True}},
-        "optional": {},
+        "params": {"target": {"required": True}},
+        "optional": {"parameters": {}},
         "effectiveness": 0.90,
     },
 
