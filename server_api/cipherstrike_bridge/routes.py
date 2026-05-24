@@ -53,11 +53,19 @@ def _iter_sse_text_chunks(text: str, chunk_chars: int = 72):
         yield text[i : i + step]
 
 
+# Tool names that depend on scan results and must NOT run in parallel with scan tools.
+# They are deferred to the follow-up LLM turn after scan results are available.
+_DEFERRED_POST_SCAN_TOOLS: frozenset[str] = frozenset({"penetration-report"})
+
 _PENETRATION_REPORT_SCHEMA_NUDGE = (
     "CipherStrike backend: PDF generation runs via the penetration-report tool on this agent host; "
     "ReportLab is installed. When the user wants a PDF or penetration-test report from this session, "
     "you MUST call the penetration-report function (empty {} arguments if nothing is required). "
-    "Do not refuse by claiming reportlab or Python dependencies are missing—that is wrong for this system."
+    "Do not refuse by claiming reportlab or Python dependencies are missing—that is wrong for this system. "
+    "CRITICAL SEQUENCING RULE: penetration-report MUST NEVER be called in the same turn as scan/recon tools "
+    "(e.g. httpx, nmap, nuclei, nikto, whatweb, ffuf, etc.). It depends on scan results to produce a "
+    "meaningful report. When the user asks to 'scan X and generate a report', call ONLY the scan tool(s) first. "
+    "After you receive the scan results, THEN call penetration-report in a separate follow-up turn."
 )
 
 _NMAP_TARGET_SCHEMA_NUDGE = (
@@ -387,6 +395,33 @@ def _yield_cipherstrike_tool_pending_sse(
 
     if duplicate_count:
         logger.info("cipherstrike_bridge: dropped %d duplicate tool_calls before SSE emit", duplicate_count)
+
+    # --- Defer post-scan tools (e.g. penetration-report) when batched with scan tools ---
+    # These tools need scan results to work properly. If the LLM emitted them alongside
+    # scan tools, strip them from this batch; they will be picked up in the follow-up
+    # LLM turn after scan results are available.
+    if len(batch_payloads) > 1:
+        has_scan = any(
+            p["tool_name"].strip().lower() not in _DEFERRED_POST_SCAN_TOOLS
+            for p in batch_payloads
+        )
+        has_deferred = any(
+            p["tool_name"].strip().lower() in _DEFERRED_POST_SCAN_TOOLS
+            for p in batch_payloads
+        )
+        if has_scan and has_deferred:
+            deferred_names = [
+                p["tool_name"] for p in batch_payloads
+                if p["tool_name"].strip().lower() in _DEFERRED_POST_SCAN_TOOLS
+            ]
+            logger.info(
+                "cipherstrike_bridge: deferring post-scan tools %s from parallel batch (will run after scan results)",
+                deferred_names,
+            )
+            batch_payloads = [
+                p for p in batch_payloads
+                if p["tool_name"].strip().lower() not in _DEFERRED_POST_SCAN_TOOLS
+            ]
 
     if len(batch_payloads) == 1:
         yield f"data: [TOOL_CALL_PENDING] {json.dumps(batch_payloads[0])}\n\n"
