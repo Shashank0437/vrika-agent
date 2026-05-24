@@ -605,6 +605,7 @@ def _stream_llm_sse(
         )
     except Exception:
         pass
+
     try:
         yield "data: [THINKING]\n\n"
         for chunk in llm_client.stream_chat(messages_adj, tools=tools_arg):
