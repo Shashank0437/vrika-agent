@@ -450,6 +450,31 @@ class TestReconBot:
         r = _post(client, "/api/bot/bbot")
         assert_route_exists(r, "/api/bot/bbot")
 
+        # Test valid request with dictionary parameters
+        r = client.post("/api/bot/bbot", json={"target": "example.com", "parameters": {"f": "subdomain-enum"}})
+        assert r.status_code == 200
+        assert r.get_json() == {"success": True, "output": "mocked", "returncode": 0}
+
+        # Test valid request with empty string parameters
+        r = client.post("/api/bot/bbot", json={"target": "example.com", "parameters": ""})
+        assert r.status_code == 200
+        assert r.get_json() == {"success": True, "output": "mocked", "returncode": 0}
+
+        # Test valid request with JSON string parameters
+        r = client.post("/api/bot/bbot", json={"target": "example.com", "parameters": '{"f": "subdomain-enum"}'})
+        assert r.status_code == 200
+        assert r.get_json() == {"success": True, "output": "mocked", "returncode": 0}
+
+        # Test invalid JSON string parameters
+        r = client.post("/api/bot/bbot", json={"target": "example.com", "parameters": '{"invalid json'})
+        assert r.status_code == 400
+        assert "Failed to parse" in r.get_json().get("error", "")
+
+        # Test invalid parameter type (integer)
+        r = client.post("/api/bot/bbot", json={"target": "example.com", "parameters": 123})
+        assert r.status_code == 400
+        assert "must be a dictionary" in r.get_json().get("error", "")
+
 
 # ===========================================================================
 # DNS Enumeration

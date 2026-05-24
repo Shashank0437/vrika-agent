@@ -45,10 +45,29 @@ def gobuster():
                 }
             ), 400
 
-        command = (
-            f"{shlex.quote(gobuster_bin)} {mode} -u {shlex.quote(str(url).strip())} "
-            f"-w {shlex.quote(wordlist)}"
-        )
+        # Detect if gobuster is v3+ (supporting subcommands like dir, dns, vhost)
+        # or v2 (which directly takes flags like -u, -w without subcommand).
+        use_subcommands = True
+        try:
+            import subprocess
+            proc = subprocess.run([gobuster_bin, "-h"], capture_output=True, text=True, timeout=2)
+            help_text = proc.stdout + proc.stderr
+            if "Available Commands" not in help_text and "dir" not in help_text:
+                use_subcommands = False
+        except Exception:
+            pass
+
+        if use_subcommands:
+            command = (
+                f"{shlex.quote(gobuster_bin)} {mode} -u {shlex.quote(str(url).strip())} "
+                f"-w {shlex.quote(wordlist)}"
+            )
+        else:
+            target_flag = "-d" if mode == "dns" else "-u"
+            command = (
+                f"{shlex.quote(gobuster_bin)} {target_flag} {shlex.quote(str(url).strip())} "
+                f"-w {shlex.quote(wordlist)}"
+            )
 
         if additional_args:
             command += f" {additional_args}"

@@ -24,6 +24,24 @@ def bbot_endpoint():
         target = data["target"]
         parameters = data["parameters"]
 
+        if isinstance(parameters, str):
+            parameters = parameters.strip()
+            if not parameters:
+                parameters = {}
+            else:
+                import json
+                try:
+                    parameters = json.loads(parameters)
+                except json.JSONDecodeError:
+                    try:
+                        import yaml
+                        parameters = yaml.safe_load(parameters)
+                    except Exception:
+                        return jsonify({"error": "Failed to parse 'parameters' as JSON or YAML"}), 400
+
+        if not isinstance(parameters, dict):
+            return jsonify({"error": "The 'parameters' payload must be a dictionary or a valid JSON/YAML object mapping options to values."}), 400
+
         cmd_parts = ['bbot', "-t " + target]
         for key, value in parameters.items():
             if isinstance(value, str) and value:

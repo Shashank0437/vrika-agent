@@ -16,17 +16,22 @@ def register_nikto_tool(mcp, api_client, logger):
         Returns:
             Scan results with discovered vulnerabilities
         """
+        target_stripped = target.strip()
+        target_lower = target_stripped.lower()
+        if not target_lower.startswith("http://") and not target_lower.startswith("https://"):
+            target_stripped = "https://" + target_stripped
+
         data = {
-            "target": target,
+            "target": target_stripped,
             "additional_args": additional_args
         }
-        logger.info(f"🔬 Starting Nikto scan: {target}")
+        logger.info(f"🔬 Starting Nikto scan: {target_stripped}")
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None, lambda: api_client.safe_post("api/tools/nikto", data)
         )
         if result.get("success"):
-            logger.info(f"✅ Nikto scan completed for {target}")
+            logger.info(f"✅ Nikto scan completed for {target_stripped}")
         else:
-            logger.error(f"❌ Nikto scan failed for {target}")
+            logger.error(f"❌ Nikto scan failed for {target_stripped}")
         return result

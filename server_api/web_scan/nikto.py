@@ -11,8 +11,8 @@ api_web_scan_nikto_bp = Blueprint("api_web_scan_nikto", __name__)
 def nikto():
     """Execute nikto with enhanced logging"""
     try:
-        params = request.json
-        target = params.get("target", "")
+        params = request.json or {}
+        target = params.get("target", "").strip()
         additional_args = params.get("additional_args", "")
 
         if not target:
@@ -20,6 +20,10 @@ def nikto():
             return jsonify({
                 "error": "Target parameter is required"
             }), 400
+
+        target_lower = target.lower()
+        if not target_lower.startswith("http://") and not target_lower.startswith("https://"):
+            target = "https://" + target
 
         command = f"nikto -h {target}"
 
