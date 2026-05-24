@@ -900,10 +900,11 @@ def generate_penetration_report(
     data = _normalize_report_data(raw_llm, fallback_client=client_name, fallback_target=target_label)
     pdf = _build_pdf_bytes(data, generated_by=generated_by or "CipherStrike")
 
-    safe_title = re.sub(r"[^A-Za-z0-9.-]+", "_", data["report_title"]).strip("_")[:64] or "Penetration_Test_Report"
+    safe_title = re.sub(r"[^A-Za-z0-9]+", "_", data["report_title"]).strip("_")[:64] or "Penetration_Test_Report"
     while "__" in safe_title:
         safe_title = safe_title.replace("__", "_")
-    filename = f"{safe_title}.pdf"
+    import time
+    filename = f"{safe_title}_{int(time.time())}.pdf"
 
     summary = (
         f"Generated penetration test PDF ({filename}). "
