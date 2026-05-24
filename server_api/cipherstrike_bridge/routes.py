@@ -621,6 +621,7 @@ def _stream_llm_sse(
                 "cipherstrike_bridge: all schemas are deferred post-scan tools %s; using non-stream tool_choice=required",
                 schema_names_fp,
             )
+            yield "data: [THINKING]\n\n"
             try:
                 result = _force_tool_call_retry(messages_adj, tools_arg)
                 if isinstance(result, dict):
