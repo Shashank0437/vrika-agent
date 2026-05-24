@@ -606,6 +606,48 @@ def _stream_llm_sse(
     except Exception:
         pass
 
+    # --- Fast-path for deferred post-scan tools (e.g. penetration-report) ---
+    # When ALL schemas are deferred tools, skip streaming and use a non-streaming call
+    # with tool_choice="required". This returns BOTH summary text AND the tool call,
+    # preventing the LLM from producing "Should I proceed?" text without calling the tool.
+    if schemas_ok:
+        schema_names_fp = _schema_tool_names(schemas)
+        all_deferred_fp = (
+            bool(schema_names_fp)
+            and all(n.strip().lower() in _DEFERRED_POST_SCAN_TOOLS for n in schema_names_fp)
+        )
+        if all_deferred_fp:
+            logger.info(
+                "cipherstrike_bridge: all schemas are deferred post-scan tools %s; using non-stream tool_choice=required",
+                schema_names_fp,
+            )
+            try:
+                result = _force_tool_call_retry(messages_adj, tools_arg)
+                if isinstance(result, dict):
+                    retry_tcalls = result.get("tool_calls") or []
+                    retry_text = (result.get("content") or "").strip() if isinstance(result.get("content"), str) else ""
+                    if retry_tcalls:
+                        retry_raw_names = [
+                            str(((tc or {}).get("function") or {}).get("name") or "")
+                            for tc in retry_tcalls
+                        ]
+                        logger.info(
+                            "cipherstrike_bridge: deferred fast-path tool_calls=%d raw_names=%s text_len=%d",
+                            len(retry_tcalls), retry_raw_names, len(retry_text),
+                        )
+                        # Emit the summary text so user sees scan findings.
+                        if retry_text:
+                            for slice_ in _iter_sse_text_chunks(retry_text):
+                                yield f"data: {json.dumps(slice_)}\n\n"
+                        # Emit the tool call (e.g. penetration-report).
+                        pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls, schemas))
+                        for ln in pending_sse:
+                            yield ln
+                        yield "data: [DONE]\n\n"
+                        return
+            except Exception as fp_exc:
+                logger.warning("cipherstrike_bridge: deferred fast-path failed: %s; falling through to normal stream", fp_exc)
+
     try:
         yield "data: [THINKING]\n\n"
         for chunk in llm_client.stream_chat(messages_adj, tools=tools_arg):
