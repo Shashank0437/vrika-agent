@@ -556,7 +556,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import inch
         from reportlab.pdfgen import canvas as pdfcanvas
-        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
+        from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table
     except ImportError as e:
         raise RuntimeError(
             "Could not import 'reportlab' while building the PDF. " + _REPORTLAB_INSTALL_HINT
@@ -729,7 +729,9 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
             story.append(Spacer(1, 6))
 
     def bullet_list(items: List[str]):
-        for it in items:
+        for i, it in enumerate(items):
+            if i > 0:
+                story.append(PageBreak())
             p(f"• {it}", body)
 
     # Cover
