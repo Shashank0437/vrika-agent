@@ -729,9 +729,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
             story.append(Spacer(1, 6))
 
     def bullet_list(items: List[str]):
-        for i, it in enumerate(items):
-            if i > 0:
-                story.append(PageBreak())
+        for it in items:
             p(f"• {it}", body)
 
     # Cover
@@ -760,6 +758,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     story.append(Spacer(1, 0.35 * inch))
 
     # 1 Executive summary
+    story.append(PageBreak())
     p("1. EXECUTIVE SUMMARY", h1)
     for para in data.get("executive_summary") or []:
         p(str(para), body)
@@ -779,6 +778,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     bullet_list(data.get("areas_of_concern") or [])
 
     # 2 Recon
+    story.append(PageBreak())
     p("2. RECONNAISSANCE FINDINGS", h1)
     for sec in data.get("recon_sections") or []:
         p(str(sec.get("subsection_title") or ""), h2)
@@ -794,6 +794,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
             story.append(Spacer(1, 8))
 
     # 3 Application security findings
+    story.append(PageBreak())
     p("3. APPLICATION SECURITY FINDINGS", h1)
     for block in data.get("technical_findings") or []:
         p(str(block.get("title") or ""), h2)
@@ -818,6 +819,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
             story.append(Spacer(1, 8))
 
     # 4 Risk
+    story.append(PageBreak())
     p("4. RISK ASSESSMENT & REMEDIATION", h1)
     p("4.1 Risk priority matrix", h2)
     rm = data.get("risk_matrix_rows") or []
@@ -841,12 +843,14 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     bullet_list(data.get("recommendations_long_term") or [])
 
     # 5 Conclusion
+    story.append(PageBreak())
     p("5. CONCLUSION", h1)
     for para in data.get("conclusion_paragraphs") or []:
         p(str(para), body)
     p(f"Overall security posture grade: {data.get('overall_grade')}", ParagraphStyle("gr", parent=body, fontName="Helvetica-Bold"), md=False)
 
     # Appendices
+    story.append(PageBreak())
     p("APPENDIX A — METHODOLOGY & TOOLS REFERENCED", h1)
     ap = data.get("appendix_tools") or []
     for a in ap:
@@ -858,6 +862,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
             p(f"• {tool}", body)
         elif desc:
             p(f"• {desc}", body)
+    story.append(PageBreak())
     p("APPENDIX B — SCOPE & LIMITATIONS", h1)
     p("Assessment scope", ParagraphStyle("sc", parent=h2, fontSize=11, spaceBefore=2))
     bullet_list(data.get("appendix_scope") or [])
