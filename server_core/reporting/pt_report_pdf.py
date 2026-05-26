@@ -762,6 +762,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     p("1. EXECUTIVE SUMMARY", h1)
     for para in data.get("executive_summary") or []:
         p(str(para), body)
+    story.append(PageBreak())
     p("1.1 Assessment Overview", h2)
     ov = data.get("assessment_overview_rows") or []
     if ov:
@@ -770,6 +771,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
         tw = doc.width
         story.append(para_table(hdr, rows_ov, [tw * 0.34, tw * 0.66], compact_data=False))
         story.append(Spacer(1, 10))
+    story.append(PageBreak())
     p("1.2 Security Posture Assessment", h2)
     p(f"Overall security rating: {data.get('security_posture_rating')}", body, md=False)
     p("Strengths", ParagraphStyle("lb", parent=h2, fontSize=11, spaceBefore=4))
@@ -780,7 +782,9 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     # 2 Recon
     story.append(PageBreak())
     p("2. RECONNAISSANCE FINDINGS", h1)
-    for sec in data.get("recon_sections") or []:
+    for idx, sec in enumerate(data.get("recon_sections") or []):
+        if idx > 0:
+            story.append(PageBreak())
         p(str(sec.get("subsection_title") or ""), h2)
         for para in sec.get("narrative_paragraphs") or []:
             p(str(para), body)
@@ -796,7 +800,9 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     # 3 Application security findings
     story.append(PageBreak())
     p("3. APPLICATION SECURITY FINDINGS", h1)
-    for block in data.get("technical_findings") or []:
+    for idx, block in enumerate(data.get("technical_findings") or []):
+        if idx > 0:
+            story.append(PageBreak())
         p(str(block.get("title") or ""), h2)
         for para in block.get("narrative_paragraphs") or []:
             p(str(para), body)
@@ -834,6 +840,7 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
             para_table(hdr, rows_m, [tw * 0.07, tw * 0.33, tw * 0.12, tw * 0.48], compact_data=True)
         )
         story.append(Spacer(1, 10))
+    story.append(PageBreak())
     p("4.2 Detailed recommendations", h2)
     p("Immediate (0–30 days)", ParagraphStyle("im", parent=h2, fontSize=11, spaceBefore=2))
     bullet_list(data.get("recommendations_immediate") or [])
