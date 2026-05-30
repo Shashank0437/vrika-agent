@@ -921,8 +921,11 @@ def generate_penetration_report(
     filename = f"{safe_title}_{int(time.time())}.pdf"
 
     summary = (
-        f"Generated penetration test PDF ({filename}). "
+        f"Generated penetration test PDF report successfully. "
         f"Target: {data['target_primary']}. Grade: {data.get('overall_grade')}. "
+        f"The PDF is attached and available for download via the attachment button below. "
+        f"Do NOT include any download links or filenames in your response — the UI already "
+        f"shows a download button for the user. "
         f"{data.get('transcript_coverage_note') or ''}".strip()
     )
     return pdf, filename, summary
