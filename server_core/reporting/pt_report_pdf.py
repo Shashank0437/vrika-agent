@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 _REPORTLAB_INSTALL_HINT = (
     "Install on the agent host: pip install 'reportlab>=4.0.0' "
     "or pip install -r agent/requirements.txt "
-    "or pip install -r agent/dependencies/requirements.txt (from the NyxStrike/CipherStrike repo)."
+    "or pip install -r agent/dependencies/requirements.txt (from the Vrika repo)."
 )
 
 
@@ -32,12 +32,12 @@ _JSON_FENCE = re.compile(r"\{[\s\S]*\}")
 
 # Drop or neutralize operator-platform leakage (never surface raw agent/toolchain failures to clients).
 _OP_LEAK_MATCH = re.compile(
-    r"(?i)\bnyxstrike\b|nyx\s*strike|\btraceback\b|\bstderr\b|\bstderr:\b|"
+    r"(?i)\bcipherstrike\b|\bnyxstrike\b|nyx\s*strike|\btraceback\b|\bstderr\b|\bstderr:\b|"
     r"reportlab\s*(missing|not\s+installed|error)|json\s+parse|parseable\s+json|"
     r"\bllm\b.*\b(return|fail)|model\s+did\s+not\s+return|agent\s+microservice|"
-    r"tool\s+invocation\s+fail|cipherstrike_bridge|internal\s+server\s+error\s*\(\d+\)",
+    r"tool\s+invocation\s+fail|cipherstrike_bridge|vrika_bridge|internal\s+server\s+error\s*\(\d+\)",
 )
-_NYX_TOKEN = re.compile(r"(?i)\bnyxstrike\b|nyx\s*strike")
+_NYX_TOKEN = re.compile(r"(?i)\bcipherstrike\b|\bnyxstrike\b|nyx\s*strike")
 
 
 def _xml_escape(text: str) -> str:
@@ -306,7 +306,7 @@ Given the FULL session transcript (user messages, assistant replies, tool output
 No markdown fences, no commentary outside JSON.
 
 ABSOLUTE PROHIBITIONS (client-facing sections):
-- Never name or allude to NyxStrike, agent runtimes, LLMs, JSON formatting, ReportLab, bridges, microservices, tracebacks,
+- Never name or allude to CipherStrike, NyxStrike, agent runtimes, LLMs, JSON formatting, ReportLab, bridges, microservices, tracebacks,
   stderr, stack traces, HTTP 500s, or other internal platform errors. Those details must NEVER appear in executive_summary,
   strengths, areas_of_concern, recon narratives, technical_findings narratives or tools_table "findings", risk_matrix_rows,
   recommendations, conclusion, or transcript_coverage_note.
@@ -896,7 +896,7 @@ def generate_penetration_report(
     session_transcript: str,
     client_name: str = "",
     target_label: str = "",
-    generated_by: str = "CipherStrike",
+    generated_by: str = "Vrika",
     ui_context: str = "",
     llm_client: Any,
 ) -> Tuple[bytes, str, str]:
@@ -912,7 +912,7 @@ def generate_penetration_report(
 
     raw_llm = _llm_fill_report(session_transcript.strip() + extra, llm_client)
     data = _normalize_report_data(raw_llm, fallback_client=client_name, fallback_target=target_label)
-    pdf = _build_pdf_bytes(data, generated_by=generated_by or "CipherStrike")
+    pdf = _build_pdf_bytes(data, generated_by=generated_by or "Vrika")
 
     safe_title = re.sub(r"[^A-Za-z0-9]+", "_", data["report_title"]).strip("_")[:64] or "Penetration_Test_Report"
     while "__" in safe_title:

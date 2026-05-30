@@ -1,6 +1,6 @@
 {
   "ai_analyze_session": {
-    "summary": "Analyse an existing workflow session with the LLM. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "summary": "Analyse an existing workflow session with the LLM. This capability is implemented as a Vrika/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
     "url": ""
   },
   "airbase-ng": {
@@ -32,7 +32,7 @@
     "url": "https://owasp.org/www-project-amass/"
   },
   "analyze-target": {
-    "summary": "Analyze target and create comprehensive profile using Intelligent Decision Engine. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "summary": "Analyze target and create comprehensive profile using Intelligent Decision Engine. This capability is implemented as a Vrika/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
     "url": ""
   },
   "anew": {
@@ -112,7 +112,7 @@
     "url": "https://github.com/commixproject/commix"
   },
   "create-attack-chain": {
-    "summary": "Create an intelligent attack chain based on target profile. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "summary": "Create an intelligent attack chain based on target profile. This capability is implemented as a Vrika/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
     "url": ""
   },
   "dalfox": {
@@ -407,12 +407,16 @@
     "summary": "Multi-purpose brute-forcer. Further operational context, flags, and limitations are described in the linked upstream documentation.",
     "url": "https://github.com/lanjelot/patator"
   },
+  "penetration-report": {
+    "summary": "Generate a comprehensive penetration testing PDF report from the current chat session (findings, tools, vulnerabilities). Server supplies session transcript; optional labels refine the cover page. This capability is implemented as a Vrika/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "url": ""
+  },
   "photorec": {
     "summary": "File recovery \u2014 carve deleted files from disk images or drives. Further operational context, flags, and limitations are described in the linked upstream documentation.",
     "url": "https://www.cgsecurity.org/wiki/PhotoRec"
   },
   "preview-attack-chain": {
-    "summary": "Preview an intelligent attack chain without persisting a session. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "summary": "Preview an intelligent attack chain without persisting a session. This capability is implemented as a Vrika/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
     "url": ""
   },
   "prowler": {
@@ -488,7 +492,7 @@
     "url": "https://wiki.sleuthkit.org/"
   },
   "smart-scan": {
-    "summary": "Execute an intelligent scan using AI-driven tool selection and parameter optimization with parallel execution. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "summary": "Meta-orchestrator: internally runs multiple scanners in parallel with AI-driven selection (appears as one tool execution in chat). For separate visible executions per scanner, use discrete tools (httpx, whatweb, nuclei, \u2026) instead. This capability is implemented as a Vrika/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
     "url": ""
   },
   "smbmap": {
@@ -532,7 +536,7 @@
     "url": "https://www.tcpdump.org/manpages/tcpdump.1.html"
   },
   "technology-detection": {
-    "summary": "Detect technologies and create technology-specific testing recommendations. This capability is implemented as a CipherStrike/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
+    "summary": "Detect technologies and create technology-specific testing recommendations. This capability is implemented as a Vrika/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
     "url": ""
   },
   "terrascan": {

@@ -123,6 +123,7 @@ URLS: dict[str, str] = {
     "parsero": "https://github.com/behindthefirewall/Parsero",
     "patator": "https://github.com/lanjelot/patator",
     "photorec": "https://www.cgsecurity.org/wiki/PhotoRec",
+    "penetration-report": "",
     "preview-attack-chain": "",
     "prowler": "https://docs.prowler.com/",
     "pwninit": "https://github.com/io12/pwninit",
@@ -335,7 +336,7 @@ def _summary(name: str) -> str:
     url = URLS.get(name, "")
     if not url:
         return (
-            f"{desc}. This capability is implemented as a CipherStrike/NyxStrike API on the agent; "
+            f"{desc}. This capability is implemented as a Vrika/NyxStrike API on the agent; "
             "refer to your tenant operator guide for request semantics beyond the registry fields."
         )
     return (

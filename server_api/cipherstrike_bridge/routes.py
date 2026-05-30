@@ -58,7 +58,7 @@ def _iter_sse_text_chunks(text: str, chunk_chars: int = 72):
 _DEFERRED_POST_SCAN_TOOLS: frozenset[str] = frozenset({"penetration-report"})
 
 _PENETRATION_REPORT_SCHEMA_NUDGE = (
-    "CipherStrike backend: PDF generation runs via the penetration-report tool on this agent host; "
+    "Vrika backend: PDF generation runs via the penetration-report tool on this agent host; "
     "ReportLab is installed. When the user wants a PDF or penetration-test report from this session, "
     "you MUST call the penetration-report function (empty {} arguments if nothing is required). "
     "Do not refuse by claiming reportlab or Python dependencies are missing—that is wrong for this system. "
@@ -69,7 +69,7 @@ _PENETRATION_REPORT_SCHEMA_NUDGE = (
 )
 
 _NMAP_TARGET_SCHEMA_NUDGE = (
-    "CipherStrike nmap accepts target as hostname, IP, CIDR, or full URL. "
+    "Vrika nmap accepts target as hostname, IP, CIDR, or full URL. "
     "When the user says run nmap on https://example.com (or http://…), call the nmap function immediately "
     'with target set to that URL string (e.g. "https://example.com"). Do not ask them to reformat—the agent '
     "strips the scheme and path to the host before running nmap. Never reply that only bare hostnames are allowed."
@@ -120,7 +120,7 @@ from tool_registry import CATEGORIES
 
 _ROUTER_CATEGORY_ENUM = ", ".join(sorted(CATEGORIES.keys()))
 
-_ROUTER_SYSTEM_TEMPLATE = """You are a router for CipherStrike (authorized security testing assistant).
+_ROUTER_SYSTEM_TEMPLATE = """You are a router for Vrika (authorized security testing assistant).
 
 Given the recent conversation context (if any), the latest user message, and the compact tool list below, respond with **only** valid JSON (no markdown):
 {{"intent":"operational"|"conversational","tool_names":[],"reply":"","category":"<slug>"}}
