@@ -136,6 +136,7 @@ export const INSTALL_HINTS: Record<string, string> = {
   massdns:           'sudo apt install massdns',
   gospider:          'sudo apt install gospider',
   dig:               'sudo apt install bind9-dnsutils',
+  burpsuite:         'Simulated built-in tool, no installation required',
 
 }
 
