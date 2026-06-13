@@ -320,6 +320,7 @@ def register_blueprints(app):
 
   # AI Assist
   app.register_blueprint(api_chat_bp)
+  app.register_blueprint(api_skills_bp)
   app.register_blueprint(api_cipherstrike_bridge_bp)
   app.register_blueprint(api_internal_tool_run_bp)
   app.register_blueprint(api_ai_assist_advanced_payload_generation_bp)
