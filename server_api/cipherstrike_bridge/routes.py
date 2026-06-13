@@ -570,6 +570,7 @@ def _normalize_openai_compatible_messages_local(messages: List[Dict[str, Any]]) 
 def _stream_llm_sse(
     messages: List[Dict[str, Any]],
     schemas: List[Dict[str, Any]] | None = None,
+    attack_chain_force_next_tool: bool = False,
 ) -> Generator[str, None, None]:
     """Stream tokens from the configured LLM; optional ``schemas`` enables tool mode."""
     backend = getattr(llm_client, "_backend", None)
@@ -763,6 +764,46 @@ def _stream_llm_sse(
             and schemas_ok
         ):
             schema_names = _schema_tool_names(schemas)
+            if attack_chain_force_next_tool:
+                logger.info(
+                    "cipherstrike_bridge: attack-chain follow-up text-only; forcing tool_choice=required offered=%s",
+                    schema_names,
+                )
+                try:
+                    retry_msgs = list(messages_adj) + [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You summarized the tool results but did NOT emit the required tool_call. "
+                                "The next attack-chain step is mandatory — emit a tool_call for the offered tool "
+                                "in this response. Brief summary text is acceptable but the tool_call is required."
+                            ),
+                        },
+                    ]
+                    result = _force_tool_call_retry(retry_msgs, tools_arg)
+                    if isinstance(result, dict):
+                        retry_tcalls = result.get("tool_calls") or []
+                        retry_text = (result.get("content") or "").strip() if isinstance(result.get("content"), str) else ""
+                        if retry_tcalls:
+                            retry_raw_names = [
+                                str(((tc or {}).get("function") or {}).get("name") or "")
+                                for tc in retry_tcalls
+                            ]
+                            logger.info(
+                                "cipherstrike_bridge: attack-chain retry returned tool_calls=%d raw_names=%s text_len=%d",
+                                len(retry_tcalls), retry_raw_names, len(retry_text),
+                            )
+                            if retry_text:
+                                for slice_ in _iter_sse_text_chunks(retry_text):
+                                    yield f"data: {json.dumps(slice_)}\n\n"
+                            pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls, schemas))
+                            for ln in pending_sse:
+                                yield ln
+                            yield "data: [DONE]\n\n"
+                            return
+                except Exception as retry_exc:
+                    logger.warning("cipherstrike_bridge: attack-chain force retry failed: %s", retry_exc)
+
             all_deferred = (
                 bool(schema_names)
                 and all(n.strip().lower() in _DEFERRED_POST_SCAN_TOOLS for n in schema_names)
@@ -882,9 +923,16 @@ def llm_stream():
         schemas = body.get("schemas")
         if schemas is not None and not isinstance(schemas, list):
             return jsonify({"success": False, "error": "schemas must be a list when supplied"}), 400
+        attack_chain_force = bool(body.get("attack_chain_force_next_tool"))
 
         return Response(
-            stream_with_context(_stream_llm_sse(messages, schemas if isinstance(schemas, list) else None)),
+            stream_with_context(
+                _stream_llm_sse(
+                    messages,
+                    schemas if isinstance(schemas, list) else None,
+                    attack_chain_force_next_tool=attack_chain_force,
+                )
+            ),
             mimetype="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
