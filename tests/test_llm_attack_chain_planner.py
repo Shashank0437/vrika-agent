@@ -6,6 +6,7 @@ from shared.target_types import TargetType
 from server_core.intelligence.llm_attack_chain_planner import (
     filter_candidates_by_operator_note,
     _heuristic_phases,
+    _parse_attack_chain_steps,
     _parse_paths,
     _parse_phases,
     plan_hybrid_attack_chain,
@@ -55,6 +56,24 @@ class TestParsingHelpers:
         assert phases[0]["phase"] == "RECON"
         assert phases[0]["step_indices"] == [0, 1]
         assert phases[1]["step_indices"] == [2]
+
+    def test_parse_steps_without_params(self):
+        text = (
+            "SUMMARY: plan\n"
+            "STEP: nuclei | REASON: template scan\n"
+            "STEP: ffuf | REASON: fuzz paths\n"
+            "STEP: httpx | REASON: live hosts\n"
+        )
+        steps = _parse_attack_chain_steps(text)
+        assert len(steps) == 3
+        assert steps[0]["tool"] == "nuclei"
+        assert steps[1]["tool"] == "ffuf"
+
+    def test_parse_steps_json_params(self):
+        text = "STEP: nmap | PARAMS: {\"target\": \"jio.com\"} | REASON: port scan"
+        steps = _parse_attack_chain_steps(text)
+        assert len(steps) == 1
+        assert steps[0]["tool"] == "nmap"
 
 
 class TestHeuristicFallback:

@@ -26,6 +26,15 @@ _PHASE_RE = re.compile(
     r"PHASE:\s*(?P<key>[^|]+)\s*\|\s*(?P<label>[^|]+)\s*\|\s*(?P<indices>[^\n]+)",
     re.IGNORECASE,
 )
+_STEP_FULL_RE = re.compile(
+    r"STEP:\s*(?P<tool>[^|\n]+)\s*\|\s*PARAMS:\s*(?P<params>[^|]+)\s*\|\s*REASON:\s*(?P<reason>[^\n]+)",
+    re.IGNORECASE,
+)
+_STEP_NO_PARAMS_RE = re.compile(
+    r"STEP:\s*(?P<tool>[^|\n]+)\s*\|\s*REASON:\s*(?P<reason>[^\n]+)",
+    re.IGNORECASE,
+)
+_STEP_TOOL_ONLY_RE = re.compile(r"^\s*STEP:\s*(?P<tool>[^\n|]+)\s*$", re.IGNORECASE | re.MULTILINE)
 
 _API_FOCUS_KEYWORDS = frozenset(
     {"api", "rest", "graphql", "swagger", "openapi", "endpoint", "json"}
@@ -112,11 +121,98 @@ Rules:
   - Emit 2–3 PATH: lines describing distinct plausible attack paths.
   - Emit 2–5 PHASE: lines grouping steps (keys like RECON, ENUM, VULN, OSINT, EXPLOIT).
   - Emit 4–12 STEP: lines ordered by execution priority.
+  - Each STEP line format: STEP: <tool_name> | PARAMS: <key=val,...> | REASON: <one sentence>
+    (PARAMS may be empty or target=<session target> if no extra parameters are needed.)
   - STEP tool_name must be an exact lowercase identifier from ALLOWED_TOOLS only.
-  - PARAMS use comma-separated key=value pairs; default target param to the session target when needed.
   - Respect operator constraints in the user message — do not plan excluded techniques.
   - Do NOT call tools; planning only.
 """
+
+
+def _normalize_tool_name(raw: str) -> str:
+    text = (raw or "").strip().lower()
+    text = text.strip("`\"' ")
+    text = re.sub(r"\s*\(.*\)$", "", text).strip()
+    return text
+
+
+def _strip_code_fences(text: str) -> str:
+    return re.sub(r"```[\w]*\n?", "", text or "")
+
+
+def _parse_attack_chain_steps(transcript: str) -> List[Dict[str, Any]]:
+    """Parse STEP lines from planner output; tolerates missing PARAMS and minor formatting."""
+    text = _strip_code_fences(transcript)
+    steps: List[Dict[str, Any]] = []
+    seen_tools: Set[str] = set()
+
+    def _append(tool_raw: str, params: str = "", reason: str = "") -> None:
+        tool = _normalize_tool_name(tool_raw)
+        if not tool or tool in seen_tools:
+            return
+        seen_tools.add(tool)
+        steps.append(
+            {
+                "tool": tool,
+                "params": (params or "").strip(),
+                "reason": (reason or "").strip(),
+            }
+        )
+
+    for pattern in (_STEP_FULL_RE, _STEP_NO_PARAMS_RE):
+        for m in pattern.finditer(text):
+            _append(m.group("tool"), m.groupdict().get("params") or "", m.groupdict().get("reason") or "")
+
+    if steps:
+        return steps
+
+    for m in _STEP_TOOL_ONLY_RE.finditer(text):
+        _append(m.group("tool"))
+
+    if steps:
+        return steps
+
+    # Legacy parser used by follow-up flows
+    _, legacy_steps, _ = _parse_followup(text)
+    for raw in legacy_steps:
+        if isinstance(raw, dict):
+            _append(str(raw.get("tool") or ""), str(raw.get("params") or ""), str(raw.get("reason") or ""))
+    return steps
+
+
+def _call_planner_llm(llm_client: Any, messages: List[Dict[str, str]]) -> str:
+    """Return planner transcript, merging reasoning/thinking when the model omits visible content."""
+    backend = getattr(llm_client, "_backend", None)
+    if backend is not None:
+        try:
+            raw = backend.chat(messages, think=True, num_ctx=llm_client.num_ctx_analyse)
+        except TypeError:
+            raw = backend.chat(messages, think=True, num_ctx=llm_client.num_ctx_analyse)
+        if isinstance(raw, dict):
+            content = str(raw.get("content") or "").strip()
+            thinking = str(raw.get("thinking_content") or "").strip()
+            has_steps = lambda t: bool(re.search(r"STEP:\s*", t, re.IGNORECASE))
+            if content and has_steps(content):
+                return content
+            if thinking and has_steps(thinking):
+                return thinking if not content else f"{content}\n{thinking}".strip()
+            if thinking and len(content) < 120:
+                return f"{thinking}\n{content}".strip()
+            return content or thinking
+        return str(raw or "")
+
+    return str(llm_client.chat(messages, think=True, num_ctx=llm_client.num_ctx_analyse) or "")
+
+
+def _parse_summary(transcript: str) -> str:
+    summary_match = re.search(
+        r"SUMMARY:\s*(.+?)(?=^\s*(?:PATH:|PHASE:|STEP:)\s*|\Z)",
+        transcript,
+        re.I | re.S | re.M,
+    )
+    if not summary_match:
+        return ""
+    return summary_match.group(1).strip()
 
 
 def _parse_step_params(raw: str, target: str) -> Dict[str, Any]:
@@ -275,7 +371,7 @@ def _build_steps_from_llm(
         if not tool or tool not in TOOLS:
             continue
         if allowed and tool not in allowed:
-            continue
+            logger.debug("LLM planner tool %s outside candidate pool; accepting registered tool", tool)
 
         reason = str(raw.get("reason") or "").strip()
         params = _parse_step_params(str(raw.get("params") or ""), target)
@@ -366,9 +462,7 @@ def plan_hybrid_attack_chain(
     ]
 
     try:
-        response = llm_client.chat(messages, think=True, num_ctx=llm_client.num_ctx_analyse)
-        if not isinstance(response, str):
-            response = str(response or "")
+        response = _call_planner_llm(llm_client, messages)
     except Exception as exc:
         logger.warning("LLM attack chain planner failed: %s", exc)
         return _heuristic_plan(
@@ -379,7 +473,8 @@ def plan_hybrid_attack_chain(
             planner_mode=planner_mode,
         )
 
-    summary, parsed_steps, _ = _parse_followup(response)
+    parsed_steps = _parse_attack_chain_steps(response)
+    summary = _parse_summary(response)
     attack_paths = _parse_paths(response)
     built_steps = _build_steps_from_llm(
         parsed_steps,
@@ -391,7 +486,11 @@ def plan_hybrid_attack_chain(
     )
 
     if len(built_steps) < 2:
-        logger.warning("LLM planner produced insufficient steps; falling back to heuristic")
+        logger.warning(
+            "LLM planner produced insufficient steps (parsed=%d built=%d); falling back to heuristic",
+            len(parsed_steps),
+            len(built_steps),
+        )
         return _heuristic_plan(
             decision_engine,
             profile,
