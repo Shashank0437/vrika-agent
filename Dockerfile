@@ -1,7 +1,7 @@
 # NyxStrike agent API (Flask on :8888). INSTALL_TOOLS=1 runs scripts/docker_install_tools.sh
 # (apt + git/go fallbacks for tools missing from Debian bookworm, e.g. nikto).
 
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 ARG INSTALL_TOOLS=0
 
@@ -28,8 +28,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY dependencies/requirements.txt dependencies/pip_constraints.txt ./
 COPY requirements.txt ./requirements-root.txt
 
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir -r requirements-root.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt -c pip_constraints.txt \
+    && pip install --no-cache-dir -r requirements-root.txt -c pip_constraints.txt
 
 COPY . .
 
