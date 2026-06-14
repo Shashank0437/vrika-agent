@@ -1,0 +1,38 @@
+# Standalone NyxStrike agent — run everything from this repo (~/nyxstrike).
+#   cp .env.example .env   # edit LLM key etc.
+#   docker compose build
+#   docker compose up -d
+#
+# vrika-server API (separate compose) reaches this agent at host:8888 via
+# AGENT_MICROSERVICE_URL=http://host.docker.internal:8888 in server/.env
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_TOOLS: ${INSTALL_TOOLS:-1}
+    ports:
+      - "${NYXSTRIKE_PORT:-8888}:8888"
+    env_file:
+      - .env
+    environment:
+      NYXSTRIKE_HOST: 0.0.0.0
+      NYXSTRIKE_PORT: 8888
+      # vrika-server redis is published on host :6379 when that stack is up
+      REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379/0}
+    volumes:
+      - nyxstrike_data:/app/.nyxstrike_data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8888/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+
+volumes:
+  nyxstrike_data:

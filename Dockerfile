@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     NYXSTRIKE_HOST=0.0.0.0 \
     NYXSTRIKE_PORT=8888 \
-    REDIS_URL=redis://redis:6379/0
+    REDIS_URL=redis://host.docker.internal:6379/0
 
 WORKDIR /app
 
