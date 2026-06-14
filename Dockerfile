@@ -1,5 +1,5 @@
-# NyxStrike agent API (Flask on :8888). Python deps + optional common CLI tools.
-# Full `nyxstrike.sh -t` (100+ apt packages) is not run at build — use INSTALL_TOOLS=1 for a subset.
+# NyxStrike agent API (Flask on :8888). INSTALL_TOOLS=1 runs scripts/docker_install_tools.sh
+# (apt + git/go fallbacks for tools missing from Debian bookworm, e.g. nikto).
 
 FROM python:3.12-slim-bookworm
 
@@ -13,24 +13,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+COPY scripts/docker_install_tools.sh scripts/docker_install_tools.sh
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     ca-certificates \
-    && if [ "$INSTALL_TOOLS" = "1" ]; then apt-get install -y --no-install-recommends \
-      nmap \
-      nikto \
-      sqlmap \
-      gobuster \
-      ffuf \
-      hydra \
-      john \
-      hashcat \
-      tcpdump \
-      dnsutils \
-      whois \
-      ; fi \
-    && rm -rf /var/lib/apt/lists/*
+    && if [ "$INSTALL_TOOLS" = "1" ]; then \
+      chmod +x scripts/docker_install_tools.sh \
+      && scripts/docker_install_tools.sh; \
+    fi \
+    && rm -rf /var/lib/apt/lists/* /root/go/pkg /tmp/*
 
 COPY dependencies/requirements.txt dependencies/pip_constraints.txt ./
 COPY requirements.txt ./requirements-root.txt
