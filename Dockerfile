@@ -1,7 +1,7 @@
 # NyxStrike agent API (Flask on :8888). Python deps + optional common CLI tools.
 # Full `nyxstrike.sh -t` (100+ apt packages) is not run at build — use INSTALL_TOOLS=1 for a subset.
 
-FROM python:3.12-bookworm-slim
+FROM python:3.12-slim-bookworm
 
 ARG INSTALL_TOOLS=0
 
