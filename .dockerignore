@@ -1,0 +1,14 @@
+nyxstrike-env/
+.git/
+.nyxstrike_data/
+node_modules/
+ui/node_modules/
+dashboard/
+git_tools/
+__pycache__/
+*.pyc
+*.log
+.env
+.env.*
+.pytest_cache/
+.claude/
