@@ -415,8 +415,21 @@ PYEOF
 
 ensure_ollama_docker() {
   local model="${OLLAMA_MODEL:-${OLLAMA_DEFAULT_MODEL}}"
+  local ollama_url="${OLLAMA_URL:-http://127.0.0.1:11434/v1}"
+  local ollama_root="${ollama_url%/v1}"
+  ollama_root="${ollama_root%/}"
+
+  if curl -sf "${ollama_root}/api/tags" >/dev/null 2>&1; then
+    echo "Ollama already reachable at ${ollama_url} — skipping Docker start."
+    if command -v ollama >/dev/null 2>&1; then
+      echo "Ensuring model ${model} is pulled..."
+      ollama pull "${model}" || echo "Warning: ollama pull ${model} failed"
+    fi
+    return
+  fi
+
   if ! command -v docker >/dev/null 2>&1; then
-    echo "Docker not found — assuming Ollama is already running at ${OLLAMA_URL:-http://127.0.0.1:11434/v1}"
+    echo "Docker not found — start Ollama manually at ${ollama_url}"
     return
   fi
   if [[ ! -f "${ROOT_DIR}/docker-compose.yml" ]]; then
