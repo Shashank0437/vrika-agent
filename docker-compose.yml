@@ -42,6 +42,7 @@ services:
       AI_MODE: ${AI_MODE:-openrouter}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:e2b}
       OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434/v1}
+      LMSTUDIO_URL: ${LMSTUDIO_URL:-http://host.docker.internal:1234/v1}
       # vrika-server redis is published on host :6379 when that stack is up
       REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379/0}
     volumes:

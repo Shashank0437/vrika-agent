@@ -8,15 +8,18 @@ Reads configuration from env vars, config_local.json, and config.py defaults.
 Supported backends:
   openrouter  — OpenRouter (OpenAI-compatible). API key: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY
   ollama      — Local Ollama (OpenAI-compatible /v1). Set AI_MODE=ollama
+  lmstudio    — LM Studio local server (OpenAI-compatible /v1). Set AI_MODE=lmstudio
   gemini      — Google Generative AI (Gemini direct). API key: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY
   openai      — OpenAI or Azure OpenAI via the openai SDK
   anthropic   — Anthropic Claude via the anthropic SDK
 
 Config keys:
-  AI_MODE                      openrouter | ollama — high-level switch (ollama uses OLLAMA_MODEL / OLLAMA_URL)
+  AI_MODE                      openrouter | ollama | lmstudio — high-level switch
   OLLAMA_MODEL                 model tag when AI_MODE=ollama (default gemma4:e2b)
   OLLAMA_URL                   Ollama OpenAI base URL (default http://127.0.0.1:11434/v1)
-  NYXSTRIKE_LLM_PROVIDER       openrouter | gemini | openai | anthropic | ollama
+  LMSTUDIO_MODEL               model id when AI_MODE=lmstudio (default: first loaded model)
+  LMSTUDIO_URL                 LM Studio OpenAI base URL (default http://127.0.0.1:1234/v1)
+  NYXSTRIKE_LLM_PROVIDER       openrouter | gemini | openai | anthropic | ollama | lmstudio
   NYXSTRIKE_LLM_MODEL          e.g openai/gpt-4.1-mini, gpt-4o, claude-3-5-sonnet-latest
   NYXSTRIKE_LLM_URL            OpenRouter / OpenAI base URL (default https://openrouter.ai/api/v1 for openrouter)
   NYXSTRIKE_LLM_API_KEY        primary secret (also checks provider-specific env vars)
@@ -114,19 +117,29 @@ def _cfg(key: str, default: str = "") -> str:
 # Treat empty or common non-OpenAI URLs as «use default OpenAI endpoint»
 _LEGACY_OPENAI_BASE_IGNORE = frozenset({
   "", "http://localhost:11434", "http://127.0.0.1:11434",
+  "http://localhost:1234", "http://127.0.0.1:1234",
 })
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
 DEFAULT_OLLAMA_MODEL = "gemma4:e2b"
 DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
+DEFAULT_LMSTUDIO_BASE_URL = "http://127.0.0.1:1234/v1"
 
 
-def _normalize_ollama_base_url(base_url: str) -> str:
-  url = (base_url or "").strip() or DEFAULT_OLLAMA_BASE_URL
+def _normalize_openai_compat_base_url(base_url: str, default_url: str) -> str:
+  url = (base_url or "").strip() or default_url
   if url.endswith("/v1"):
     return url
   return url.rstrip("/") + "/v1"
+
+
+def _normalize_ollama_base_url(base_url: str) -> str:
+  return _normalize_openai_compat_base_url(base_url, DEFAULT_OLLAMA_BASE_URL)
+
+
+def _normalize_lmstudio_base_url(base_url: str) -> str:
+  return _normalize_openai_compat_base_url(base_url, DEFAULT_LMSTUDIO_BASE_URL)
 
 
 def _ollama_root_url(base_url: str) -> str:
@@ -142,6 +155,47 @@ def _resolve_ollama_url() -> str:
     or (_cfg("OLLAMA_BASE_URL") or "").strip()
     or DEFAULT_OLLAMA_BASE_URL
   )
+
+
+def _resolve_lmstudio_url() -> str:
+  return _normalize_lmstudio_base_url(
+    (_cfg("LMSTUDIO_URL") or "").strip()
+    or DEFAULT_LMSTUDIO_BASE_URL
+  )
+
+
+def _normalize_ai_mode(mode: str) -> str:
+  normalized = (mode or "").strip().lower().replace("_", "-")
+  if normalized in ("lm-studio", "lmstudio"):
+    return "lmstudio"
+  return normalized
+
+
+def _first_lmstudio_model_id(base_url: str) -> str:
+  try:
+    resp = requests.get(f"{base_url.rstrip('/')}/models", timeout=10)
+    if resp.status_code != 200:
+      return ""
+    payload = resp.json()
+    models = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(models, list) or not models:
+      return ""
+    first = models[0]
+    if isinstance(first, dict):
+      return str(first.get("id") or "").strip()
+  except Exception as exc:
+    logger.debug("lmstudio: failed to list models: %s", exc)
+  return ""
+
+
+def _resolve_lmstudio_model(base_url: str) -> str:
+  configured = (_cfg("LMSTUDIO_MODEL") or "").strip()
+  if configured:
+    return configured
+  discovered = _first_lmstudio_model_id(base_url)
+  if discovered:
+    return discovered
+  return "local-model"
 
 
 def _resolve_openrouter_api_key(api_key: str) -> str:
@@ -1081,7 +1135,7 @@ class OpenRouterBackend(OpenAIBackend):
 
 def _resolve_llm_from_ai_mode() -> Optional[Dict[str, str]]:
   """When AI_MODE is set, return provider/model/base_url for that mode."""
-  mode = (_cfg("AI_MODE") or "").strip().lower()
+  mode = _normalize_ai_mode(_cfg("AI_MODE") or "")
   if not mode:
     return None
   if mode == "openrouter":
@@ -1095,6 +1149,13 @@ def _resolve_llm_from_ai_mode() -> Optional[Dict[str, str]]:
       "provider": "ollama",
       "model": (_cfg("OLLAMA_MODEL") or DEFAULT_OLLAMA_MODEL).strip(),
       "base_url": _resolve_ollama_url(),
+    }
+  if mode == "lmstudio":
+    base_url = _resolve_lmstudio_url()
+    return {
+      "provider": "lmstudio",
+      "model": _resolve_lmstudio_model(base_url),
+      "base_url": base_url,
     }
   logger.warning("Unknown AI_MODE=%r; falling back to NYXSTRIKE_LLM_PROVIDER", mode)
   return None
@@ -1139,6 +1200,49 @@ class OllamaBackend(OpenAIBackend):
       self.chat([{"role": "user", "content": "Say OK"}], think=False)
     except Exception as exc:
       logger.warning("Ollama warm-up failed (non-fatal): %s", exc)
+
+
+class LMStudioBackend(OpenAIBackend):
+  """LM Studio — local OpenAI-compatible API (``/v1/chat/completions``)."""
+
+  def __init__(self, model: str, base_url: Optional[str], timeout: int) -> None:
+    url = _normalize_lmstudio_base_url((base_url or "").strip())
+    resolved_model = (model or "").strip() or _resolve_lmstudio_model(url)
+    self._models_url = f"{url.rstrip('/')}/models"
+    super().__init__(resolved_model, "lm-studio", url, timeout, provider_label="lmstudio")
+
+  def is_available(self) -> bool:
+    try:
+      resp = requests.get(self._models_url, timeout=10)
+      if resp.status_code != 200:
+        return False
+      payload = resp.json()
+      models = payload.get("data") if isinstance(payload, dict) else None
+      if not isinstance(models, list) or not models:
+        logger.warning(
+          "lmstudio: no models loaded — open LM Studio, load a model, and enable the local server",
+        )
+        return False
+      if self._model and self._model != "local-model":
+        for entry in models:
+          if isinstance(entry, dict) and str(entry.get("id") or "") == self._model:
+            return True
+        logger.warning(
+          "lmstudio: model %r not in loaded models %s",
+          self._model,
+          [str(m.get("id") or "") for m in models if isinstance(m, dict)][:5],
+        )
+        return False
+      return True
+    except Exception as exc:
+      logger.debug("lmstudio: availability check failed: %s", exc)
+      return False
+
+  def warm_up(self) -> None:
+    try:
+      self.chat([{"role": "user", "content": "Say OK"}], think=False)
+    except Exception as exc:
+      logger.warning("LM Studio warm-up failed (non-fatal): %s", exc)
 
 
 def _anthropic_tools_from_openai_schemas(openai_tools: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
@@ -1300,6 +1404,8 @@ class LLMClient:
     )
     if provider == "ollama" and not base_url:
       base_url = _resolve_ollama_url()
+    if provider == "lmstudio" and not base_url:
+      base_url = _resolve_lmstudio_url()
     api_key = (_cfg("NYXSTRIKE_LLM_API_KEY") or "").strip()
     timeout = int(_cfg("NYXSTRIKE_LLM_TIMEOUT") or 300)
     num_ctx = int(_cfg("NYXSTRIKE_LLM_NUM_CTX") or 8192)
@@ -1316,6 +1422,8 @@ class LLMClient:
     try:
       if provider == "ollama":
         self._backend = OllamaBackend(model, base_url or None, timeout)
+      elif provider == "lmstudio":
+        self._backend = LMStudioBackend(model, base_url or None, timeout)
       elif provider == "openrouter":
         self._backend = OpenRouterBackend(model, openrouter_key, openai_base, timeout)
       elif provider == "gemini":
@@ -1326,7 +1434,7 @@ class LLMClient:
         self._backend = AnthropicBackend(model, api_key, timeout)
       else:
         raise ValueError(
-          f"Unknown LLM provider: {provider!r}. Choose: openrouter, ollama, gemini, openai, anthropic",
+          f"Unknown LLM provider: {provider!r}. Choose: openrouter, ollama, lmstudio, gemini, openai, anthropic",
         )
 
       logger.info(

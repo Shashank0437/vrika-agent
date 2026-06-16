@@ -8,6 +8,7 @@ set -euo pipefail
 #   ./nyxstrike.sh -a                     # Update + start server  (recommended)
 #   ./nyxstrike.sh -a -ai                 # Same + OpenRouter LLM defaults + warmup (needs GOOGLE_API_KEY or OPENROUTER_API_KEY)
 #   ./nyxstrike.sh -a -ai-small           # Same + local Ollama in Docker (AI_MODE=ollama, default gemma4:e2b)
+#   ./nyxstrike.sh -a -ai-lmstudio          # Same + LM Studio local server (AI_MODE=lmstudio)
 #
 #   ./nyxstrike.sh --server               # Start server only (no update/install)
 #   ./nyxstrike.sh --mcp                  # Start MCP client only
@@ -34,8 +35,10 @@ UPDATE_PYTHON_PACKAGES=false
 PIP_BOOTSTRAPPED=false
 CONFIGURE_OPENROUTER_LLM=false
 CONFIGURE_OLLAMA_LLM=false
+CONFIGURE_LMSTUDIO_LLM=false
 OPENROUTER_DEFAULT_MODEL="openai/gpt-4.1-mini"
 OLLAMA_DEFAULT_MODEL="gemma4:e2b"
+LMSTUDIO_DEFAULT_URL="http://127.0.0.1:1234/v1"
 
 # --- run flags ---
 RUN_SERVER=false
@@ -413,6 +416,64 @@ PYEOF
   echo "Ollama LLM configured in ${config_file} (AI_MODE=ollama, model=${model})."
 }
 
+write_lmstudio_llm_config_local() {
+  local model="${1:-${LMSTUDIO_MODEL:-}}"
+  local lmstudio_url="${LMSTUDIO_URL:-${LMSTUDIO_DEFAULT_URL}}"
+  local data_dir="${NYXSTRIKE_DATA_DIR:-${ROOT_DIR}/.nyxstrike_data}"
+  local config_file="${NYXSTRIKE_CONFIG_FILE:-${data_dir}/config/config_local.json}"
+  local config_dir
+  config_dir="$(dirname "${config_file}")"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "Warning: python3 not found; merge these into ${config_file} manually:"
+    echo "  AI_MODE=lmstudio, LMSTUDIO_MODEL=${model}, LMSTUDIO_URL=${lmstudio_url}"
+    return
+  fi
+
+  local existing="{}"
+  if [[ -f "${config_file}" ]]; then
+    existing="$(cat "${config_file}")"
+  else
+    mkdir -p "${config_dir}"
+  fi
+
+  python3 - "${config_file}" "${model}" "${lmstudio_url}" "${existing}" <<'PYEOF'
+import sys, json
+config_file, model, lmstudio_url, existing_json = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+try:
+    data = json.loads(existing_json)
+except Exception:
+    data = {}
+data["AI_MODE"] = "lmstudio"
+data["LMSTUDIO_MODEL"] = model
+data["LMSTUDIO_URL"] = lmstudio_url
+data["NYXSTRIKE_LLM_PROVIDER"] = "lmstudio"
+if model:
+    data["NYXSTRIKE_LLM_MODEL"] = model
+data["NYXSTRIKE_LLM_URL"] = lmstudio_url
+with open(config_file, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+PYEOF
+  if [[ -n "${model}" ]]; then
+    echo "LM Studio LLM configured in ${config_file} (AI_MODE=lmstudio, model=${model})."
+  else
+    echo "LM Studio LLM configured in ${config_file} (AI_MODE=lmstudio, model=auto-detect from loaded model)."
+  fi
+}
+
+ensure_lmstudio() {
+  local lmstudio_url="${LMSTUDIO_URL:-${LMSTUDIO_DEFAULT_URL}}"
+  local models_url="${lmstudio_url%/}/models"
+  if curl -sf "${models_url}" >/dev/null 2>&1; then
+    echo "LM Studio server reachable at ${lmstudio_url}."
+    return
+  fi
+  echo "LM Studio not reachable at ${lmstudio_url}."
+  echo "  1. Open LM Studio and load a model"
+  echo "  2. Start the local server (Developer tab → Local Server → Start Server)"
+  echo "  3. Default URL: ${LMSTUDIO_DEFAULT_URL}"
+}
+
 ensure_ollama_docker() {
   local model="${OLLAMA_MODEL:-${OLLAMA_DEFAULT_MODEL}}"
   local ollama_url="${OLLAMA_URL:-http://127.0.0.1:11434/v1}"
@@ -533,6 +594,12 @@ run_setup() {
     write_ollama_llm_config_local "${OLLAMA_MODEL:-${OLLAMA_DEFAULT_MODEL}}"
   fi
 
+  if [[ "${CONFIGURE_LMSTUDIO_LLM}" == true ]]; then
+    echo "[5/5] Configuring LM Studio LLM defaults..."
+    ensure_lmstudio
+    write_lmstudio_llm_config_local "${LMSTUDIO_MODEL:-}"
+  fi
+
   echo "Setup complete."
 }
 
@@ -594,6 +661,14 @@ while [[ $# -gt 0 ]]; do
       DO_SETUP=true
       shift
       ;;
+    -ai-lmstudio)
+      CONFIGURE_LMSTUDIO_LLM=true
+      export AI_MODE=lmstudio
+      export NYXSTRIKE_LLM_WARMUP=1
+      export LMSTUDIO_URL="${LMSTUDIO_URL:-${LMSTUDIO_DEFAULT_URL}}"
+      DO_SETUP=true
+      shift
+      ;;
     --server)
       RUN_SERVER=true
       shift
@@ -622,7 +697,8 @@ while [[ $# -gt 0 ]]; do
       echo "  -y, --update-python-packages  Force reinstall of Python requirements"
       echo "  -p, --python <bin>      Python binary to use (default: python3)"
     echo "  -ai                     Configure OpenRouter (writes config_local.json; set GOOGLE_API_KEY or OPENROUTER_API_KEY)"
-    echo "  -ai-ollama, -ai-small   Configure local Ollama in Docker (AI_MODE=ollama, default model gemma4:e2b)"
+    echo "  -ai-ollama, -ai-small   Configure local Ollama (AI_MODE=ollama, default model gemma4:e2b)"
+    echo "  -ai-lmstudio            Configure LM Studio local server (AI_MODE=lmstudio)"
       echo ""
       echo "Run:"
       echo "  --server                Start the NyxStrike API server"
@@ -634,7 +710,8 @@ while [[ $# -gt 0 ]]; do
       echo "Examples:"
       echo "  ./nyxstrike.sh -a               # start here (first run + daily driver)"
       echo "  ./nyxstrike.sh -a -ai           # with OpenRouter defaults + LLM warmup"
-      echo "  ./nyxstrike.sh -a -ai-small     # with local Ollama (gemma4:e2b) in Docker"
+      echo "  ./nyxstrike.sh -a -ai-small     # with local Ollama (gemma4:e2b)"
+      echo "  ./nyxstrike.sh -a -ai-lmstudio  # with LM Studio local server"
       echo "  ./nyxstrike.sh --server         # just start the server"
       exit 0
       ;;

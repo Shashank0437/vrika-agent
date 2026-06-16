@@ -43,10 +43,12 @@ _config = {
     "METASPLOIT_SESSION_WAIT": 10,  # Seconds to wait after exploit -j before listing sessions
 
     # ── LLM client ────────────────────────────────────────────────────────────
-    "AI_MODE":                  "openrouter",                     # openrouter | ollama — high-level switch (overrides provider when set)
+    "AI_MODE":                  "openrouter",                     # openrouter | ollama | lmstudio
     "OLLAMA_MODEL":             "gemma4:e2b",                     # model tag when AI_MODE=ollama
     "OLLAMA_URL":               "http://127.0.0.1:11434/v1",       # Ollama OpenAI-compatible base URL
-    "NYXSTRIKE_LLM_PROVIDER": "openrouter",                     # openrouter | gemini | openai | anthropic | ollama
+    "LMSTUDIO_MODEL":           "",                                # empty = first loaded model in LM Studio
+    "LMSTUDIO_URL":             "http://127.0.0.1:1234/v1",        # LM Studio local server base URL
+    "NYXSTRIKE_LLM_PROVIDER": "openrouter",                     # openrouter | gemini | openai | anthropic | ollama | lmstudio
     "NYXSTRIKE_LLM_MODEL":    "openai/gpt-4.1-mini",          # OpenRouter model id (bare gemini-* names are auto-prefixed)
     "NYXSTRIKE_LLM_URL":      "https://openrouter.ai/api/v1",   # OpenRouter base URL (openrouter / openai providers)
     "NYXSTRIKE_LLM_API_KEY":  "",                               # or NYXSTRIKE_LLM_API_KEY / GOOGLE_API_KEY / OPENROUTER_API_KEY in env
