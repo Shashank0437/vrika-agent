@@ -7,6 +7,7 @@ set -euo pipefail
 #   ./nyxstrike.sh                        # MCP launcher mode (default, used by 5ire)
 #   ./nyxstrike.sh -a                     # Update + start server  (recommended)
 #   ./nyxstrike.sh -a -ai                 # Same + OpenRouter LLM defaults + warmup (needs GOOGLE_API_KEY or OPENROUTER_API_KEY)
+#   ./nyxstrike.sh -a -ai-small           # Same + local Ollama in Docker (AI_MODE=ollama, default gemma4:e2b)
 #
 #   ./nyxstrike.sh --server               # Start server only (no update/install)
 #   ./nyxstrike.sh --mcp                  # Start MCP client only
@@ -32,7 +33,9 @@ UPDATE_SELF=false
 UPDATE_PYTHON_PACKAGES=false
 PIP_BOOTSTRAPPED=false
 CONFIGURE_OPENROUTER_LLM=false
+CONFIGURE_OLLAMA_LLM=false
 OPENROUTER_DEFAULT_MODEL="openai/gpt-4.1-mini"
+OLLAMA_DEFAULT_MODEL="gemma4:e2b"
 
 # --- run flags ---
 RUN_SERVER=false
@@ -359,6 +362,7 @@ try:
     data = json.loads(existing_json)
 except Exception:
     data = {}
+data["AI_MODE"] = "openrouter"
 data["NYXSTRIKE_LLM_PROVIDER"] = "openrouter"
 data["NYXSTRIKE_LLM_MODEL"] = model
 data["NYXSTRIKE_LLM_URL"] = "https://openrouter.ai/api/v1"
@@ -367,6 +371,63 @@ with open(config_file, "w", encoding="utf-8") as f:
 PYEOF
   echo "OpenRouter LLM configured in ${config_file} (provider=openrouter, model=${model})."
   echo "Set an API key before starting the server, e.g.: export GOOGLE_API_KEY=\"<your OpenRouter API key>\""
+}
+
+write_ollama_llm_config_local() {
+  local model="${1:-${OLLAMA_DEFAULT_MODEL}}"
+  local ollama_url="${OLLAMA_URL:-http://127.0.0.1:11434/v1}"
+  local data_dir="${NYXSTRIKE_DATA_DIR:-${ROOT_DIR}/.nyxstrike_data}"
+  local config_file="${NYXSTRIKE_CONFIG_FILE:-${data_dir}/config/config_local.json}"
+  local config_dir
+  config_dir="$(dirname "${config_file}")"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "Warning: python3 not found; merge these into ${config_file} manually:"
+    echo "  AI_MODE=ollama, OLLAMA_MODEL=${model}, OLLAMA_URL=${ollama_url}"
+    return
+  fi
+
+  local existing="{}"
+  if [[ -f "${config_file}" ]]; then
+    existing="$(cat "${config_file}")"
+  else
+    mkdir -p "${config_dir}"
+  fi
+
+  python3 - "${config_file}" "${model}" "${ollama_url}" "${existing}" <<'PYEOF'
+import sys, json
+config_file, model, ollama_url, existing_json = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+try:
+    data = json.loads(existing_json)
+except Exception:
+    data = {}
+data["AI_MODE"] = "ollama"
+data["OLLAMA_MODEL"] = model
+data["OLLAMA_URL"] = ollama_url
+data["NYXSTRIKE_LLM_PROVIDER"] = "ollama"
+data["NYXSTRIKE_LLM_MODEL"] = model
+data["NYXSTRIKE_LLM_URL"] = ollama_url
+with open(config_file, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+PYEOF
+  echo "Ollama LLM configured in ${config_file} (AI_MODE=ollama, model=${model})."
+}
+
+ensure_ollama_docker() {
+  local model="${OLLAMA_MODEL:-${OLLAMA_DEFAULT_MODEL}}"
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Docker not found — assuming Ollama is already running at ${OLLAMA_URL:-http://127.0.0.1:11434/v1}"
+    return
+  fi
+  if [[ ! -f "${ROOT_DIR}/docker-compose.yml" ]]; then
+    echo "docker-compose.yml not found; start Ollama manually."
+    return
+  fi
+  echo "Starting Ollama container (docker compose --profile ollama)..."
+  docker compose -f "${ROOT_DIR}/docker-compose.yml" --profile ollama up -d ollama
+  echo "Pulling model ${model} (may take a while on first run)..."
+  docker compose -f "${ROOT_DIR}/docker-compose.yml" --profile ollama exec -T ollama ollama pull "${model}" || \
+    echo "Warning: model pull failed — run: docker compose exec ollama ollama pull ${model}"
 }
 
 clone_or_update_git_tools() {
@@ -453,6 +514,12 @@ run_setup() {
     write_openrouter_llm_config_local "${OPENROUTER_DEFAULT_MODEL}"
   fi
 
+  if [[ "${CONFIGURE_OLLAMA_LLM}" == true ]]; then
+    echo "[5/5] Configuring Ollama LLM defaults..."
+    ensure_ollama_docker
+    write_ollama_llm_config_local "${OLLAMA_MODEL:-${OLLAMA_DEFAULT_MODEL}}"
+  fi
+
   echo "Setup complete."
 }
 
@@ -501,7 +568,16 @@ while [[ $# -gt 0 ]]; do
       ;;
     -ai)
       CONFIGURE_OPENROUTER_LLM=true
+      export AI_MODE=openrouter
       export NYXSTRIKE_LLM_WARMUP=1
+      DO_SETUP=true
+      shift
+      ;;
+    -ai-ollama|-ai-small)
+      CONFIGURE_OLLAMA_LLM=true
+      export AI_MODE=ollama
+      export NYXSTRIKE_LLM_WARMUP=1
+      export OLLAMA_MODEL="${OLLAMA_MODEL:-${OLLAMA_DEFAULT_MODEL}}"
       DO_SETUP=true
       shift
       ;;
@@ -533,6 +609,7 @@ while [[ $# -gt 0 ]]; do
       echo "  -y, --update-python-packages  Force reinstall of Python requirements"
       echo "  -p, --python <bin>      Python binary to use (default: python3)"
     echo "  -ai                     Configure OpenRouter (writes config_local.json; set GOOGLE_API_KEY or OPENROUTER_API_KEY)"
+    echo "  -ai-ollama, -ai-small   Configure local Ollama in Docker (AI_MODE=ollama, default model gemma4:e2b)"
       echo ""
       echo "Run:"
       echo "  --server                Start the NyxStrike API server"
@@ -544,6 +621,7 @@ while [[ $# -gt 0 ]]; do
       echo "Examples:"
       echo "  ./nyxstrike.sh -a               # start here (first run + daily driver)"
       echo "  ./nyxstrike.sh -a -ai           # with OpenRouter defaults + LLM warmup"
+      echo "  ./nyxstrike.sh -a -ai-small     # with local Ollama (gemma4:e2b) in Docker"
       echo "  ./nyxstrike.sh --server         # just start the server"
       exit 0
       ;;

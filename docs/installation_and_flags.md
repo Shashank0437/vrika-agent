@@ -49,7 +49,8 @@ Stamp files are stored in the venv, e.g.:
 | `-s` | `--update-self` | Run `git pull --ff-only` on this repo (skips when local changes exist) |
 | `-r` | `--run` | Start server after install (`./scripts/run.sh --server`) |
 | `-h` | `--help` | Show install script help |
-| `-ai` | *(none)* | When using `./nyxstrike.sh`: writes OpenRouter Gemini 2.5 Flash defaults to `config_local.json` and enables LLM warmup (`NYXSTRIKE_LLM_WARMUP`). Set `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `NYXSTRIKE_LLM_API_KEY`. |
+| `-ai` | *(none)* | OpenRouter: writes defaults to `config_local.json`, sets `AI_MODE=openrouter`, enables LLM warmup. Set `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `NYXSTRIKE_LLM_API_KEY`. |
+| `-ai-ollama`, `-ai-small` | *(none)* | Ollama: starts Ollama in Docker, pulls `OLLAMA_MODEL` (default `gemma4:e2b`), writes `AI_MODE=ollama` to `config_local.json`, enables warmup. |
 
 ## Common Command Examples
 
@@ -89,15 +90,29 @@ bash scripts/install.sh -u -r
 bash scripts/install.sh --all
 ```
 
-### LLM setup (Gemini 2.5 Flash via OpenRouter API key)
+### LLM setup (OpenRouter API key)
 
-The server uses Gemini 2.5 Flash (via OpenRouter) when `NYXSTRIKE_LLM_PROVIDER` is `openrouter` (the default in `config.py`).
-Set `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `NYXSTRIKE_LLM_API_KEY` in your environment — do not commit keys.
-
-When using `./nyxstrike.sh -ai`, the installer merges Gemini 2.5 Flash defaults into `config_local.json` and sets `NYXSTRIKE_LLM_WARMUP=1`.
+Set `AI_MODE=openrouter` (default) and provide `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `NYXSTRIKE_LLM_API_KEY`.
 
 ```bash
 ./nyxstrike.sh -a -ai
+```
+
+### LLM setup (local Ollama in Docker)
+
+Set `AI_MODE=ollama` and optionally override the model (default `gemma4:e2b`):
+
+```bash
+./nyxstrike.sh -a -ai-small
+# or
+OLLAMA_MODEL=llama3.2:3b ./nyxstrike.sh -a -ai-ollama
+```
+
+With Docker Compose directly:
+
+```bash
+AI_MODE=ollama OLLAMA_MODEL=gemma4:e2b docker compose --profile ollama up -d
+docker compose exec ollama ollama pull gemma4:e2b
 ```
 
 ## After Install

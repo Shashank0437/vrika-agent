@@ -7,12 +7,16 @@ Reads configuration from env vars, config_local.json, and config.py defaults.
 
 Supported backends:
   openrouter  — OpenRouter (OpenAI-compatible). API key: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY
+  ollama      — Local Ollama (OpenAI-compatible /v1). Set AI_MODE=ollama
   gemini      — Google Generative AI (Gemini direct). API key: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY
   openai      — OpenAI or Azure OpenAI via the openai SDK
   anthropic   — Anthropic Claude via the anthropic SDK
 
 Config keys:
-  NYXSTRIKE_LLM_PROVIDER       openrouter | gemini | openai | anthropic
+  AI_MODE                      openrouter | ollama — high-level switch (ollama uses OLLAMA_MODEL / OLLAMA_URL)
+  OLLAMA_MODEL                 model tag when AI_MODE=ollama (default gemma4:e2b)
+  OLLAMA_URL                   Ollama OpenAI base URL (default http://127.0.0.1:11434/v1)
+  NYXSTRIKE_LLM_PROVIDER       openrouter | gemini | openai | anthropic | ollama
   NYXSTRIKE_LLM_MODEL          e.g openai/gpt-4.1-mini, gpt-4o, claude-3-5-sonnet-latest
   NYXSTRIKE_LLM_URL            OpenRouter / OpenAI base URL (default https://openrouter.ai/api/v1 for openrouter)
   NYXSTRIKE_LLM_API_KEY        primary secret (also checks provider-specific env vars)
@@ -114,6 +118,30 @@ _LEGACY_OPENAI_BASE_IGNORE = frozenset({
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
+DEFAULT_OLLAMA_MODEL = "gemma4:e2b"
+DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
+
+
+def _normalize_ollama_base_url(base_url: str) -> str:
+  url = (base_url or "").strip() or DEFAULT_OLLAMA_BASE_URL
+  if url.endswith("/v1"):
+    return url
+  return url.rstrip("/") + "/v1"
+
+
+def _ollama_root_url(base_url: str) -> str:
+  root = _normalize_ollama_base_url(base_url).rstrip("/")
+  if root.endswith("/v1"):
+    root = root[:-3]
+  return root
+
+
+def _resolve_ollama_url() -> str:
+  return _normalize_ollama_base_url(
+    (_cfg("OLLAMA_URL") or "").strip()
+    or (_cfg("OLLAMA_BASE_URL") or "").strip()
+    or DEFAULT_OLLAMA_BASE_URL
+  )
 
 
 def _resolve_openrouter_api_key(api_key: str) -> str:
@@ -1051,6 +1079,68 @@ class OpenRouterBackend(OpenAIBackend):
     )
 
 
+def _resolve_llm_from_ai_mode() -> Optional[Dict[str, str]]:
+  """When AI_MODE is set, return provider/model/base_url for that mode."""
+  mode = (_cfg("AI_MODE") or "").strip().lower()
+  if not mode:
+    return None
+  if mode == "openrouter":
+    return {
+      "provider": "openrouter",
+      "model": (_cfg("NYXSTRIKE_LLM_MODEL") or "openai/gpt-4.1-mini").strip(),
+      "base_url": (_cfg("NYXSTRIKE_LLM_URL") or OPENROUTER_API_BASE).strip(),
+    }
+  if mode == "ollama":
+    return {
+      "provider": "ollama",
+      "model": (_cfg("OLLAMA_MODEL") or DEFAULT_OLLAMA_MODEL).strip(),
+      "base_url": _resolve_ollama_url(),
+    }
+  logger.warning("Unknown AI_MODE=%r; falling back to NYXSTRIKE_LLM_PROVIDER", mode)
+  return None
+
+
+class OllamaBackend(OpenAIBackend):
+  """Ollama — local OpenAI-compatible API (``/v1/chat/completions``)."""
+
+  def __init__(self, model: str, base_url: Optional[str], timeout: int) -> None:
+    url = _normalize_ollama_base_url((base_url or "").strip())
+    self._ollama_root = _ollama_root_url(url)
+    super().__init__(model, "ollama", url, timeout, provider_label="ollama")
+
+  def is_available(self) -> bool:
+    try:
+      resp = requests.get(f"{self._ollama_root}/api/tags", timeout=10)
+      if resp.status_code != 200:
+        return False
+      payload = resp.json()
+      models = payload.get("models") if isinstance(payload, dict) else None
+      if not isinstance(models, list):
+        return True
+      wanted = self._model.split(":")[0]
+      for entry in models:
+        if not isinstance(entry, dict):
+          continue
+        name = str(entry.get("name") or "")
+        if name == self._model or name.split(":")[0] == wanted:
+          return True
+      logger.warning(
+        "ollama: model %r not found locally; run: ollama pull %s",
+        self._model,
+        self._model,
+      )
+      return False
+    except Exception as exc:
+      logger.debug("ollama: availability check failed: %s", exc)
+      return False
+
+  def warm_up(self) -> None:
+    try:
+      self.chat([{"role": "user", "content": "Say OK"}], think=False)
+    except Exception as exc:
+      logger.warning("Ollama warm-up failed (non-fatal): %s", exc)
+
+
 def _anthropic_tools_from_openai_schemas(openai_tools: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
   """Map OpenAI-style ``{"type":"function","function":{...}}`` entries to Anthropic ``tools`` API shape."""
   if not openai_tools:
@@ -1192,9 +1282,24 @@ class LLMClient:
     self._backend: Any = None
     self._init_error: str = ""
 
-    provider = (_cfg("NYXSTRIKE_LLM_PROVIDER") or "openrouter").lower()
-    model = _cfg("NYXSTRIKE_LLM_MODEL") or "openai/gpt-4.1-mini"
-    base_url = (_cfg("NYXSTRIKE_LLM_URL") or "").strip()
+    ai_mode_cfg = _resolve_llm_from_ai_mode()
+    provider = (
+      ai_mode_cfg["provider"]
+      if ai_mode_cfg
+      else (_cfg("NYXSTRIKE_LLM_PROVIDER") or "openrouter").lower()
+    )
+    model = (
+      ai_mode_cfg["model"]
+      if ai_mode_cfg
+      else (_cfg("NYXSTRIKE_LLM_MODEL") or "openai/gpt-4.1-mini")
+    )
+    base_url = (
+      ai_mode_cfg.get("base_url", "")
+      if ai_mode_cfg
+      else (_cfg("NYXSTRIKE_LLM_URL") or "").strip()
+    )
+    if provider == "ollama" and not base_url:
+      base_url = _resolve_ollama_url()
     api_key = (_cfg("NYXSTRIKE_LLM_API_KEY") or "").strip()
     timeout = int(_cfg("NYXSTRIKE_LLM_TIMEOUT") or 300)
     num_ctx = int(_cfg("NYXSTRIKE_LLM_NUM_CTX") or 8192)
@@ -1209,7 +1314,9 @@ class LLMClient:
       openai_base = base_url.strip()
 
     try:
-      if provider == "openrouter":
+      if provider == "ollama":
+        self._backend = OllamaBackend(model, base_url or None, timeout)
+      elif provider == "openrouter":
         self._backend = OpenRouterBackend(model, openrouter_key, openai_base, timeout)
       elif provider == "gemini":
         self._backend = GeminiBackend(model, gemini_key, timeout, max_output_tokens=num_ctx)
@@ -1219,7 +1326,7 @@ class LLMClient:
         self._backend = AnthropicBackend(model, api_key, timeout)
       else:
         raise ValueError(
-          f"Unknown LLM provider: {provider!r}. Choose: openrouter, gemini, openai, anthropic",
+          f"Unknown LLM provider: {provider!r}. Choose: openrouter, ollama, gemini, openai, anthropic",
         )
 
       logger.info(
