@@ -20,7 +20,6 @@ import tool_registry as tr  # noqa: E402
 
 # Primary docs, canonical repos, or official wikis. Empty string = NyxStrike/Vrika-only connector.
 URLS: dict[str, str] = {
-    "ai_analyze_session": "",
     "airbase-ng": "https://www.aircrack-ng.org/doku.php?id=airbase-ng",
     "aircrack-ng": "https://www.aircrack-ng.org/doku.php?id=aircrack-ng",
     "airdecap-ng": "https://www.aircrack-ng.org/doku.php?id=airdecap-ng",

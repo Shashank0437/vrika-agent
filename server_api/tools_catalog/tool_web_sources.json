@@ -1,8 +1,4 @@
 {
-  "ai_analyze_session": {
-    "summary": "Analyse an existing workflow session with the LLM. This capability is implemented as a Vrika/NyxStrike API on the agent; refer to your tenant operator guide for request semantics beyond the registry fields.",
-    "url": ""
-  },
   "airbase-ng": {
     "summary": "Rogue access point framework for WiFi attacks. Further operational context, flags, and limitations are described in the linked upstream documentation.",
     "url": "https://www.aircrack-ng.org/doku.php?id=airbase-ng"

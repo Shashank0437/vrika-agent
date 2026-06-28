@@ -59,17 +59,6 @@ def _validate_registry(tools: Dict[str, dict]) -> None:
 # ---------------------------------------------------------------------------
 
 TOOLS: Dict[str, dict] = {
-    # ---- AI ----
-    "ai_analyze_session": {
-        "desc": "Analyse an existing workflow session with the LLM.",
-        "endpoint": "/api/intelligence/analyze-session",
-        "method": "POST",
-        "category": "ai_assist",
-        "params": {"session_id": {"required": True}},
-        "optional": {},
-        "effectiveness": 0.90,
-    },
-    
     # ---- Vulnerability Intelligence ----
     "vulnx": {
         "desc": "CVE vulnerability intelligence and analysis",

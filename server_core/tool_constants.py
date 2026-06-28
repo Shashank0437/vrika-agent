@@ -2,7 +2,7 @@
 BUILT_IN_TOOLS = ["jwt-analyzer", "api-schema-analyzer", "graphql-scanner",
                    "http-framework", "auto_install_missing_apt_tools", 
                   "analyze-target", "preview-attack-chain", "create-attack-chain", "smart-scan",
-                  "technology-detection", "ai_analyze_session", "burpsuite"]
+                  "technology-detection", "burpsuite"]
 
 # Tools that require dpkg check (Debian-based systems)
 REQUIRE_DPKG_CHECK = ["hashcat-utils", "sleuthkit", "impacket-scripts"]
@@ -60,7 +60,6 @@ HEALTH_TOOL_CATEGORIES = {
     "ops": ["auto_install_missing_apt_tools"],
 
     "intelligence": ["analyze-target", "preview-attack-chain", "create-attack-chain", "smart-scan", "technology-detection"],
-    "ai_assist": ["ai_analyze_session"],
 
     "data_processing": ["hurl", "anew"],
 
