@@ -24,7 +24,7 @@ def _collect_keys() -> list[str]:
 
 
 def _bn() -> str:
-    return " Send JSON booleans true/false (CipherStrike modals serialize checkbox fields)."
+    return " Send JSON booleans true/false (Vrika modals serialize checkbox fields)."
 
 
 def _help(k: str) -> str:
@@ -91,7 +91,7 @@ def _help(k: str) -> str:
 
     # Exact strings (merged semantics when one JSON key spans multiple connectors).
     SPECIFIC: dict[str, str] = {
-        "session_id": "Server-side CipherStrike/NyxStrike session UUID/hash used to reload transcripts for LLM planners.",
+        "session_id": "Server-side Vrika/NyxStrike session UUID/hash used to reload transcripts for LLM planners.",
         "session_name": "Pacu workspace label isolating Dynamo-style AWS attack state on the agent.",
         "target": "Primary IPv4/IPv6/hostname/CIDR or bulk newline list routed into network scanners and RPC clients.",
         "targets": "Host groups for kube-bench-style scopes or multitarget wrappers.",
@@ -363,7 +363,7 @@ def _help(k: str) -> str:
             return text
 
     return (
-        f"The workspace forwards `{k}` in the CipherStrike POST body unchanged after stripping empty optional fields. "
+        f"The workspace forwards `{k}` in the Vrika POST body unchanged after stripping empty optional fields. "
         f"The NyxStrike connector binds it to the integration listed for your catalogue slug. "
         f"If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, "
         f"type coercion, or privilege requirements before escalating."

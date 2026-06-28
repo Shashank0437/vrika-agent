@@ -1,5 +1,5 @@
 """
-Stateless LLM bridge for CipherStrike FastAPI — no SQLite chat persistence.
+Stateless LLM bridge for Vrika FastAPI — no SQLite chat persistence.
 
 Endpoints:
   POST /api/cipherstrike/schemas-from-tools

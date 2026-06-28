@@ -531,7 +531,7 @@ _CLUSTER_USAGE: dict[str, str] = {
         "`additional_args` is rarely used on these routes; prefer structured fields."
     ),
     "ai_session_summaries": (
-        "1. Collect the `session_id` from the CipherStrike session you want reviewed—no other payload is required.\n"
+        "1. Collect the `session_id` from the Vrika session you want reviewed—no other payload is required.\n"
         "2. Ensure the session already contains the artefacts you expect the model to reason over; this route does not launch scanners.\n"
         "3. Review the returned narrative for sensitive names or credentials before sharing outside the assessment channel.\n"
         "4. If the model references missing context, re-run prerequisite tools and append their logs to the session before re-analysing."
@@ -1110,14 +1110,14 @@ def clustered_usage(tool: str, endpoint: str) -> str:
     body = _CLUSTER_USAGE.get(key) or _CLUSTER_USAGE["generic_connector"]
     if "{endpoint}" in body:
         return body.format(endpoint=endpoint)
-    hdr = f"CipherStrike `{tool}` executes against `{endpoint}` via POST JSON envelopes assembled in the Execute modal.\n\n"
+    hdr = f"Vrika `{tool}` executes against `{endpoint}` via POST JSON envelopes assembled in the Execute modal.\n\n"
     return hdr + body
 
 
 def compose_long_description(lead: str, tool: str, category: str, endpoint: str) -> str:
     p2, p3, p4 = supplement_for(tool, category)
     transport = (
-        f"CipherStrike transmits the JSON envelope to `{endpoint}`; NyxStrike performs final validation, "
+        f"Vrika transmits the JSON envelope to `{endpoint}`; NyxStrike performs final validation, "
         "then shells out or calls the bundled integration advertised for this catalogue id."
     )
     return "\n\n".join([lead.strip(), p2.strip(), p3.strip(), p4.strip(), transport.strip()])

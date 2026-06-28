@@ -153,7 +153,7 @@ TOOLS: Dict[str, dict] = {
         "optional": {
             "client_name": "",
             "target_label": "",
-            "generated_by": "CipherStrike",
+            "generated_by": "Vrika",
         },
         "effectiveness": 0.88,
     },

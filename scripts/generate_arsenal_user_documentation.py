@@ -74,7 +74,7 @@ def synthesize_parameter_doc(key: str) -> dict:
         (lambda: kl in {"json", "body", "headers", "cookies", "cookie"}, "Structured HTTP/material supplied as JSON/strings for API helpers."),
         (lambda: kl in {"query", "command", "script", "module"}, "Core instruction passed to interpreters or scanners owned by this route."),
         (lambda: "output" in kl or kl.endswith("_dir"), "Filesystem destination folders or prefixes rendered by wrappers that support exporting artifacts."),
-        (lambda: kl in {"session_id", "session_name"}, "References server-side CipherStrike/NyxStrike session handles where applicable."),
+        (lambda: kl in {"session_id", "session_name"}, "References server-side Vrika/NyxStrike session handles where applicable."),
     )
 
     for pred, txt in families:
@@ -90,7 +90,7 @@ def synthesize_parameter_doc(key: str) -> dict:
 
     extras: list[str] = []
     if vh == "boolean":
-        extras.append("Send JSON boolean true/false (checkboxes serialize to booleans automatically in the CipherStrike modal).")
+        extras.append("Send JSON boolean true/false (checkboxes serialize to booleans automatically in the Vrika modal).")
     elif vh == "number_or_string":
         extras.append("Numbers are accepted as numeric JSON or textual digits depending on upstream validation.")
 
@@ -165,7 +165,7 @@ def build_tool_bundle(name: str, meta: dict) -> tuple[str, str, str]:
 
     long_desc = (
         f"{desc.rstrip('.')}. "
-        f"This catalog entry (`{name}`) targets `{ep}` over HTTP {method}; the CipherStrike workspace forwards your JSON "
+        f"This catalog entry (`{name}`) targets `{ep}` over HTTP {method}; the Vrika workspace forwards your JSON "
         "body to the NyxStrike agent, which performs final validation before invoking the packaged wrapper or integration."
     )
 
@@ -178,7 +178,7 @@ def build_tool_bundle(name: str, meta: dict) -> tuple[str, str, str]:
 
     core_safety = (
         "Operate only inside authorized penetration tests or sanctioned lab networks. Respect stop conditions, lawful intercept "
-        "rules, and internal change windows. Sensitive parameters are captured in CipherStrike tenant execution logs alongside "
+        "rules, and internal change windows. Sensitive parameters are captured in Vrika tenant execution logs alongside "
         "NyxStrike response snippets — avoid pasting production secrets when alternatives exist."
     )
     rider = category_safety_rider(cat)

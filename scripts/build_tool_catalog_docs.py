@@ -46,7 +46,7 @@ def _param_appendix(tool: str, meta: dict, pk: dict[str, dict[str, str]]) -> str
     params = list((meta.get("params") or {}).keys())
     optional = list((meta.get("optional") or {}).keys())
     lines = [
-        "CipherStrike mechanics: send a JSON POST from the Execute modal—the agent drops empty optional scalars before invoking NyxStrike.",
+        "Vrika mechanics: send a JSON POST from the Execute modal—the agent drops empty optional scalars before invoking NyxStrike.",
         "Prefer explicit catalogue fields (`target`, `url`, `wordlist`, etc.) before `additional_args`; extra tokens must still match the "
         "packaged wrapper behaviour and your engagement rules.",
     ]
@@ -113,7 +113,7 @@ def curated_long(tool: str, desc: str) -> str:
     match tool:
         case "ai_analyze_session":
             body = (
-                "CipherStrike workflow intelligence posts stored session artefacts to an LLM for summarisation, correlation, "
+                "Vrika workflow intelligence posts stored session artefacts to an LLM for summarisation, correlation, "
                 "and remediation hints without re-running scanners."
             )
         case "vulnx":
@@ -128,7 +128,7 @@ def curated_long(tool: str, desc: str) -> str:
             )
         case "analyze-target":
             body = (
-                "CipherStrike Intelligent Decision Engine compiles fingerprints, exposures, and heuristics for a scoped target "
+                "Vrika Intelligent Decision Engine compiles fingerprints, exposures, and heuristics for a scoped target "
                 "to seed manual validation and chaining tasks."
             )
         case "create-attack-chain" | "preview-attack-chain":
@@ -688,7 +688,7 @@ def curated_long(tool: str, desc: str) -> str:
             )
         case "burpsuite":
             body = (
-                "CipherStrike proxies to a packaged Burp-like automation façade performing scoped spidering/passive-active scans with concurrency caps (`max_pages`)."
+                "Vrika proxies to a packaged Burp-like automation façade performing scoped spidering/passive-active scans with concurrency caps (`max_pages`)."
             )
         case "zaproxy":
             body = (
@@ -795,7 +795,7 @@ def curated_long(tool: str, desc: str) -> str:
             )
         case _:
             body = (
-                f"{d}. Consult upstream README/man-page coverage shipped with NyxStrike for exhaustive flags — CipherStrike exposes this route "
+                f"{d}. Consult upstream README/man-page coverage shipped with NyxStrike for exhaustive flags — Vrika exposes this route "
                 "so validated JSON avoids opaque unmanaged shell quoting."
             )
     return body
@@ -804,7 +804,7 @@ def curated_long(tool: str, desc: str) -> str:
 def _core_safety() -> str:
     return (
         "Operate only inside authorized penetration tests or sanctioned lab networks. Respect stop conditions, lawful intercept "
-        "rules, and internal change windows. Sensitive parameters are captured in CipherStrike tenant execution logs alongside "
+        "rules, and internal change windows. Sensitive parameters are captured in Vrika tenant execution logs alongside "
         "NyxStrike response snippets — avoid pasting production secrets when alternatives exist."
     )
 

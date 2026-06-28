@@ -306,7 +306,7 @@ Given the FULL session transcript (user messages, assistant replies, tool output
 No markdown fences, no commentary outside JSON.
 
 ABSOLUTE PROHIBITIONS (client-facing sections):
-- Never name or allude to CipherStrike, NyxStrike, agent runtimes, LLMs, JSON formatting, ReportLab, bridges, microservices, tracebacks,
+- Never name or allude to Vrika, NyxStrike, agent runtimes, LLMs, JSON formatting, ReportLab, bridges, microservices, tracebacks,
   stderr, stack traces, HTTP 500s, or other internal platform errors. Those details must NEVER appear in executive_summary,
   strengths, areas_of_concern, recon narratives, technical_findings narratives or tools_table "findings", risk_matrix_rows,
   recommendations, conclusion, or transcript_coverage_note.

@@ -18,7 +18,7 @@ from typing import Any
 _CORE_SAFETY = (
     "Operate only inside authorized penetration tests or sanctioned lab networks. Respect stop "
     "conditions, lawful intercept rules, and internal change windows. Sensitive parameters are "
-    "captured in CipherStrike tenant execution logs alongside NyxStrike response snippets — "
+    "captured in Vrika tenant execution logs alongside NyxStrike response snippets — "
     "avoid pasting production secrets when alternatives exist."
 )
 
@@ -61,7 +61,7 @@ def web_sources() -> dict[str, dict[str, str]]:
 
 
 def tools_with_weak_public_docs() -> list[str]:
-    """Tool slugs with no curated documentation URL (CipherStrike-only or unknown upstream)."""
+    """Tool slugs with no curated documentation URL (Vrika-only or unknown upstream)."""
     return sorted(name for name, row in web_sources().items() if not (row.get("url") or "").strip())
 
 
@@ -92,7 +92,7 @@ def build_tool_bundle(name: str, meta: dict[str, Any]) -> tuple[str, str, str]:
     doc_clause = f" Authoritative reference: {url}." if url else ""
     ep = meta.get("endpoint") or ""
     long_description = (
-        f"{summary}{doc_clause} In CipherStrike, `{name}` POSTs to `{ep}`; the workspace sends your JSON "
+        f"{summary}{doc_clause} In Vrika, `{name}` POSTs to `{ep}`; the workspace sends your JSON "
         "body to the NyxStrike agent, which validates parameters and invokes the bundled integration."
     )
     usage = _format_usage(name, meta)

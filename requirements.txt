@@ -1,4 +1,4 @@
-# NyxStrike / CipherStrike agent (Python). Install alongside the server or in the agent venv.
+# NyxStrike / Vrika agent (Python). Install alongside the server or in the agent venv.
 reportlab>=4.0.0
 openrouter>=0.9.1
 openai>=1.0.0
