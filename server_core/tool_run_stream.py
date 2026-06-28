@@ -28,7 +28,6 @@ def _redis_url() -> str:
     return (
         _redis_url_override
         or os.environ.get("REDIS_URL", "").strip()
-        or os.environ.get("CIPHERSTRIKE_REDIS_URL", "").strip()
         or str(config_core.get("REDIS_URL", "") or "").strip()
     )
 
