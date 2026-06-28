@@ -24,16 +24,16 @@ from server_core.tool_schema import build_tool_schemas
 
 logger = logging.getLogger(__name__)
 
-_MAX_MULTI_TOOL_CALLS = max(1, int(os.environ.get("CIPHERSTRIKE_MAX_MULTI_TOOL_CALLS", "30")))
+_MAX_MULTI_TOOL_CALLS = max(1, int(os.environ.get("VRIKA_MAX_MULTI_TOOL_CALLS", "30")))
 
 api_cipherstrike_bridge_bp = Blueprint("api_cipherstrike_bridge", __name__)
 
 
 def _bridge_authorized() -> bool:
-    secret = (os.environ.get("CIPHERSTRIKE_BRIDGE_SECRET") or "").strip()
+    secret = (os.environ.get("VRIKA_BRIDGE_SECRET") or "").strip()
     if not secret:
         return True
-    token = request.headers.get("X-CipherStrike-Bridge-Secret") or ""
+    token = request.headers.get("X-Vrika-Bridge-Secret") or ""
     if len(token) != len(secret):
         return False
     return hmac.compare_digest(token.encode("utf-8"), secret.encode("utf-8"))

@@ -48,9 +48,9 @@ def _nested_invoke_headers() -> dict[str, str]:
     tok = (os.environ.get("VRIKA_API_TOKEN") or "").strip()
     if tok:
         h["Authorization"] = f"Bearer {tok}"
-    bridge = (os.environ.get("CIPHERSTRIKE_BRIDGE_SECRET") or "").strip()
+    bridge = (os.environ.get("VRIKA_BRIDGE_SECRET") or "").strip()
     if bridge:
-        h["X-CipherStrike-Bridge-Secret"] = bridge
+        h["X-Vrika-Bridge-Secret"] = bridge
     return h
 
 
