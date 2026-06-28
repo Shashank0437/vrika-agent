@@ -6,10 +6,10 @@ Provider-agnostic LLM adapter for NyxStrike.
 Reads configuration from env vars, config_local.json, and config.py defaults.
 
 Supported backends:
-  openrouter  — OpenRouter (OpenAI-compatible). API key: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY
+  openrouter  — OpenRouter (OpenAI-compatible). API key: VRIKA_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY
   ollama      — Local Ollama (OpenAI-compatible /v1). Set AI_MODE=ollama
   lmstudio    — LM Studio local server (OpenAI-compatible /v1). Set AI_MODE=lmstudio
-  gemini      — Google Generative AI (Gemini direct). API key: NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY
+  gemini      — Google Generative AI (Gemini direct). API key: VRIKA_LLM_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY
   openai      — OpenAI or Azure OpenAI via the openai SDK
   anthropic   — Anthropic Claude via the anthropic SDK
 
@@ -19,16 +19,16 @@ Config keys:
   OLLAMA_URL                   Ollama OpenAI base URL (default http://127.0.0.1:11434/v1)
   LMSTUDIO_MODEL               model id when AI_MODE=lmstudio (default: first loaded model)
   LMSTUDIO_URL                 LM Studio OpenAI base URL (default http://127.0.0.1:1234/v1)
-  NYXSTRIKE_LLM_PROVIDER       openrouter | gemini | openai | anthropic | ollama | lmstudio
-  NYXSTRIKE_LLM_MODEL          e.g openai/gpt-4.1-mini, gpt-4o, claude-3-5-sonnet-latest
-  NYXSTRIKE_LLM_URL            OpenRouter / OpenAI base URL (default https://openrouter.ai/api/v1 for openrouter)
-  NYXSTRIKE_LLM_API_KEY        primary secret (also checks provider-specific env vars)
-  NYXSTRIKE_LLM_MAX_LOOPS
-  NYXSTRIKE_LLM_TIMEOUT
-  NYXSTRIKE_LLM_NUM_CTX        max output-ish hint for Gemini / context sizing hints
-  NYXSTRIKE_LLM_THINK          enable reasoning (OpenRouter reasoning API / Gemini thoughts)
-  NYXSTRIKE_LLM_REASONING_MAX_TOKENS  OpenRouter reasoning.max_tokens (default 1000 for Gemini)
-  NYXSTRIKE_LLM_REASONING_EFFORT  optional OpenRouter effort (overrides max_tokens if set)
+  VRIKA_LLM_PROVIDER       openrouter | gemini | openai | anthropic | ollama | lmstudio
+  VRIKA_LLM_MODEL          e.g openai/gpt-4.1-mini, gpt-4o, claude-3-5-sonnet-latest
+  VRIKA_LLM_URL            OpenRouter / OpenAI base URL (default https://openrouter.ai/api/v1 for openrouter)
+  VRIKA_LLM_API_KEY        primary secret (also checks provider-specific env vars)
+  VRIKA_LLM_MAX_LOOPS
+  VRIKA_LLM_TIMEOUT
+  VRIKA_LLM_NUM_CTX        max output-ish hint for Gemini / context sizing hints
+  VRIKA_LLM_THINK          enable reasoning (OpenRouter reasoning API / Gemini thoughts)
+  VRIKA_LLM_REASONING_MAX_TOKENS  OpenRouter reasoning.max_tokens (default 1000 for Gemini)
+  VRIKA_LLM_REASONING_EFFORT  optional OpenRouter effort (overrides max_tokens if set)
 """
 
 import logging
@@ -202,7 +202,7 @@ def _resolve_openrouter_api_key(api_key: str) -> str:
   """OpenRouter key from config or legacy env names (GOOGLE_API_KEY holds the OpenRouter key)."""
   return (
     (api_key or "").strip()
-    or (os.environ.get("NYXSTRIKE_LLM_API_KEY") or "").strip()
+    or (os.environ.get("VRIKA_LLM_API_KEY") or "").strip()
     or (os.environ.get("GOOGLE_API_KEY") or "").strip()
     or (os.environ.get("OPENROUTER_API_KEY") or "").strip()
   )
@@ -211,7 +211,7 @@ def _resolve_openrouter_api_key(api_key: str) -> str:
 def _want_thoughts(think: Optional[bool]) -> bool:
   if think is not None:
     return bool(think)
-  raw = _cfg("NYXSTRIKE_LLM_THINK")
+  raw = _cfg("VRIKA_LLM_THINK")
   if isinstance(raw, bool):
     return raw
   return str(raw or "").strip().lower() in ("1", "true", "yes", "y")
@@ -241,7 +241,7 @@ def _normalize_openai_compatible_messages(messages: List[Dict[str, Any]]) -> Lis
 def _openai_completion_max_tokens(think: Optional[bool], provider_label: str) -> int:
   """Completion token budget (OpenRouter reasoning + answer often share this cap)."""
   try:
-    base = int(_cfg("NYXSTRIKE_LLM_NUM_CTX") or 8192)
+    base = int(_cfg("VRIKA_LLM_NUM_CTX") or 8192)
   except (TypeError, ValueError):
     base = 8192
   base = min(max(base, 1024), 65_536)
@@ -252,12 +252,12 @@ def _openai_completion_max_tokens(think: Optional[bool], provider_label: str) ->
 
 def _openrouter_reasoning_extra(model: str = "") -> Dict[str, Any]:
   """OpenRouter unified reasoning param (Gemini: reasoning.max_tokens → thinking_budget)."""
-  effort = (_cfg("NYXSTRIKE_LLM_REASONING_EFFORT") or "").strip().lower()
+  effort = (_cfg("VRIKA_LLM_REASONING_EFFORT") or "").strip().lower()
   if effort in ("xhigh", "high", "medium", "low", "minimal", "none"):
     return {"reasoning": {"effort": effort, "exclude": False}}
 
   max_tokens = 0
-  raw_max = _cfg("NYXSTRIKE_LLM_REASONING_MAX_TOKENS")
+  raw_max = _cfg("VRIKA_LLM_REASONING_MAX_TOKENS")
   if raw_max not in ("", None, False):
     try:
       max_tokens = int(raw_max)
@@ -803,7 +803,7 @@ class OpenAIBackend:
     key = (api_key or "").strip()
     if not key:
       key = (
-        os.environ.get("NYXSTRIKE_LLM_API_KEY")
+        os.environ.get("VRIKA_LLM_API_KEY")
         or os.environ.get("GOOGLE_API_KEY")
         or os.environ.get("OPENROUTER_API_KEY")
         or ""
@@ -811,7 +811,7 @@ class OpenAIBackend:
     if not key:
       raise ValueError(
         "OpenRouter API key is not configured. "
-        "Please set NYXSTRIKE_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY in your environment."
+        "Please set VRIKA_LLM_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY in your environment."
       )
     url = (base_url or "").strip() or "https://openrouter.ai/api/v1"
     self._client = LocalOpenRouterClient(key, url, float(timeout))
@@ -1141,8 +1141,8 @@ def _resolve_llm_from_ai_mode() -> Optional[Dict[str, str]]:
   if mode == "openrouter":
     return {
       "provider": "openrouter",
-      "model": (_cfg("NYXSTRIKE_LLM_MODEL") or "openai/gpt-4.1-mini").strip(),
-      "base_url": (_cfg("NYXSTRIKE_LLM_URL") or OPENROUTER_API_BASE).strip(),
+      "model": (_cfg("VRIKA_LLM_MODEL") or "openai/gpt-4.1-mini").strip(),
+      "base_url": (_cfg("VRIKA_LLM_URL") or OPENROUTER_API_BASE).strip(),
     }
   if mode == "ollama":
     return {
@@ -1157,7 +1157,7 @@ def _resolve_llm_from_ai_mode() -> Optional[Dict[str, str]]:
       "model": _resolve_lmstudio_model(base_url),
       "base_url": base_url,
     }
-  logger.warning("Unknown AI_MODE=%r; falling back to NYXSTRIKE_LLM_PROVIDER", mode)
+  logger.warning("Unknown AI_MODE=%r; falling back to VRIKA_LLM_PROVIDER", mode)
   return None
 
 
@@ -1382,7 +1382,7 @@ class LLMClient:
   """Provider-agnostic LLM client."""
 
   def __init__(self) -> None:
-    self.max_loops: int = int(_cfg("NYXSTRIKE_LLM_MAX_LOOPS") or 9)
+    self.max_loops: int = int(_cfg("VRIKA_LLM_MAX_LOOPS") or 9)
     self._backend: Any = None
     self._init_error: str = ""
 
@@ -1390,26 +1390,26 @@ class LLMClient:
     provider = (
       ai_mode_cfg["provider"]
       if ai_mode_cfg
-      else (_cfg("NYXSTRIKE_LLM_PROVIDER") or "openrouter").lower()
+      else (_cfg("VRIKA_LLM_PROVIDER") or "openrouter").lower()
     )
     model = (
       ai_mode_cfg["model"]
       if ai_mode_cfg
-      else (_cfg("NYXSTRIKE_LLM_MODEL") or "openai/gpt-4.1-mini")
+      else (_cfg("VRIKA_LLM_MODEL") or "openai/gpt-4.1-mini")
     )
     base_url = (
       ai_mode_cfg.get("base_url", "")
       if ai_mode_cfg
-      else (_cfg("NYXSTRIKE_LLM_URL") or "").strip()
+      else (_cfg("VRIKA_LLM_URL") or "").strip()
     )
     if provider == "ollama" and not base_url:
       base_url = _resolve_ollama_url()
     if provider == "lmstudio" and not base_url:
       base_url = _resolve_lmstudio_url()
-    api_key = (_cfg("NYXSTRIKE_LLM_API_KEY") or "").strip()
-    timeout = int(_cfg("NYXSTRIKE_LLM_TIMEOUT") or 300)
-    num_ctx = int(_cfg("NYXSTRIKE_LLM_NUM_CTX") or 8192)
-    self._num_ctx_analyse = int(_cfg("NYXSTRIKE_LLM_NUM_CTX_ANALYSE") or 16384)
+    api_key = (_cfg("VRIKA_LLM_API_KEY") or "").strip()
+    timeout = int(_cfg("VRIKA_LLM_TIMEOUT") or 300)
+    num_ctx = int(_cfg("VRIKA_LLM_NUM_CTX") or 8192)
+    self._num_ctx_analyse = int(_cfg("VRIKA_LLM_NUM_CTX_ANALYSE") or 16384)
 
     gemini_key = api_key or (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY") or "").strip()
     openrouter_key = _resolve_openrouter_api_key(api_key)

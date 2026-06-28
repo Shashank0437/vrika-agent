@@ -33,12 +33,12 @@ services:
       args:
         INSTALL_TOOLS: ${INSTALL_TOOLS:-1}
     ports:
-      - "${NYXSTRIKE_PORT:-8888}:8888"
+      - "${VRIKA_PORT:-8888}:8888"
     env_file:
       - .env
     environment:
-      NYXSTRIKE_HOST: 0.0.0.0
-      NYXSTRIKE_PORT: 8888
+      VRIKA_HOST: 0.0.0.0
+      VRIKA_PORT: 8888
       AI_MODE: ${AI_MODE:-openrouter}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:e2b}
       OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434/v1}

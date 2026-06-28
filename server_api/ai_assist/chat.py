@@ -249,10 +249,10 @@ def _is_conversational_heuristic(message: str) -> bool:
 def _is_conversational(message: str) -> bool:
   """Return True if the message is conversational, using gpt-oss-20b via OpenRouter, falling back to heuristics."""
   api_key = (
-    os.environ.get("NYXSTRIKE_LLM_API_KEY")
+    os.environ.get("VRIKA_LLM_API_KEY")
     or os.environ.get("GOOGLE_API_KEY")
     or os.environ.get("OPENROUTER_API_KEY")
-    or config_core.get("NYXSTRIKE_LLM_API_KEY", "")
+    or config_core.get("VRIKA_LLM_API_KEY", "")
   ).strip()
 
   if not api_key:
@@ -265,7 +265,7 @@ def _is_conversational(message: str) -> bool:
     backend = OpenRouterBackend(
       model="openai/gpt-oss-20b",
       api_key=api_key,
-      base_url=config_core.get("NYXSTRIKE_LLM_URL"),
+      base_url=config_core.get("VRIKA_LLM_URL"),
       timeout=15,
     )
     response = backend.chat(
@@ -419,7 +419,7 @@ def _stream_llm_with_tools(
     yield "data: [THINKING]\n\n"
     for chunk in llm_client.stream_chat(llm_messages):
       if isinstance(chunk, dict):
-        # Reasoning / thought-summary chunk (Gemini when NYXSTRIKE_LLM_THINK + thinking model)
+        # Reasoning / thought-summary chunk (Gemini when VRIKA_LLM_THINK + thinking model)
         if chunk.get("type") == "thinking":
           yield f"data: [THINK_TOKEN] {json.dumps(chunk.get('content', ''))}\n\n"
           continue

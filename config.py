@@ -3,7 +3,7 @@
 _config = {
     "APP_NAME": "NyxStrike",
     "VERSION": "1.4.0",
-    "DATA_DIR_NAME": ".nyxstrike_data",  # Root data directory name (relative to cwd, override with NYXSTRIKE_DATA_DIR env var)
+    "DATA_DIR_NAME": ".nyxstrike_data",  # Root data directory name (relative to cwd, override with VRIKA_DATA_DIR env var)
     "COMMAND_TIMEOUT": 1800,
     "REQUEST_TIMEOUT": 0,
     "COMMAND_INACTIVITY_TIMEOUT": 1800,
@@ -48,16 +48,16 @@ _config = {
     "OLLAMA_URL":               "http://127.0.0.1:11434/v1",       # Ollama OpenAI-compatible base URL
     "LMSTUDIO_MODEL":           "",                                # empty = first loaded model in LM Studio
     "LMSTUDIO_URL":             "http://127.0.0.1:1234/v1",        # LM Studio local server base URL
-    "NYXSTRIKE_LLM_PROVIDER": "openrouter",                     # openrouter | gemini | openai | anthropic | ollama | lmstudio
-    "NYXSTRIKE_LLM_MODEL":    "openai/gpt-4.1-mini",          # OpenRouter model id (bare gemini-* names are auto-prefixed)
-    "NYXSTRIKE_LLM_URL":      "https://openrouter.ai/api/v1",   # OpenRouter base URL (openrouter / openai providers)
-    "NYXSTRIKE_LLM_API_KEY":  "",                               # or NYXSTRIKE_LLM_API_KEY / GOOGLE_API_KEY / OPENROUTER_API_KEY in env
-    "NYXSTRIKE_LLM_TIMEOUT":  600,                              # seconds
-    "NYXSTRIKE_LLM_MAX_LOOPS": 9,
-    "NYXSTRIKE_LLM_THINK":    True,                             # OpenRouter reasoning API + Gemini thinkingConfig.includeThoughts
-    "NYXSTRIKE_LLM_REASONING_MAX_TOKENS": 1000,                 # OpenRouter reasoning.max_tokens (Gemini thinking_budget); 0 = use enabled/effort
-    "NYXSTRIKE_LLM_NUM_CTX":  8192,                             # hints max output tokens for Gemini; context sizing for other paths
-    "NYXSTRIKE_LLM_NUM_CTX_ANALYSE": 16384,                     # analysis / report context hint
+    "VRIKA_LLM_PROVIDER": "openrouter",                     # openrouter | gemini | openai | anthropic | ollama | lmstudio
+    "VRIKA_LLM_MODEL":    "openai/gpt-4.1-mini",          # OpenRouter model id (bare gemini-* names are auto-prefixed)
+    "VRIKA_LLM_URL":      "https://openrouter.ai/api/v1",   # OpenRouter base URL (openrouter / openai providers)
+    "VRIKA_LLM_API_KEY":  "",                               # or VRIKA_LLM_API_KEY / GOOGLE_API_KEY / OPENROUTER_API_KEY in env
+    "VRIKA_LLM_TIMEOUT":  600,                              # seconds
+    "VRIKA_LLM_MAX_LOOPS": 9,
+    "VRIKA_LLM_THINK":    True,                             # OpenRouter reasoning API + Gemini thinkingConfig.includeThoughts
+    "VRIKA_LLM_REASONING_MAX_TOKENS": 1000,                 # OpenRouter reasoning.max_tokens (Gemini thinking_budget); 0 = use enabled/effort
+    "VRIKA_LLM_NUM_CTX":  8192,                             # hints max output tokens for Gemini; context sizing for other paths
+    "VRIKA_LLM_NUM_CTX_ANALYSE": 16384,                     # analysis / report context hint
 
     # ── Chat widget ───────────────────────────────────────────────────────────
     "CHAT_PERSONALITY": "nyxstrike",  # active personality preset id (see server_core/intelligence/chat_personalities.py)

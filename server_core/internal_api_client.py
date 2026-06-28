@@ -5,7 +5,7 @@ Lightweight HTTP client for in-process calls back to the NyxStrike REST API.
 
 Used by the chat tool-calling layer so the embedded LLM can execute security
 tools via the same endpoints that the MCP client and the web UI use.  All
-requests go to 127.0.0.1:{NYXSTRIKE_PORT} — never to an external host.
+requests go to 127.0.0.1:{VRIKA_PORT} — never to an external host.
 
 Usage:
   from server_core.internal_api_client import internal_api
@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 
 
 def _server_url() -> str:
-  host = os.environ.get("NYXSTRIKE_HOST") or config_core.get("NYXSTRIKE_HOST", "127.0.0.1")
-  port = os.environ.get("NYXSTRIKE_PORT") or config_core.get("NYXSTRIKE_PORT", "8888")
+  host = os.environ.get("VRIKA_HOST") or config_core.get("VRIKA_HOST", "127.0.0.1")
+  port = os.environ.get("VRIKA_PORT") or config_core.get("VRIKA_PORT", "8888")
   return f"http://{host}:{port}"
 
 
 def _auth_headers() -> Dict[str, str]:
-  token = os.environ.get("NYXSTRIKE_API_TOKEN") or config_core.get("NYXSTRIKE_API_TOKEN", "")
+  token = os.environ.get("VRIKA_API_TOKEN") or config_core.get("VRIKA_API_TOKEN", "")
   if token:
     return {"Authorization": f"Bearer {token}"}
   return {}

@@ -1,8 +1,8 @@
 import os
 from typing import Dict, Any
 
-API_PORT = int(os.environ.get('NYXSTRIKE_PORT', 8888))
-API_HOST = os.environ.get('NYXSTRIKE_HOST', '127.0.0.1')
+API_PORT = int(os.environ.get('VRIKA_PORT', 8888))
+API_HOST = os.environ.get('VRIKA_HOST', '127.0.0.1')
 
 class ModernVisualEngine:
     """Beautiful, modern output formatting with animations and colors"""

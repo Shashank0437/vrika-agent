@@ -7,8 +7,8 @@ ARG INSTALL_TOOLS=0
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    NYXSTRIKE_HOST=0.0.0.0 \
-    NYXSTRIKE_PORT=8888 \
+    VRIKA_HOST=0.0.0.0 \
+    VRIKA_PORT=8888 \
     REDIS_URL=redis://host.docker.internal:6379/0
 
 WORKDIR /app
@@ -40,6 +40,6 @@ RUN mkdir -p .nyxstrike_data/config
 EXPOSE 8888
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -sf "http://127.0.0.1:${NYXSTRIKE_PORT}/health" || exit 1
+    CMD curl -sf "http://127.0.0.1:${VRIKA_PORT}/health" || exit 1
 
 CMD ["python3", "nyxstrike_server.py"]

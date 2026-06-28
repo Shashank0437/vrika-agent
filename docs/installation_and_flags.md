@@ -49,7 +49,7 @@ Stamp files are stored in the venv, e.g.:
 | `-s` | `--update-self` | Run `git pull --ff-only` on this repo (skips when local changes exist) |
 | `-r` | `--run` | Start server after install (`./scripts/run.sh --server`) |
 | `-h` | `--help` | Show install script help |
-| `-ai` | *(none)* | OpenRouter: writes defaults to `config_local.json`, sets `AI_MODE=openrouter`, enables LLM warmup. Set `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `NYXSTRIKE_LLM_API_KEY`. |
+| `-ai` | *(none)* | OpenRouter: writes defaults to `config_local.json`, sets `AI_MODE=openrouter`, enables LLM warmup. Set `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `VRIKA_LLM_API_KEY`. |
 | `-ai-ollama`, `-ai-small` | *(none)* | Ollama: starts Ollama in Docker, pulls `OLLAMA_MODEL` (default `gemma4:e2b`), writes `AI_MODE=ollama` to `config_local.json`, enables warmup. |
 
 ## Common Command Examples
@@ -92,7 +92,7 @@ bash scripts/install.sh --all
 
 ### LLM setup (OpenRouter API key)
 
-Set `AI_MODE=openrouter` (default) and provide `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `NYXSTRIKE_LLM_API_KEY`.
+Set `AI_MODE=openrouter` (default) and provide `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, or `VRIKA_LLM_API_KEY`.
 
 ```bash
 ./nyxstrike.sh -a -ai

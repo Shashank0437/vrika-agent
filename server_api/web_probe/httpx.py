@@ -31,14 +31,14 @@ def httpx():
             logger.warning("🌐 httpx called without target parameter")
             return jsonify({"error": "Target or url parameter is required"}), 400
 
-        env_bin = (os.environ.get("NYXSTRIKE_HTTPX_BIN") or "").strip()
+        env_bin = (os.environ.get("VRIKA_HTTPX_BIN") or "").strip()
         httpx_bin = env_bin if env_bin else resolve_cli_tool_go_paths_first("httpx")
         if not httpx_bin:
             return jsonify(
                 {
                     "error": "ProjectDiscovery httpx not found — install with "
                     "`go install github.com/projectdiscovery/httpx/cmd/httpx@latest` "
-                    "so it lives in ~/go/bin, or set NYXSTRIKE_HTTPX_BIN to the full path. "
+                    "so it lives in ~/go/bin, or set VRIKA_HTTPX_BIN to the full path. "
                     "PyPI `httpx` uses the same command name and breaks `-u` when it appears first on PATH.",
                 }
             ), 400

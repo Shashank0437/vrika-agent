@@ -340,14 +340,14 @@ install_requirements_file() {
 
 write_openrouter_llm_config_local() {
   local model="${1:-${OPENROUTER_DEFAULT_MODEL}}"
-  local data_dir="${NYXSTRIKE_DATA_DIR:-${ROOT_DIR}/.nyxstrike_data}"
-  local config_file="${NYXSTRIKE_CONFIG_FILE:-${data_dir}/config/config_local.json}"
+  local data_dir="${VRIKA_DATA_DIR:-${ROOT_DIR}/.nyxstrike_data}"
+  local config_file="${VRIKA_CONFIG_FILE:-${data_dir}/config/config_local.json}"
   local config_dir
   config_dir="$(dirname "${config_file}")"
 
   if ! command -v python3 >/dev/null 2>&1; then
     echo "Warning: python3 not found; merge these into ${config_file} manually:"
-    echo '  NYXSTRIKE_LLM_PROVIDER=openrouter, NYXSTRIKE_LLM_MODEL='"${model}"', NYXSTRIKE_LLM_URL=https://openrouter.ai/api/v1'
+    echo '  VRIKA_LLM_PROVIDER=openrouter, VRIKA_LLM_MODEL='"${model}"', VRIKA_LLM_URL=https://openrouter.ai/api/v1'
     return
   fi
 
@@ -366,9 +366,9 @@ try:
 except Exception:
     data = {}
 data["AI_MODE"] = "openrouter"
-data["NYXSTRIKE_LLM_PROVIDER"] = "openrouter"
-data["NYXSTRIKE_LLM_MODEL"] = model
-data["NYXSTRIKE_LLM_URL"] = "https://openrouter.ai/api/v1"
+data["VRIKA_LLM_PROVIDER"] = "openrouter"
+data["VRIKA_LLM_MODEL"] = model
+data["VRIKA_LLM_URL"] = "https://openrouter.ai/api/v1"
 with open(config_file, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
 PYEOF
@@ -379,8 +379,8 @@ PYEOF
 write_ollama_llm_config_local() {
   local model="${1:-${OLLAMA_DEFAULT_MODEL}}"
   local ollama_url="${OLLAMA_URL:-http://127.0.0.1:11434/v1}"
-  local data_dir="${NYXSTRIKE_DATA_DIR:-${ROOT_DIR}/.nyxstrike_data}"
-  local config_file="${NYXSTRIKE_CONFIG_FILE:-${data_dir}/config/config_local.json}"
+  local data_dir="${VRIKA_DATA_DIR:-${ROOT_DIR}/.nyxstrike_data}"
+  local config_file="${VRIKA_CONFIG_FILE:-${data_dir}/config/config_local.json}"
   local config_dir
   config_dir="$(dirname "${config_file}")"
 
@@ -407,9 +407,9 @@ except Exception:
 data["AI_MODE"] = "ollama"
 data["OLLAMA_MODEL"] = model
 data["OLLAMA_URL"] = ollama_url
-data["NYXSTRIKE_LLM_PROVIDER"] = "ollama"
-data["NYXSTRIKE_LLM_MODEL"] = model
-data["NYXSTRIKE_LLM_URL"] = ollama_url
+data["VRIKA_LLM_PROVIDER"] = "ollama"
+data["VRIKA_LLM_MODEL"] = model
+data["VRIKA_LLM_URL"] = ollama_url
 with open(config_file, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
 PYEOF
@@ -419,8 +419,8 @@ PYEOF
 write_lmstudio_llm_config_local() {
   local model="${1:-${LMSTUDIO_MODEL:-}}"
   local lmstudio_url="${LMSTUDIO_URL:-${LMSTUDIO_DEFAULT_URL}}"
-  local data_dir="${NYXSTRIKE_DATA_DIR:-${ROOT_DIR}/.nyxstrike_data}"
-  local config_file="${NYXSTRIKE_CONFIG_FILE:-${data_dir}/config/config_local.json}"
+  local data_dir="${VRIKA_DATA_DIR:-${ROOT_DIR}/.nyxstrike_data}"
+  local config_file="${VRIKA_CONFIG_FILE:-${data_dir}/config/config_local.json}"
   local config_dir
   config_dir="$(dirname "${config_file}")"
 
@@ -447,10 +447,10 @@ except Exception:
 data["AI_MODE"] = "lmstudio"
 data["LMSTUDIO_MODEL"] = model
 data["LMSTUDIO_URL"] = lmstudio_url
-data["NYXSTRIKE_LLM_PROVIDER"] = "lmstudio"
+data["VRIKA_LLM_PROVIDER"] = "lmstudio"
 if model:
-    data["NYXSTRIKE_LLM_MODEL"] = model
-data["NYXSTRIKE_LLM_URL"] = lmstudio_url
+    data["VRIKA_LLM_MODEL"] = model
+data["VRIKA_LLM_URL"] = lmstudio_url
 with open(config_file, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
 PYEOF
@@ -649,14 +649,14 @@ while [[ $# -gt 0 ]]; do
     -ai)
       CONFIGURE_OPENROUTER_LLM=true
       export AI_MODE=openrouter
-      export NYXSTRIKE_LLM_WARMUP=1
+      export VRIKA_LLM_WARMUP=1
       DO_SETUP=true
       shift
       ;;
     -ai-ollama|-ai-small)
       CONFIGURE_OLLAMA_LLM=true
       export AI_MODE=ollama
-      export NYXSTRIKE_LLM_WARMUP=1
+      export VRIKA_LLM_WARMUP=1
       export OLLAMA_MODEL="${OLLAMA_MODEL:-${OLLAMA_DEFAULT_MODEL}}"
       DO_SETUP=true
       shift
@@ -664,7 +664,7 @@ while [[ $# -gt 0 ]]; do
     -ai-lmstudio)
       CONFIGURE_LMSTUDIO_LLM=true
       export AI_MODE=lmstudio
-      export NYXSTRIKE_LLM_WARMUP=1
+      export VRIKA_LLM_WARMUP=1
       export LMSTUDIO_URL="${LMSTUDIO_URL:-${LMSTUDIO_DEFAULT_URL}}"
       DO_SETUP=true
       shift

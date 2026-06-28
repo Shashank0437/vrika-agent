@@ -41,7 +41,7 @@ Agent loop design:
   2. Build a focused pentest system prompt with the HTTP request embedded.
   3. Classify the target URL via /api/intelligence/classify-task to select
      relevant tool schemas (max 8 tools so the context stays manageable).
-  4. Run up to NYXSTRIKE_LLM_MAX_LOOPS iterations:
+  4. Run up to VRIKA_LLM_MAX_LOOPS iterations:
        a. Call llm_client.chat() with tool schemas.
        b. Stream tokens to the SSE queue.
        c. On tool_call: emit [TOOL_CONFIRM_REQUEST], block on threading.Event.

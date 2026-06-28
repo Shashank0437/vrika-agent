@@ -48,7 +48,7 @@ from nyxstrike_server import app  # noqa: E402
 def client():
     app.config["TESTING"] = True
     # Disable bearer-auth so we never need a token in tests.
-    app.config["NYXSTRIKE_API_TOKEN"] = None
+    app.config["VRIKA_API_TOKEN"] = None
     with app.test_client() as c:
         yield c
 

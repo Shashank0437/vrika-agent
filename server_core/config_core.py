@@ -31,13 +31,13 @@ LOCAL_FILE_NAME = "config_local.json"
 
 
 def default_data_dir() -> str:
-    """Resolve the data directory path. Uses NYXSTRIKE_DATA_DIR env var or cwd."""
-    return os.environ.get("NYXSTRIKE_DATA_DIR", os.path.join(os.getcwd(), DATA_DIR_NAME))
+    """Resolve the data directory path. Uses VRIKA_DATA_DIR env var or cwd."""
+    return os.environ.get("VRIKA_DATA_DIR", os.path.join(os.getcwd(), DATA_DIR_NAME))
 
 
 def _resolve_config_local_path() -> str:
     """Resolve config_local path and migrate legacy root file if needed."""
-    explicit_file = os.environ.get("NYXSTRIKE_CONFIG_FILE", "").strip()
+    explicit_file = os.environ.get("VRIKA_CONFIG_FILE", "").strip()
     if explicit_file:
         os.makedirs(os.path.dirname(explicit_file), exist_ok=True)
         return explicit_file

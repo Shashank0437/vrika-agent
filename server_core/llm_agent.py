@@ -238,8 +238,8 @@ def analyze_session(
     return {
       "success": False,
       "error": (
-        "LLM is not available. Configure NYXSTRIKE_LLM_PROVIDER / "
-        "NYXSTRIKE_LLM_MODEL and ensure the backend is reachable."
+        "LLM is not available. Configure VRIKA_LLM_PROVIDER / "
+        "VRIKA_LLM_MODEL and ensure the backend is reachable."
       ),
     }
 
@@ -667,8 +667,8 @@ def follow_up_session(
     return {
       "success": False,
       "error": (
-        "LLM is not available. Configure NYXSTRIKE_LLM_PROVIDER / "
-        "NYXSTRIKE_LLM_MODEL and ensure the backend is reachable."
+        "LLM is not available. Configure VRIKA_LLM_PROVIDER / "
+        "VRIKA_LLM_MODEL and ensure the backend is reachable."
       ),
     }
 

@@ -97,7 +97,7 @@ def generate_ai_report(session_id: str):
   """Generate an AI-assisted report with executive summary via LLM."""
   try:
     if not _llm_client.is_available():
-      return _bad("LLM is not available. Configure NYXSTRIKE_LLM_PROVIDER and restart the server.", 503)
+      return _bad("LLM is not available. Configure VRIKA_LLM_PROVIDER and restart the server.", 503)
 
     loaded = load_session_any(session_id)
     if not loaded:

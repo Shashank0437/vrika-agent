@@ -30,13 +30,13 @@ _MUTABLE_KEYS = {
 def _current_settings() -> dict:
     return {
         "server": {
-            "host": os.environ.get("NYXSTRIKE_HOST", "127.0.0.1"),
-            "port": int(os.environ.get("NYXSTRIKE_PORT", 8888)),
-            "auth_enabled": bool(os.environ.get("NYXSTRIKE_API_TOKEN")),
+            "host": os.environ.get("VRIKA_HOST", "127.0.0.1"),
+            "port": int(os.environ.get("VRIKA_PORT", 8888)),
+            "auth_enabled": bool(os.environ.get("VRIKA_API_TOKEN")),
             "debug_mode": os.environ.get("DEBUG_MODE", "0") in ("1", "true", "yes", "y"),
             "working_dir": os.getcwd(),
             "data_dir": os.environ.get(
-                "NYXSTRIKE_DATA_DIR",
+                "VRIKA_DATA_DIR",
                 config_core.default_data_dir(),
             ),
         },

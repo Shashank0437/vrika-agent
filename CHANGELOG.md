@@ -83,7 +83,7 @@
 - Updated docs for expanded toolset, async execution model, and newer Python compatibility/modes.
 
 ## 1.0.11 (2026-03-11)
-- Added optional bearer auth (`NYXSTRIKE_API_TOKEN`) and MCP client auth/SSL flags (`--auth-token`, `--disable-ssl-verify`).
+- Added optional bearer auth (`VRIKA_API_TOKEN`) and MCP client auth/SSL flags (`--auth-token`, `--disable-ssl-verify`).
 - Added `auto_install_missing_apt_tools` MCP flow for server-side tool installation.
 - Improved deployment/security documentation and general cleanup.
 
@@ -97,7 +97,7 @@
 
 ## 1.0.8 (2026-02-23)
 - Added MCP profile modes (`--profile`, `--compact`) and improved default tool profile behavior.
-- Introduced `AGENTS.md` guidance and new config defaults (`DEFAULT_NYXSTRIKE_SERVER`, `MAX_RETRIES`).
+- Introduced `AGENTS.md` guidance and new config defaults (`DEFAULT_VRIKA_SERVER`, `MAX_RETRIES`).
 - Refactored `nyxstrike_mcp.py` entrypoint to a much smaller modular structure.
 
 ## 1.0.7 (2026-02-21)

@@ -123,7 +123,7 @@ NyxStrike does not just run tools — it orchestrates full attack chains using A
 - Run only in isolated environments or dedicated security testing VMs  
 - AI agents may execute real commands — maintain operator oversight  
 - Monitor activity via dashboard and logs in real time  
-- Use `NYXSTRIKE_API_TOKEN` for any non-local deployment
+- Use `VRIKA_API_TOKEN` for any non-local deployment
 
 ### Legal & Ethical Use
 

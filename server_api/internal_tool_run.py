@@ -45,7 +45,7 @@ def _path_allowed(ep: str) -> bool:
 def _nested_invoke_headers() -> dict[str, str]:
     """Re-send credentials so nested ``test_client`` POSTs satisfy ``optional_bearer_auth``."""
     h: dict[str, str] = {}
-    tok = (os.environ.get("NYXSTRIKE_API_TOKEN") or "").strip()
+    tok = (os.environ.get("VRIKA_API_TOKEN") or "").strip()
     if tok:
         h["Authorization"] = f"Bearer {tok}"
     bridge = (os.environ.get("CIPHERSTRIKE_BRIDGE_SECRET") or "").strip()

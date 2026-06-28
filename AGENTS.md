@@ -134,9 +134,9 @@ If you add a linter, follow existing conventions and keep diffs scoped.
 
 ## Repo-specific notes
 
-- Server binds to `127.0.0.1` by default; override via `NYXSTRIKE_HOST`.
-- API token: set `NYXSTRIKE_API_TOKEN` to enable bearer auth.
-- Default API port: `NYXSTRIKE_PORT` (default 8888).
+- Server binds to `127.0.0.1` by default; override via `VRIKA_HOST`.
+- API token: set `VRIKA_API_TOKEN` to enable bearer auth.
+- Default API port: `VRIKA_PORT` (default 8888).
 - Command timeouts: `COMMAND_TIMEOUT` in config.
 
 ## Intelligence planner

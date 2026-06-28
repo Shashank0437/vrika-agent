@@ -114,7 +114,7 @@ def plan_followup_from_context(
     if llm_client is None or not llm_client.is_available():
         return {
             "success": False,
-            "error": "LLM is not available. Configure NYXSTRIKE_LLM_PROVIDER / NYXSTRIKE_LLM_MODEL.",
+            "error": "LLM is not available. Configure VRIKA_LLM_PROVIDER / VRIKA_LLM_MODEL.",
             "executive_summary": "",
             "workflow_steps": [],
             "attack_phases": [],

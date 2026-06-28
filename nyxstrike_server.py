@@ -35,9 +35,9 @@ app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
 # API Configuration
-API_PORT = int(os.environ.get('NYXSTRIKE_PORT', 8888))
-API_HOST = os.environ.get('NYXSTRIKE_HOST', '127.0.0.1')  # e.g. export NYXSTRIKE_HOST=0.0.0.0
-API_TOKEN = os.environ.get("NYXSTRIKE_API_TOKEN", None)  # e.g. export API_TOKEN=secret-token
+API_PORT = int(os.environ.get('VRIKA_PORT', 8888))
+API_HOST = os.environ.get('VRIKA_HOST', '127.0.0.1')  # e.g. export VRIKA_HOST=0.0.0.0
+API_TOKEN = os.environ.get("VRIKA_API_TOKEN", None)  # e.g. export API_TOKEN=secret-token
 
 # Configuration
 DEBUG_MODE = os.environ.get("DEBUG_MODE", "0").lower() in ("1", "true", "yes", "y")
@@ -79,12 +79,12 @@ load_plugins(app)
 initialize_update_status_check()
 
 # Warm up the configured LLM client in the background before the first chat request.
-# Only runs when NYXSTRIKE_LLM_WARMUP=1 is set (e.g. nyxstrike.sh -ai).
+# Only runs when VRIKA_LLM_WARMUP=1 is set (e.g. nyxstrike.sh -ai).
 def _warm_up_llm() -> None:
   from server_core.singletons import llm_client
   llm_client.warm_up()
 
-if os.environ.get("NYXSTRIKE_LLM_WARMUP") == "1":
+if os.environ.get("VRIKA_LLM_WARMUP") == "1":
   threading.Thread(target=_warm_up_llm, daemon=True, name="llm-warmup").start()
 
 
@@ -208,8 +208,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run the NyxStrike API Server")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--port", type=int, default=API_PORT, help=f"Port for the API server (default: {API_PORT}) i.e export NYXSTRIKE_PORT=8888")
-    parser.add_argument("--host", type=str, default=API_HOST, help=f"Host for the API server (default: {API_HOST}) i.e export NYXSTRIKE_HOST=0.0.0.0")
+    parser.add_argument("--port", type=int, default=API_PORT, help=f"Port for the API server (default: {API_PORT}) i.e export VRIKA_PORT=8888")
+    parser.add_argument("--host", type=str, default=API_HOST, help=f"Host for the API server (default: {API_HOST}) i.e export VRIKA_HOST=0.0.0.0")
 
     args = parser.parse_args()
 

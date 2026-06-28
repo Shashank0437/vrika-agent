@@ -10,7 +10,7 @@ _MOCK_RESULT = {"success": True, "output": "mocked", "returncode": 0}
 @pytest.fixture(scope="module")
 def client():
     app.config["TESTING"] = True
-    app.config["NYXSTRIKE_API_TOKEN"] = None
+    app.config["VRIKA_API_TOKEN"] = None
     with app.test_client() as c:
         yield c
 
