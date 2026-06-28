@@ -46,7 +46,10 @@ def analyze_session_endpoint():
   The LLM does not dispatch any tools — this is a pure analysis pass.
 
   Request body (JSON):
-    session_id (str): A ``sess_`` prefixed session ID from SessionStore.
+    session_id (str): A ``sess_`` prefixed session ID from SessionStore (or external ID).
+    logs (list): Optional external tool run logs to analyse.
+    target (str): Optional target for external logs.
+    objective (str): Optional objective for external logs.
 
   Returns:
     JSON with llm_session_id, session_id, target, objective, risk_level,
@@ -56,6 +59,11 @@ def analyze_session_endpoint():
     body = request.get_json(silent=True) or {}
     session_id = (body.get("session_id") or "").strip()
     save_to_notes = bool(body.get("save_to_notes", False))
+
+    # Support for external logs (e.g. from vrika-server MongoDB)
+    provided_logs = body.get("logs")
+    provided_target = body.get("target")
+    provided_objective = body.get("objective")
 
     if not session_id:
       return jsonify({"success": False, "error": "session_id is required"}), 400
@@ -68,11 +76,15 @@ def analyze_session_endpoint():
     AITaskManager.register_task(task_id, "ai_analyze_session", session_id=session_id)
     cancelled = False
     try:
+      # If provided_logs is a list, the agent skips its local SessionStore/RunHistoryStore lookup.
       result = analyze_session(
         session_id=session_id,
         llm_client=llm_client,
         db=db,
         run_history=run_history,
+        provided_logs=provided_logs if isinstance(provided_logs, list) else None,
+        provided_target=provided_target,
+        provided_objective=provided_objective,
       )
       cancelled = AITaskManager.is_cancelled(task_id)
     finally:

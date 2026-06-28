@@ -214,6 +214,10 @@ def analyze_session(
   llm_client=None,
   db=None,
   run_history=None,
+  *,
+  provided_logs: List[Dict[str, Any]] | None = None,
+  provided_target: str | None = None,
+  provided_objective: str | None = None,
 ) -> Dict[str, Any]:
   """Analyse an existing  workflow session using the LLM.
 
@@ -224,10 +228,13 @@ def analyze_session(
   The LLM does NOT dispatch any tools — this is a pure analysis pass.
 
   Args:
-    session_id:  A ``sess_`` prefixed session ID from SessionStore.
+    session_id:  A ``sess_`` prefixed session ID from SessionStore (or external ID).
     llm_client:  LLMClient instance (must be is_available()).
     db:          NyxStrikeDB instance for persistence.
     run_history: RunHistoryStore instance for fetching tool logs.
+    provided_logs: Optional external logs to analyse (skips local load).
+    provided_target: Target for external logs.
+    provided_objective: Objective for external logs.
 
   Returns:
     Dict with keys: success, llm_session_id, session_id, target, objective,
@@ -244,28 +251,37 @@ def analyze_session(
     }
 
   # ── Load workflow session ─────────────────────────────────────────────────────
-  from server_core.session_flow import load_session_any
+  relevant_logs = []
+  target = provided_target or ""
+  objective = provided_objective or ""
+  tools_executed = []
 
-  loaded = load_session_any(session_id)
-  if not loaded:
-    return {
-      "success": False,
-      "error": f"Session '{session_id}' not found.",
-    }
+  if provided_logs is not None:
+    relevant_logs = provided_logs
+    tools_executed = list(set(str(l.get("tool", "") or l.get("tool_name", "")) for l in relevant_logs))
+  else:
+    from server_core.session_flow import load_session_any
 
-  session_dict, _state = loaded
-  target = session_dict.get("target", "")
-  objective = session_dict.get("objective", "")
-  tools_executed: List[str] = session_dict.get("tools_executed", [])
-  created_at_ts: int = int(session_dict.get("created_at", 0) or 0)
-  session_run_log: List[Dict[str, Any]] = list(session_dict.get("run_log", []) or [])
+    loaded = load_session_any(session_id)
+    if not loaded:
+      return {
+        "success": False,
+        "error": f"Session '{session_id}' not found.",
+      }
 
-  # ── Fetch and filter run logs ─────────────────────────────────────────────────
-  all_logs: List[Dict[str, Any]] = run_history.get_all() if run_history else []
-  relevant_logs = _filter_run_logs(
-    all_logs, tools_executed, target, created_at_ts,
-    session_id=session_id, session_run_log=session_run_log,
-  )
+    session_dict, _state = loaded
+    target = session_dict.get("target", "")
+    objective = session_dict.get("objective", "")
+    tools_executed = session_dict.get("tools_executed", [])
+    created_at_ts: int = int(session_dict.get("created_at", 0) or 0)
+    session_run_log: List[Dict[str, Any]] = list(session_dict.get("run_log", []) or [])
+
+    # ── Fetch and filter run logs ─────────────────────────────────────────────────
+    all_logs: List[Dict[str, Any]] = run_history.get_all() if run_history else []
+    relevant_logs = _filter_run_logs(
+      all_logs, tools_executed, target, created_at_ts,
+      session_id=session_id, session_run_log=session_run_log,
+    )
 
   # ── Build analysis prompt ─────────────────────────────────────────────────────
   llm_session_id = f"llm_{uuid.uuid4().hex[:10]}"
