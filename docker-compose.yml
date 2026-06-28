@@ -1,31 +1,4 @@
-# Standalone NyxStrike agent — run everything from this repo (~/nyxstrike).
-#   cp .env.example .env   # edit LLM key etc.
-#   docker compose build
-#   docker compose up -d
-#
-# Local Ollama (no API key):
-#   AI_MODE=ollama OLLAMA_MODEL=gemma4:e2b docker compose --profile ollama up -d
-#   docker compose exec ollama ollama pull gemma4:e2b
-#
-# vrika-server API (separate compose) reaches this agent at host:8888 via
-# AGENT_MICROSERVICE_URL=http://host.docker.internal:8888 in server/.env
-
 services:
-  ollama:
-    profiles: ["ollama"]
-    image: ollama/ollama:latest
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-
   agent:
     build:
       context: .
@@ -36,17 +9,8 @@ services:
       - "${VRIKA_PORT:-8888}:8888"
     env_file:
       - .env
-    environment:
-      VRIKA_HOST: 0.0.0.0
-      VRIKA_PORT: 8888
-      AI_MODE: ${AI_MODE:-openrouter}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:e2b}
-      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434/v1}
-      LMSTUDIO_URL: ${LMSTUDIO_URL:-http://host.docker.internal:1234/v1}
-      # vrika-server redis is published on host :6379 when that stack is up
-      REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379/0}
     volumes:
-      - nyxstrike_data:/app/.nyxstrike_data
+      - vrika_data:/app/.nyxstrike_data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -58,5 +22,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  nyxstrike_data:
-  ollama_data:
+  vrika_data:
