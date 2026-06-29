@@ -29,13 +29,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     sed -i 's/ main$/ main contrib non-free/g' /etc/apt/sources.list 2>/dev/null || true; \
     apt-get update && apt-get install -y --no-install-recommends \
-    nmap hydra john hashcat tcpdump dnsutils whois sqlmap gobuster \
-    aircrack-ng whatweb wafw00f dnsenum fierce nikto \
+    nmap hydra john hashcat tcpdump dnsutils whois gobuster \
+    aircrack-ng whatweb wafw00f dnsenum fierce \
     && rm -rf /var/lib/apt/lists/*; \
     fi
 
 # 3. Install Special Tools (Binaries/GitHub)
 RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
+    # Nikto from GitHub
+    git clone --depth 1 https://github.com/sullo/nikto.git /opt/nikto \
+    && ln -sf /opt/nikto/program/nikto.pl /usr/local/bin/nikto \
+    && chmod +x /opt/nikto/program/nikto.pl; \
+    # SQLmap from GitHub
+    git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git /opt/sqlmap \
+    && ln -sf /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap; \
     # Feroxbuster
     wget -q https://github.com/epi052/feroxbuster/releases/latest/download/feroxbuster_amd64.deb.zip \
     && unzip -q feroxbuster_amd64.deb.zip && dpkg -i feroxbuster_*.deb && rm -f feroxbuster*; \
