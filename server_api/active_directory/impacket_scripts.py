@@ -72,8 +72,19 @@ IMPACKET_SCRIPTS = {
 }
 
 
+import shutil
+
 def _script_binary(script_name: str) -> str:
-    return f"impacket-{script_name}"
+    # pip install impacket on modern Python sometimes omits the impacket- prefix
+    prefixed = f"impacket-{script_name}"
+    if shutil.which(prefixed):
+        return prefixed
+    
+    script_py = f"{script_name}.py"
+    if shutil.which(script_py):
+        return script_py
+        
+    return prefixed  # fallback to standard name if neither found
 
 
 def _binary_exists(binary_name: str) -> bool:
