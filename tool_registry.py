@@ -567,7 +567,7 @@ TOOLS: Dict[str, dict] = {
             "target": {"required": True}
         },
         "optional": {
-            "options": ""
+            "extra_args": ""
         },
         "effectiveness": 0.90
     },

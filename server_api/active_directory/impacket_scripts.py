@@ -324,8 +324,16 @@ def _build_impacket_command(script_name: str, payload: dict):
     target = payload.get("target")
     positional = payload.get("positional", [])
     positional_map = payload.get("positional_map", {})
-    options = payload.get("options", {})
-    extra_args = payload.get("extra_args", "")
+    
+    # Handle 'options' as either a dict (structured) or string (raw flags)
+    payload_options = payload.get("options")
+    if isinstance(payload_options, dict):
+        options = payload_options
+        extra_args = payload.get("extra_args", "")
+    else:
+        options = {}
+        # If 'options' is a string, treat it as extra_args
+        extra_args = str(payload_options or payload.get("extra_args", ""))
 
     required_positionals = spec["required_positionals"][:]
 
@@ -333,20 +341,22 @@ def _build_impacket_command(script_name: str, payload: dict):
     built_positionals = []
 
     for pos_name in required_positionals:
-        if pos_name == "target":
-            if target:
-                built_positionals.append(str(target))
-            elif pos_name in positional_map:
-                built_positionals.append(str(positional_map[pos_name]))
-            else:
-                raise ValueError("Missing required positional argument: target")
+        val = None
+        if pos_name == "target" and target:
+            val = str(target)
+        elif pos_name in positional_map:
+            val = str(positional_map[pos_name])
+        elif positional:
+            val = str(positional.pop(0))
+        
+        if val is not None:
+            # If the value contains spaces, it might contain flags (common LLM mistake).
+            # Split it so shlex.join doesn't wrap the whole thing in quotes.
+            built_positionals.extend(shlex.split(val))
+        elif pos_name == "target":
+             raise ValueError("Missing required positional argument: target")
         else:
-            if pos_name in positional_map:
-                built_positionals.append(str(positional_map[pos_name]))
-            elif positional:
-                built_positionals.append(str(positional.pop(0)))
-            else:
-                raise ValueError(f"Missing required positional argument: {pos_name}")
+             raise ValueError(f"Missing required positional argument: {pos_name}")
 
     # options first, then positionals is okay for argparse in most cases,
     # but keep positionals last to match common CLI expectations
