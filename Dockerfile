@@ -18,6 +18,7 @@ WORKDIR /app
 # 1. Install System Build Dependencies & Modern Go
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git ca-certificates wget unzip gcc make libc6-dev perl libnet-ssleay-perl openssl \
+    cargo ruby-full \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
       wget -q https://go.dev/dl/go1.23.0.linux-amd64.tar.gz \
       && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz \
@@ -30,7 +31,8 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     sed -i 's/ main$/ main contrib non-free/g' /etc/apt/sources.list 2>/dev/null || true; \
     apt-get update && apt-get install -y --no-install-recommends \
     nmap hydra john hashcat tcpdump dnsutils whois gobuster \
-    aircrack-ng whatweb wafw00f dnsenum fierce \
+    aircrack-ng whatweb wafw00f dnsenum fierce nikto \
+    binwalk checksec gdb radare2 \
     && rm -rf /var/lib/apt/lists/*; \
     fi
 
@@ -52,7 +54,15 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     # Amass
     wget -q https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_linux_amd64.zip \
     && unzip -q amass_linux_amd64.zip && mv amass_Linux_amd64/amass /usr/local/bin/ && rm -rf amass_Linux_amd64*; \
+    # Libc Database
+    git clone --depth 1 https://github.com/niklasb/libc-database.git /opt/libc-database; \
+    # One-gadget (Ruby)
+    gem install one_gadget; \
+    # Pwninit (Rust/Cargo)
+    cargo install pwninit; \
+    ln -sf /root/.cargo/bin/pwninit /usr/local/bin/pwninit; \
     fi
+
 
 # 4. Install Go-based Tools
 RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
@@ -73,7 +83,7 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt -c pip_constraints.txt \
     && pip install --no-cache-dir -r requirements-root.txt -c pip_constraints.txt \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
-      pip install --no-cache-dir dirsearch uro schemathesis; \
+      pip install --no-cache-dir dirsearch uro schemathesis pwntools ropper ROPGadget angr; \
     fi
 
 # 6. Copy Application Source

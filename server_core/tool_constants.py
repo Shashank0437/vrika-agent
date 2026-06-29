@@ -2,16 +2,16 @@
 BUILT_IN_TOOLS = ["jwt-analyzer", "api-schema-analyzer", "graphql-scanner",
                    "http-framework", "auto_install_missing_apt_tools", 
                   "analyze-target", "preview-attack-chain", "create-attack-chain", "smart-scan",
-                  "technology-detection", "burpsuite", "api_fuzzer"]
+                  "technology-detection", "burpsuite", "api_fuzzer", "libc-database"]
 
 # Tools that require dpkg check (Debian-based systems)
 REQUIRE_DPKG_CHECK = ["hashcat-utils", "sleuthkit"]
 
 # Tools that require pip check (Python packages)
-REQUIRE_PIP_CHECK = ["pwntools", "one-gadget", "impacket", "ldapdomaindump", "schemathesis", "uro"]
+REQUIRE_PIP_CHECK = ["pwntools", "impacket", "ldapdomaindump", "schemathesis", "uro", "angr", "ropper", "ROPGadget"]
 
 # Tools that require gem check (Ruby packages)
-REQUIRE_GEM_CHECK = ["zsteg"]
+REQUIRE_GEM_CHECK = ["zsteg", "one-gadget"]
 
 # Tools that require cargo check (Rust packages)
 REQUIRE_CARGO_CHECK = ["pwninit", "x8"]
@@ -24,6 +24,7 @@ BINARY_NAME_OVERRIDES = {
     "impacket-scripts": "impacket",
     "impacket-ad-enum": "impacket",
     "impacket-spec": "impacket",
+    "ropgadget": "ROPgadget",
 }
 
 # Comprehensive list of tools categorized by functionality for health monitoring and availability checks
