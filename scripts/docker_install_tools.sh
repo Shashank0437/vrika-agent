@@ -192,6 +192,31 @@ install_rustscan
 install_amass
 pip install dirsearch uro schemathesis
 
+install_wordlists() {
+  echo "Downloading standard wordlists..."
+  mkdir -p /usr/share/wordlists/api /usr/share/wordlists/dirb
+  
+  # Basic API wordlist
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/api/api-endpoints.txt -O /usr/share/wordlists/api/api-endpoints.txt
+  
+  # Common Web wordlist
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt -O /usr/share/wordlists/dirb/common.txt
+  
+  # If first one fails, create a minimal fallback
+  if [ ! -s /usr/share/wordlists/api/api-endpoints.txt ]; then
+    cat > /usr/share/wordlists/api/api-endpoints.txt <<'EOF'
+v1
+v2
+api
+admin
+login
+auth
+EOF
+  fi
+}
+
+install_wordlists
+
 REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch amass qsreplace)
 MISSING=()
 for bin in "${REQUIRED_BINS[@]}"; do
