@@ -151,8 +151,34 @@ install_go_tool amass github.com/owasp-amass/amass/v4/...@latest || echo "Failed
 install_go_tool assetfinder github.com/tomnomnom/assetfinder@latest
 install_go_tool nuclei github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 install_go_tool httpx github.com/projectdiscovery/httpx/cmd/httpx@latest
+install_go_tool katana github.com/projectdiscovery/katana/cmd/katana@latest
 
-REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx)
+install_feroxbuster() {
+  if command -v feroxbuster >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Installing feroxbuster..."
+  wget -q https://github.com/epi052/feroxbuster/releases/latest/download/feroxbuster_amd64.deb.zip
+  unzip -q feroxbuster_amd64.deb.zip
+  apt-get install -y ./feroxbuster_2.10.4_amd64.deb || true
+  rm -f feroxbuster*
+}
+
+install_rustscan() {
+  if command -v rustscan >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Installing rustscan..."
+  wget -q https://github.com/RustScan/RustScan/releases/download/2.3.0/rustscan_2.3.0_amd64.deb
+  apt-get install -y ./rustscan_2.3.0_amd64.deb || true
+  rm -f rustscan*
+}
+
+install_feroxbuster
+install_rustscan
+pip install dirsearch
+
+REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch)
 MISSING=()
 for bin in "${REQUIRED_BINS[@]}"; do
   if ! command -v "${bin}" >/dev/null 2>&1; then
