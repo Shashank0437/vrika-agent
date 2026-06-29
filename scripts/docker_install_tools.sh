@@ -38,17 +38,6 @@ install_nikto() {
   chmod +x /opt/nikto/program/nikto.pl
 }
 
-install_ffuf() {
-  if command -v ffuf >/dev/null 2>&1; then
-    return 0
-  fi
-  echo "Installing ffuf via go install..."
-  export GOPATH="/root/go"
-  export PATH="${PATH}:${GOPATH}/bin"
-  go install github.com/ffuf/ffuf/v2@latest
-  ln -sf "${GOPATH}/bin/ffuf" /usr/local/bin/ffuf
-}
-
 install_go_tool() {
   local bin="$1" pkg="$2"
   if command -v "$bin" >/dev/null 2>&1; then
@@ -87,6 +76,61 @@ install_modern_go() {
   rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz
   rm go1.23.0.linux-amd64.tar.gz
   ln -sf /usr/local/go/bin/go /usr/local/bin/go
+}
+
+install_feroxbuster() {
+  if command -v feroxbuster >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Installing feroxbuster..."
+  wget -q https://github.com/epi052/feroxbuster/releases/latest/download/feroxbuster_amd64.deb.zip
+  unzip -q feroxbuster_amd64.deb.zip
+  dpkg -i feroxbuster_*.deb
+  rm -f feroxbuster*
+}
+
+install_rustscan() {
+  if command -v rustscan >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Installing rustscan..."
+  wget -q https://github.com/RustScan/RustScan/releases/download/2.3.0/rustscan_2.3.0_amd64.deb
+  dpkg -i rustscan_2.3.0_amd64.deb
+  rm -f rustscan*
+}
+
+install_amass() {
+  if command -v amass >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Installing amass..."
+  wget -q https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_linux_amd64.zip
+  unzip -q amass_linux_amd64.zip
+  mv amass_Linux_amd64/amass /usr/local/bin/
+  rm -rf amass_Linux_amd64*
+}
+
+install_wordlists() {
+  echo "Downloading standard wordlists..."
+  mkdir -p /usr/share/wordlists/api /usr/share/wordlists/dirb
+  
+  # Basic API wordlist
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/api/api-endpoints.txt -O /usr/share/wordlists/api/api-endpoints.txt
+  
+  # Common Web wordlist
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt -O /usr/share/wordlists/dirb/common.txt
+  
+  # If first one fails, create a minimal fallback
+  if [ ! -s /usr/share/wordlists/api/api-endpoints.txt ]; then
+    cat > /usr/share/wordlists/api/api-endpoints.txt <<'EOF'
+v1
+v2
+api
+admin
+login
+auth
+EOF
+  fi
 }
 
 echo "Enabling Debian contrib/non-free for hashcat and related packages..."
@@ -144,76 +188,21 @@ install_sqlmap
 export GOPATH="/root/go"
 mkdir -p "$GOPATH/bin"
 export PATH="${PATH}:${GOPATH}/bin"
-install_amass
-install_go_tool ffuf github.com/ffuf/ffuf/v2@latest
-install_go_tool qsreplace github.com/tomnomnom/qsreplace@latest
-install_go_tool subfinder github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 
-install_go_tool amass github.com/owasp-amass/amass/v4/...@latest || echo "Failed to install amass via go, skipping"
+install_go_tool ffuf github.com/ffuf/ffuf/v2@latest
+install_go_tool subfinder github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 install_go_tool assetfinder github.com/tomnomnom/assetfinder@latest
 install_go_tool nuclei github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 install_go_tool httpx github.com/projectdiscovery/httpx/cmd/httpx@latest
 install_go_tool katana github.com/projectdiscovery/katana/cmd/katana@latest
-
-install_feroxbuster() {
-  if command -v feroxbuster >/dev/null 2>&1; then
-    return 0
-  fi
-  echo "Installing feroxbuster..."
-  wget -q https://github.com/epi052/feroxbuster/releases/latest/download/feroxbuster_amd64.deb.zip
-  unzip -q feroxbuster_amd64.deb.zip
-  dpkg -i feroxbuster_*.deb
-  rm -f feroxbuster*
-}
-
-install_rustscan() {
-  if command -v rustscan >/dev/null 2>&1; then
-    return 0
-  fi
-  echo "Installing rustscan..."
-  wget -q https://github.com/RustScan/RustScan/releases/download/2.3.0/rustscan_2.3.0_amd64.deb
-  dpkg -i rustscan_2.3.0_amd64.deb
-  rm -f rustscan*
-}
-
-install_amass() {
-  if command -v amass >/dev/null 2>&1; then
-    return 0
-  fi
-  echo "Installing amass..."
-  wget -q https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_linux_amd64.zip
-  unzip -q amass_linux_amd64.zip
-  mv amass_Linux_amd64/amass /usr/local/bin/
-  rm -rf amass_Linux_amd64*
-}
+install_go_tool qsreplace github.com/tomnomnom/qsreplace@latest
 
 install_feroxbuster
 install_rustscan
 install_amass
-pip install dirsearch uro schemathesis
 
-install_wordlists() {
-  echo "Downloading standard wordlists..."
-  mkdir -p /usr/share/wordlists/api /usr/share/wordlists/dirb
-  
-  # Basic API wordlist
-  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/api/api-endpoints.txt -O /usr/share/wordlists/api/api-endpoints.txt
-  
-  # Common Web wordlist
-  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt -O /usr/share/wordlists/dirb/common.txt
-  
-  # If first one fails, create a minimal fallback
-  if [ ! -s /usr/share/wordlists/api/api-endpoints.txt ]; then
-    cat > /usr/share/wordlists/api/api-endpoints.txt <<'EOF'
-v1
-v2
-api
-admin
-login
-auth
-EOF
-  fi
-}
+# Python tools
+pip install dirsearch uro schemathesis
 
 install_wordlists
 
