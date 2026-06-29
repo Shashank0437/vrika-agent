@@ -160,7 +160,7 @@ install_feroxbuster() {
   echo "Installing feroxbuster..."
   wget -q https://github.com/epi052/feroxbuster/releases/latest/download/feroxbuster_amd64.deb.zip
   unzip -q feroxbuster_amd64.deb.zip
-  apt-get install -y ./feroxbuster_2.10.4_amd64.deb || true
+  dpkg -i feroxbuster_*.deb
   rm -f feroxbuster*
 }
 
@@ -170,15 +170,27 @@ install_rustscan() {
   fi
   echo "Installing rustscan..."
   wget -q https://github.com/RustScan/RustScan/releases/download/2.3.0/rustscan_2.3.0_amd64.deb
-  apt-get install -y ./rustscan_2.3.0_amd64.deb || true
+  dpkg -i rustscan_2.3.0_amd64.deb
   rm -f rustscan*
+}
+
+install_amass() {
+  if command -v amass >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Installing amass..."
+  wget -q https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_linux_amd64.zip
+  unzip -q amass_linux_amd64.zip
+  mv amass_Linux_amd64/amass /usr/local/bin/
+  rm -rf amass_Linux_amd64*
 }
 
 install_feroxbuster
 install_rustscan
+install_amass
 pip install dirsearch
 
-REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch)
+REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch amass)
 MISSING=()
 for bin in "${REQUIRED_BINS[@]}"; do
   if ! command -v "${bin}" >/dev/null 2>&1; then
