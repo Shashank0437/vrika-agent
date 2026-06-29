@@ -31,8 +31,8 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     sed -i 's/ main$/ main contrib non-free/g' /etc/apt/sources.list 2>/dev/null || true; \
     apt-get update && apt-get install -y --no-install-recommends \
     nmap hydra john hashcat tcpdump dnsutils whois gobuster \
-    aircrack-ng whatweb wafw00f dnsenum fierce nikto \
-    binwalk checksec gdb radare2 \
+    aircrack-ng whatweb wafw00f dnsenum fierce \
+    binwalk gdb \
     && rm -rf /var/lib/apt/lists/*; \
     fi
 
@@ -45,6 +45,12 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     # SQLmap from GitHub
     git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git /opt/sqlmap \
     && ln -sf /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap; \
+    # Radare2 from source
+    git clone --depth 1 https://github.com/radareorg/radare2.git /opt/radare2 \
+    && cd /opt/radare2 && sys/install.sh && cd /app; \
+    # Checksec
+    git clone --depth 1 https://github.com/slimm609/checksec.sh.git /opt/checksec \
+    && ln -sf /opt/checksec/checksec /usr/local/bin/checksec; \
     # Feroxbuster
     wget -q https://github.com/epi052/feroxbuster/releases/latest/download/feroxbuster_amd64.deb.zip \
     && unzip -q feroxbuster_amd64.deb.zip && dpkg -i feroxbuster_*.deb && rm -f feroxbuster*; \
