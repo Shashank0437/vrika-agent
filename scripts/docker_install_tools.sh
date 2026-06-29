@@ -74,13 +74,27 @@ EOF
   chmod +x /usr/local/bin/sqlmap
 }
 
+install_modern_go() {
+  if command -v go >/dev/null 2>&1; then
+    local current_version
+    current_version=$(go version | awk '{print $3}' | sed 's/go//')
+    if [[ "$current_version" > "1.22" ]]; then
+       return 0
+    fi
+  fi
+  echo "Installing modern Go (1.23.0)..."
+  wget -q https://go.dev/dl/go1.23.0.linux-amd64.tar.gz
+  rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz
+  rm go1.23.0.linux-amd64.tar.gz
+  ln -sf /usr/local/go/bin/go /usr/local/bin/go
+}
+
 echo "Enabling Debian contrib/non-free for hashcat and related packages..."
 enable_contrib_nonfree
 apt-get update
 
 echo "Installing build/runtime dependencies..."
 apt-get install -y --no-install-recommends \
-  golang-go \
   perl \
   libnet-ssleay-perl \
   openssl \
@@ -90,7 +104,12 @@ apt-get install -y --no-install-recommends \
   curl \
   wget \
   ca-certificates \
-  unzip
+  unzip \
+  gcc \
+  make \
+  libc6-dev
+
+install_modern_go
 
 APT_TOOLS=(
   nmap
