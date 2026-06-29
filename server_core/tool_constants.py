@@ -5,10 +5,10 @@ BUILT_IN_TOOLS = ["jwt-analyzer", "api-schema-analyzer", "graphql-scanner",
                   "technology-detection", "burpsuite"]
 
 # Tools that require dpkg check (Debian-based systems)
-REQUIRE_DPKG_CHECK = ["hashcat-utils", "sleuthkit", "impacket-scripts"]
+REQUIRE_DPKG_CHECK = ["hashcat-utils", "sleuthkit"]
 
 # Tools that require pip check (Python packages)
-REQUIRE_PIP_CHECK = ["pwntools", "one-gadget"]
+REQUIRE_PIP_CHECK = ["pwntools", "one-gadget", "impacket", "ldapdomaindump"]
 
 # Tools that require gem check (Ruby packages)
 REQUIRE_GEM_CHECK = ["zsteg"]
@@ -21,6 +21,9 @@ BINARY_NAME_OVERRIDES = {
     "scout-suite": "scout",
     "volatility": "vol",
     "hurl": "hURL",
+    "impacket-scripts": "impacket",
+    "impacket-ad-enum": "impacket",
+    "impacket-spec": "impacket",
 }
 
 # Comprehensive list of tools categorized by functionality for health monitoring and availability checks
@@ -52,7 +55,7 @@ HEALTH_TOOL_CATEGORIES = {
                  "airodump-ng", "aireplay-ng", "aircrack-ng"],
     "database": ["mysql", "sqlite3"],
     "active_directory": [
-        "impacket-scripts", "ldapdomaindump"
+        "impacket-scripts", "impacket-ad-enum", "impacket-spec", "ldapdomaindump"
     ],
     "vulnerability_intelligence": ["vulnx"],
     "fingerprint": ["whatweb"],

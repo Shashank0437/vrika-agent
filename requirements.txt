@@ -2,3 +2,5 @@
 reportlab>=4.0.0
 openrouter>=0.9.1
 openai>=1.0.0
+impacket>=0.11.0
+ldapdomaindump>=0.9.4
