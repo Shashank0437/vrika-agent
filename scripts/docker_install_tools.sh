@@ -43,21 +43,22 @@ install_ffuf() {
     return 0
   fi
   echo "Installing ffuf via go install..."
-  export GOPATH="${GOPATH:-/root/go}"
+  export GOPATH="/root/go"
   export PATH="${PATH}:${GOPATH}/bin"
   go install github.com/ffuf/ffuf/v2@latest
   ln -sf "${GOPATH}/bin/ffuf" /usr/local/bin/ffuf
 }
 
-install_gobuster() {
-  if command -v gobuster >/dev/null 2>&1; then
+install_go_tool() {
+  local bin="$1" pkg="$2"
+  if command -v "$bin" >/dev/null 2>&1; then
     return 0
   fi
-  echo "Installing gobuster via go install..."
-  export GOPATH="${GOPATH:-/root/go}"
+  echo "Installing $bin via go install..."
+  export GOPATH="/root/go"
   export PATH="${PATH}:${GOPATH}/bin"
-  go install github.com/OJ/gobuster/v3@latest
-  ln -sf "${GOPATH}/bin/gobuster" /usr/local/bin/gobuster
+  go install "$pkg"
+  ln -sf "${GOPATH}/bin/$bin" "/usr/local/bin/$bin"
 }
 
 install_sqlmap() {
@@ -84,7 +85,12 @@ apt-get install -y --no-install-recommends \
   libnet-ssleay-perl \
   openssl \
   python3 \
-  python3-pip
+  python3-pip \
+  git \
+  curl \
+  wget \
+  ca-certificates \
+  unzip
 
 APT_TOOLS=(
   nmap
@@ -96,6 +102,12 @@ APT_TOOLS=(
   whois
   sqlmap
   gobuster
+  aircrack-ng
+  whatweb
+  wafw00f
+  dnsenum
+  fierce
+  nikto
 )
 
 for pkg in "${APT_TOOLS[@]}"; do
@@ -108,10 +120,20 @@ done
 
 install_nikto
 install_sqlmap
-install_gobuster
-install_ffuf
 
-REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois)
+# Go tools
+export GOPATH="/root/go"
+mkdir -p "$GOPATH/bin"
+export PATH="${PATH}:${GOPATH}/bin"
+
+install_go_tool ffuf github.com/ffuf/ffuf/v2@latest
+install_go_tool subfinder github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+install_go_tool amass github.com/owasp-amass/amass/v4/...@latest || echo "Failed to install amass via go, skipping"
+install_go_tool assetfinder github.com/tomnomnom/assetfinder@latest
+install_go_tool nuclei github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+install_go_tool httpx github.com/projectdiscovery/httpx/cmd/httpx@latest
+
+REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx)
 MISSING=()
 for bin in "${REQUIRED_BINS[@]}"; do
   if ! command -v "${bin}" >/dev/null 2>&1; then
