@@ -2,13 +2,13 @@
 BUILT_IN_TOOLS = ["jwt-analyzer", "api-schema-analyzer", "graphql-scanner",
                    "http-framework", "auto_install_missing_apt_tools", 
                   "analyze-target", "preview-attack-chain", "create-attack-chain", "smart-scan",
-                  "technology-detection", "burpsuite"]
+                  "technology-detection", "burpsuite", "api_fuzzer"]
 
 # Tools that require dpkg check (Debian-based systems)
 REQUIRE_DPKG_CHECK = ["hashcat-utils", "sleuthkit"]
 
 # Tools that require pip check (Python packages)
-REQUIRE_PIP_CHECK = ["pwntools", "one-gadget", "impacket", "ldapdomaindump"]
+REQUIRE_PIP_CHECK = ["pwntools", "one-gadget", "impacket", "ldapdomaindump", "schemathesis", "uro"]
 
 # Tools that require gem check (Ruby packages)
 REQUIRE_GEM_CHECK = ["zsteg"]
@@ -48,7 +48,7 @@ HEALTH_TOOL_CATEGORIES = {
                "social-analyzer", "recon-ng", "maltego", "spiderfoot",
               "whois", "bbot", "gau", "waybackurls", "waymore", "sublist3r", "assetfinder", "shuffledns", "massdns", "parsero", "dig"],
     "exploitation": ["msfconsole", "msfvenom", "searchsploit", "commix"],
-    "api": ["api-schema-analyzer", "curl", "http-framework", "qsreplace", "uro"],
+    "api": ["api-schema-analyzer", "curl", "http-framework", "qsreplace", "uro", "api_fuzzer", "schemathesis"],
     "wifi_pentest": ["kismet", "wireshark", "tshark", "tcpdump",
                  "airbase-ng", "airdecap-ng", "hcxdumptool", "hcxpcapngtool",
                  "mdk4", "eaphammer", "wifite", "bettercap", "airmon-ng", 

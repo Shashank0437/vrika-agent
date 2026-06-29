@@ -144,9 +144,11 @@ install_sqlmap
 export GOPATH="/root/go"
 mkdir -p "$GOPATH/bin"
 export PATH="${PATH}:${GOPATH}/bin"
-
+install_amass
 install_go_tool ffuf github.com/ffuf/ffuf/v2@latest
+install_go_tool qsreplace github.com/tomnomnom/qsreplace@latest
 install_go_tool subfinder github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+
 install_go_tool amass github.com/owasp-amass/amass/v4/...@latest || echo "Failed to install amass via go, skipping"
 install_go_tool assetfinder github.com/tomnomnom/assetfinder@latest
 install_go_tool nuclei github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
@@ -188,9 +190,9 @@ install_amass() {
 install_feroxbuster
 install_rustscan
 install_amass
-pip install dirsearch
+pip install dirsearch uro schemathesis
 
-REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch amass)
+REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch amass qsreplace)
 MISSING=()
 for bin in "${REQUIRED_BINS[@]}"; do
   if ! command -v "${bin}" >/dev/null 2>&1; then
