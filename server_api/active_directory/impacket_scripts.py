@@ -69,12 +69,22 @@ IMPACKET_SCRIPTS = {
     "tstool",
     "wmipersist",
     "wmiquery",
+    "wmiexec",
+    "secretsdump",
+    "rpcdump",
+    "samrdump",
+    "ifmap",
+    "opdump",
 }
 
 
 import shutil
 
 def _script_binary(script_name: str) -> str:
+    # Strip .py if provided by LLM
+    if script_name.lower().endswith(".py"):
+        script_name = script_name[:-3]
+
     # pip install impacket on modern Python sometimes omits the impacket- prefix
     prefixed = f"impacket-{script_name}"
     if shutil.which(prefixed):
@@ -245,6 +255,9 @@ def _extract_options(help_text: str):
 
 @lru_cache(maxsize=256)
 def get_impacket_script_spec(script_name: str):
+    if script_name.lower().endswith(".py"):
+        script_name = script_name[:-3]
+
     if script_name not in IMPACKET_SCRIPTS:
         raise ValueError(f"Unsupported Impacket script: {script_name}")
 
@@ -367,6 +380,9 @@ def run_impacket():
     try:
         payload = request.get_json(silent=True) or {}
         script_name = payload.get("script", "").strip()
+
+        if script_name.lower().endswith(".py"):
+            script_name = script_name[:-3]
 
         if not script_name:
             return jsonify({"error": "script parameter is required"}), 400
