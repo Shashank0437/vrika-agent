@@ -30,7 +30,7 @@ def ghidra():
         os.makedirs(project_dir, exist_ok=True)
 
         # Base Ghidra command for headless analysis
-        command = f"analyzeHeadless {project_dir} {project_name} -import {binary} -deleteProject"
+        command = f"ghidra {project_dir} {project_name} -import {binary} -deleteProject"
 
         if script_file:
             command += f" -postScript {script_file}"
