@@ -11,6 +11,7 @@ services:
       - .env
     volumes:
       - vrika_data:/app/.nyxstrike_data
+      - ./binary:/binary
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
