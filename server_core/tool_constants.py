@@ -25,6 +25,7 @@ BINARY_NAME_OVERRIDES = {
     "impacket-ad-enum": "impacket",
     "impacket-spec": "impacket",
     "ropgadget": "ROPgadget",
+    "one-gadget": "one_gadget",
 }
 
 # Comprehensive list of tools categorized by functionality for health monitoring and availability checks
