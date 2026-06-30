@@ -942,7 +942,7 @@ TOOLS: Dict[str, dict] = {
         "endpoint": "/api/tools/radare2",
         "method": "POST",
         "category": "binary",
-        "params": {"file": {"required": True}},
+        "params": {"binary": {"required": True}},
         "optional": {"commands": "", "additional_args": ""},
         "effectiveness": 0.88,
     },
