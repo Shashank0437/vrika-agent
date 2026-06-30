@@ -38,12 +38,15 @@ def radare2():
             
             # Using -i runs the script before the prompt, -c runs a command. 
             # We want to run the script and then quit, so we append the quit command.
-            command = f"r2 -q -i {temp_script} {binary}"
+            command = f"r2 -q -i {temp_script} "
+            if additional_args:
+                command += f"{additional_args} "
+            command += f"{binary}"
         else:
-            command = f"r2 -q {binary}"
-
-        if additional_args:
-            command += f" {additional_args}"
+            command = f"r2 -q "
+            if additional_args:
+                command += f"{additional_args} "
+            command += f"{binary}"
 
         logger.info(f"🔧 Starting Radare2 analysis: {binary}")
         result = execute_command(command)
