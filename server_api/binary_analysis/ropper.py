@@ -26,14 +26,8 @@ def ropper():
 
         command = f"ropper --file {binary}"
 
-        if gadget_type == "rop":
-            command += " --rop"
-        elif gadget_type == "jop":
-            command += " --jop"
-        elif gadget_type == "sys":
-            command += " --sys"
-        elif gadget_type == "all":
-            command += " --all"
+        if gadget_type in ["rop", "jop", "sys", "all"]:
+            command += f" --type {gadget_type}"
 
         if quality > 1:
             command += f" --quality {quality}"
