@@ -36,7 +36,9 @@ def ghidra():
             command += f" -postScript {script_file}"
 
         if output_format == "xml":
-            command += f" -postScript ExportXml.java {project_dir}/analysis.xml"
+            # In newer Ghidra versions, ExportProgramScript.java replaces ExportXml.java
+            # The script takes 2 arguments: output path and format (xml)
+            command += f" -postScript ExportProgramScript.java {project_dir}/analysis.xml -xml"
 
         if additional_args:
             command += f" {additional_args}"
