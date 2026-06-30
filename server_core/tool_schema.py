@@ -28,6 +28,11 @@ _PARAM_DESCRIPTION_OVERRIDES: Dict[tuple[str, str], str] = {
     ),
     ("masscan", "target"): "Hostname, IP, CIDR, or URL (URL normalized to host)",
     ("rustscan", "target"): "Hostname, IP, or URL (URL normalized to host)",
+    ("radare2", "commands"): "Semicolon-separated list of r2 commands to execute (e.g., 'aaa; afl; pdf @ main'). CRITICAL for meaningful output.",
+    ("radare2", "additional_args"): "Additional radare2 CLI flags (e.g., '-e bin.relocs.apply=true').",
+    ("ropper", "additional_args"): "Additional ropper CLI flags.",
+    ("ropper", "search"): "Specific gadget instruction sequence to search for (e.g., 'pop rdi; ret').",
+    ("ropper", "architecture"): "Target architecture (e.g., 'x86', 'x86_64').",
 }
 
 
