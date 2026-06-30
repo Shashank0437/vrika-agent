@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 api_binary_debug_radare2_bp = Blueprint("api_binary_debug_radare2", __name__)
 
 
+import uuid
+
 @api_binary_debug_radare2_bp.route("/api/tools/radare2", methods=["POST"])
 def radare2():
     """Execute Radare2 for binary analysis and reverse engineering with enhanced logging"""
@@ -24,11 +26,19 @@ def radare2():
                 "error": "Binary parameter is required"
             }), 400
 
+        temp_script = ""
         if commands:
-            temp_script = "/tmp/r2_commands.txt"
+            # Use unique filename to avoid race conditions and ensure it exists when r2 is called
+            temp_script = f"/tmp/r2_commands_{uuid.uuid4().hex[:8]}.txt"
+            
+            # r2 scripts should have commands separated by newlines, not just semicolons if passed via file
+            formatted_commands = commands.replace(";", "\n")
             with open(temp_script, "w") as f:
-                f.write(commands)
-            command = f"r2 -i {temp_script} -q {binary}"
+                f.write(formatted_commands + "\n")
+            
+            # Using -i runs the script before the prompt, -c runs a command. 
+            # We want to run the script and then quit, so we append the quit command.
+            command = f"r2 -q -i {temp_script} {binary}"
         else:
             command = f"r2 -q {binary}"
 
@@ -38,9 +48,9 @@ def radare2():
         logger.info(f"🔧 Starting Radare2 analysis: {binary}")
         result = execute_command(command)
 
-        if commands and os.path.exists("/tmp/r2_commands.txt"):
+        if temp_script and os.path.exists(temp_script):
             try:
-                os.remove("/tmp/r2_commands.txt")
+                os.remove(temp_script)
             except OSError:
                 pass
 
