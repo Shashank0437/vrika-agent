@@ -18,7 +18,7 @@ WORKDIR /app
 # 1. Install System Build Dependencies & Modern Go
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git ca-certificates wget unzip gcc make libc6-dev perl libnet-ssleay-perl openssl \
-    ruby-full pkg-config patch elfutils patchelf default-jre-headless \
+    ruby-full pkg-config patch elfutils patchelf default-jre-headless liblzma-dev \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
       wget -q https://go.dev/dl/go1.23.0.linux-amd64.tar.gz \
       && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz \
