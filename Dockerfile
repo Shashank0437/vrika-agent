@@ -74,6 +74,11 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && unzip -q ghidra_11.1.2_PUBLIC_20240709.zip -d /opt/ \
     && ln -sf /opt/ghidra_11.1.2_PUBLIC/support/analyzeHeadless /usr/local/bin/ghidra \
     && rm -f ghidra_*.zip; \
+    # ZAP
+    wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.17.0/ZAP_2.17.0_Linux.tar.gz -O /tmp/zap.tar.gz \
+    && tar -xzf /tmp/zap.tar.gz -C /opt/ \
+    && rm /tmp/zap.tar.gz \
+    && ln -s /opt/ZAP_2.17.0/zap.sh /usr/local/bin/zaproxy; \
     fi
 
 

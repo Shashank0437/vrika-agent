@@ -110,6 +110,17 @@ install_amass() {
   rm -rf amass_Linux_amd64*
 }
 
+install_zaproxy() {
+  if command -v zaproxy >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Installing OWASP ZAP 2.17.0..."
+  wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.17.0/ZAP_2.17.0_Linux.tar.gz -O /tmp/zap.tar.gz
+  tar -xzf /tmp/zap.tar.gz -C /opt/
+  rm /tmp/zap.tar.gz
+  ln -sf /opt/ZAP_2.17.0/zap.sh /usr/local/bin/zaproxy
+}
+
 install_wordlists() {
   echo "Downloading standard wordlists..."
   mkdir -p /usr/share/wordlists/api /usr/share/wordlists/dirb
@@ -151,7 +162,8 @@ apt-get install -y --no-install-recommends \
   unzip \
   gcc \
   make \
-  libc6-dev
+  libc6-dev \
+  default-jre-headless
 
 install_modern_go
 
@@ -200,13 +212,14 @@ install_go_tool qsreplace github.com/tomnomnom/qsreplace@latest
 install_feroxbuster
 install_rustscan
 install_amass
+install_zaproxy
 
 # Python tools
 pip install dirsearch uro schemathesis
 
 install_wordlists
 
-REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch amass qsreplace)
+REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch amass qsreplace zaproxy)
 MISSING=()
 for bin in "${REQUIRED_BINS[@]}"; do
   if ! command -v "${bin}" >/dev/null 2>&1; then
