@@ -11,14 +11,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     VRIKA_PORT=8888 \
     REDIS_URL=redis://host.docker.internal:6379/0 \
     GOPATH=/root/go \
-    PATH="/usr/local/bin:/usr/local/go/bin:/root/go/bin:${PATH}"
+    PATH="/usr/local/bin:/usr/local/go/bin:/root/go/bin:/root/.cargo/bin:${PATH}"
 
 WORKDIR /app
 
 # 1. Install System Build Dependencies & Modern Go
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git ca-certificates wget unzip gcc make libc6-dev perl libnet-ssleay-perl openssl \
-    cargo ruby-full pkg-config patch elfutils patchelf default-jre-headless \
+    ruby-full pkg-config patch elfutils patchelf default-jre-headless \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
       wget -q https://go.dev/dl/go1.23.0.linux-amd64.tar.gz \
       && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz \
@@ -64,9 +64,11 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     git clone --depth 1 https://github.com/niklasb/libc-database.git /opt/libc-database; \
     # One-gadget (Ruby)
     gem install one_gadget; \
-    # Pwninit (Rust/Cargo)
-    cargo install pwninit; \
-    ln -sf /root/.cargo/bin/pwninit /usr/local/bin/pwninit; \
+    # Pwninit (Rust/Cargo) via Rustup
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && export PATH="/root/.cargo/bin:${PATH}" \
+    && cargo install pwninit \
+    && ln -sf /root/.cargo/bin/pwninit /usr/local/bin/pwninit; \
     # Ghidra
     wget -q https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.1.2_build/ghidra_11.1.2_PUBLIC_20240709.zip \
     && unzip -q ghidra_11.1.2_PUBLIC_20240709.zip -d /opt/ \
