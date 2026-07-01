@@ -137,6 +137,7 @@ export const INSTALL_HINTS: Record<string, string> = {
   gospider:          'sudo apt install gospider',
   dig:               'sudo apt install bind9-dnsutils',
   burpsuite:         'Simulated built-in tool, no installation required',
+  zaproxy:           'Simulated built-in tool, no installation required',
 
 }
 
