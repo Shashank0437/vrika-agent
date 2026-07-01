@@ -1,8 +1,6 @@
 from flask import Blueprint, request, jsonify
 import logging
 from server_core.command_executor import execute_command
-from server_api.web_scan.burpsuite import burpsuite_alternative
-from server_core.tool_run_context import current_stream_run_id
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +56,3 @@ def zap():
         return jsonify({
             "error": f"Server error: {str(e)}"
         }), 500
-
-
-@api_web_scan_zap_bp.route("/api/tools/zaproxy-alternative", methods=["POST"])
-def zaproxy_alternative():
-    """Execute OWASP ZAP Alternative (simulated web scanner)"""
-    logger.info(f"🔄 Routing ZAP Alternative to Burp Alternative logic")
-    # For now, reuse the same comprehensive scanner logic since both are web vulnerability scanners
-    return burpsuite_alternative()
