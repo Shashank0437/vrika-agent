@@ -91,6 +91,7 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && go install github.com/projectdiscovery/katana/cmd/katana@latest \
     && go install github.com/tomnomnom/assetfinder@latest \
     && go install github.com/tomnomnom/qsreplace@latest \
+    && go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest \
     && rm -rf /root/go/pkg; \
     fi
 
