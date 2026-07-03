@@ -119,26 +119,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -sf "http://127.0.0.1:${VRIKA_PORT}/health" || exit 1
 
 CMD ["python3", "nyxstrike_server.py"]
-ectdiscovery/interactsh/cmd/interactsh-client@latest \
-    && rm -rf /root/go/pkg; \
-    fi
-
-# 5. Install Python Dependencies & Python Tools
-COPY dependencies/requirements.txt dependencies/pip_constraints.txt ./
-COPY requirements.txt ./requirements-root.txt
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt -c pip_constraints.txt \
-    && pip install --no-cache-dir -r requirements-root.txt -c pip_constraints.txt \
-    && if [ "$INSTALL_TOOLS" = "1" ]; then \
-      pip install --no-cache-dir dirsearch uro schemathesis pwntools ropper ROPGadget angr arjun wfuzz git+https://github.com/devanshbatham/ParamSpider; \
-    fi
-
-# 6. Copy Application Source
-COPY . .
-RUN mkdir -p .nyxstrike_data/config
-
-EXPOSE 8888
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -sf "http://127.0.0.1:${VRIKA_PORT}/health" || exit 1
-
-CMD ["python3", "nyxstrike_server.py"]
