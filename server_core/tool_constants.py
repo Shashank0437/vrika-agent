@@ -26,6 +26,7 @@ BINARY_NAME_OVERRIDES = {
     "impacket-spec": "impacket",
     "ropgadget": "ROPgadget",
     "one-gadget": "one_gadget",
+    "interactsh": "interactsh-client",
 }
 
 # Comprehensive list of tools categorized by functionality for health monitoring and availability checks
@@ -36,7 +37,7 @@ HEALTH_TOOL_CATEGORIES = {
     "web_recon": ["ffuf", "feroxbuster", "dirsearch", "dotdotpwn", "xsser", "wfuzz",
                       "arjun", "paramspider", "x8", "jaeles", "dalfox",
                      "httpx", "wafw00f", "burpsuite", "katana", "hakrawler", "gospider", "wpscan", "joomscan", "testssl"],
-    "web_vuln": ["nuclei", "graphql-scanner", "jwt-analyzer", "zaproxy"],
+    "web_vuln": ["nuclei", "graphql-scanner", "jwt-analyzer", "zaproxy", "interactsh"],
     "brute_force": ["medusa", "patator", "hashid", "ophcrack", "hashcat-utils"],
     "binary": ["gdb", "radare2", "binwalk", "ROPgadget", "checksec", "objdump",
                "ghidra", "pwntools", "one-gadget", "ropper", "angr", "libc-database", "pwninit"],
