@@ -27,6 +27,7 @@ BINARY_NAME_OVERRIDES = {
     "ropgadget": "ROPgadget",
     "one-gadget": "one_gadget",
     "interactsh": "interactsh-client",
+    "testssl": "testssl.sh",
 }
 
 # Comprehensive list of tools categorized by functionality for health monitoring and availability checks
