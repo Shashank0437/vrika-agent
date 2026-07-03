@@ -19,6 +19,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git ca-certificates wget unzip gcc make libc6-dev perl libnet-ssleay-perl openssl \
     ruby-full pkg-config patch elfutils patchelf default-jre-headless liblzma-dev \
+    ruby-dev xz-utils python3-setuptools bsdmainutils procps libcurl4-nss-dev libssl-dev \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
       wget -q https://go.dev/dl/go1.23.0.linux-amd64.tar.gz \
       && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz \
@@ -92,6 +93,10 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && go install github.com/tomnomnom/assetfinder@latest \
     && go install github.com/tomnomnom/qsreplace@latest \
     && go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest \
+    && go install github.com/hahwul/dalfox/v2@latest \
+    && go install github.com/jaeles-project/gospider@latest \
+    && go install github.com/hakluke/hakrawler@latest \
+    && go install github.com/jaeles-project/jaeles@latest \
     && rm -rf /root/go/pkg; \
     fi
 
@@ -102,7 +107,30 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt -c pip_constraints.txt \
     && pip install --no-cache-dir -r requirements-root.txt -c pip_constraints.txt \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
-      pip install --no-cache-dir dirsearch uro schemathesis pwntools ropper ROPGadget angr; \
+      pip install --no-cache-dir dirsearch uro schemathesis pwntools ropper ROPGadget angr arjun wfuzz git+https://github.com/devanshbatham/ParamSpider; \
+    fi
+
+# 6. Copy Application Source
+COPY . .
+RUN mkdir -p .nyxstrike_data/config
+
+EXPOSE 8888
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -sf "http://127.0.0.1:${VRIKA_PORT}/health" || exit 1
+
+CMD ["python3", "nyxstrike_server.py"]
+ectdiscovery/interactsh/cmd/interactsh-client@latest \
+    && rm -rf /root/go/pkg; \
+    fi
+
+# 5. Install Python Dependencies & Python Tools
+COPY dependencies/requirements.txt dependencies/pip_constraints.txt ./
+COPY requirements.txt ./requirements-root.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt -c pip_constraints.txt \
+    && pip install --no-cache-dir -r requirements-root.txt -c pip_constraints.txt \
+    && if [ "$INSTALL_TOOLS" = "1" ]; then \
+      pip install --no-cache-dir dirsearch uro schemathesis pwntools ropper ROPGadget angr arjun wfuzz git+https://github.com/devanshbatham/ParamSpider; \
     fi
 
 # 6. Copy Application Source
