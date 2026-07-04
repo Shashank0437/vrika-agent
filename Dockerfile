@@ -104,6 +104,34 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && ln -sf /opt/testssl.sh/testssl.sh /usr/local/bin/testssl.sh \
     && ln -sf /usr/local/bin/testssl.sh /usr/local/bin/testssl \
     && chmod +x /usr/local/bin/testssl.sh; \
+    # parsero
+    git clone --depth 1 https://github.com/jnqpblr/parsero.git /opt/parsero \
+    && ln -sf /opt/parsero/parsero /usr/local/bin/parsero \
+    && chmod +x /opt/parsero/parsero; \
+    # massdns
+    git clone --depth 1 https://github.com/blechschmidt/massdns.git /opt/massdns \
+    && cd /opt/massdns && make && cp bin/massdns /usr/local/bin/ && cd /app; \
+    # spiderfoot
+    wget -q https://github.com/smicallef/spiderfoot/archive/v4.0.tar.gz \
+    && tar zxvf v4.0.tar.gz -C /opt \
+    && mv /opt/spiderfoot-4.0 /opt/spiderfoot \
+    && ln -sf /opt/spiderfoot/sf.py /usr/local/bin/spiderfoot \
+    && rm -f v4.0.tar.gz; \
+    # recon-ng
+    git clone --depth 1 https://github.com/lanmaster53/recon-ng.git /opt/recon-ng \
+    && ln -sf /opt/recon-ng/recon-ng /usr/local/bin/recon-ng \
+    && pip install -r /opt/recon-ng/REQUIREMENTS; \
+    # sublist3r
+    git clone --depth 1 https://github.com/aboul3la/Sublist3r.git /opt/sublist3r \
+    && ln -sf /opt/sublist3r/sublist3r.py /usr/local/bin/sublist3r \
+    && pip install -r /opt/sublist3r/requirements.txt; \
+    # theHarvester
+    git clone --depth 1 https://github.com/laramies/theHarvester.git /opt/theHarvester \
+    && cd /opt/theHarvester && pip install -r requirements.txt && python3 setup.py install && cd /app \
+    && ln -sf /usr/local/bin/theHarvester /usr/local/bin/theharvester; \
+    # maltego
+    echo '#!/bin/bash\necho "Maltego CLI not directly supported in Docker"' > /usr/local/bin/maltego \
+    && chmod +x /usr/local/bin/maltego; \
     fi
 
 
@@ -120,6 +148,9 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && go install github.com/hahwul/dalfox/v2@latest \
     && go install github.com/jaeles-project/gospider@latest \
     && go install github.com/hakluke/hakrawler@latest \
+    && go install github.com/lc/gau/v2/cmd/gau@latest \
+    && go install github.com/projectdiscovery/shuffledns/cmd/shuffledns@latest \
+    && go install github.com/tomnomnom/waybackurls@latest \
     && go install github.com/jaeles-project/jaeles@latest \
     && rm -rf /root/go/pkg; \
     fi
@@ -131,7 +162,7 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt -c pip_constraints.txt \
     && pip install --no-cache-dir -r requirements-root.txt -c pip_constraints.txt \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
-      pip install --no-cache-dir dirsearch uro schemathesis pwntools ropper ROPGadget angr arjun git+https://github.com/devanshbatham/ParamSpider; \
+      pip install --no-cache-dir dirsearch uro schemathesis pwntools ropper ROPGadget angr arjun git+https://github.com/devanshbatham/ParamSpider bbot waymore sherlock-project; \
     fi
 
 # 6. Copy Application Source
