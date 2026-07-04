@@ -95,6 +95,10 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     git clone --depth 1 https://github.com/epsylon/xsser.git /opt/xsser \
     && ln -sf /opt/xsser/xsser /usr/local/bin/xsser \
     && chmod +x /opt/xsser/xsser; \
+    # VulnX
+    git clone --depth 1 https://github.com/anouarbensaad/vulnx.git /opt/vulnx \
+    && echo '#!/bin/bash\npython3 /opt/vulnx/vulnx.py "$@"' > /usr/local/bin/vulnx \
+    && chmod +x /usr/local/bin/vulnx; \
     # testssl.sh
     git clone --depth 1 https://github.com/drwetter/testssl.sh.git /opt/testssl.sh \
     && ln -sf /opt/testssl.sh/testssl.sh /usr/local/bin/testssl.sh \
