@@ -68,8 +68,9 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     # Pwninit (Rust/Cargo) via Rustup
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
     && export PATH="/root/.cargo/bin:${PATH}" \
-    && cargo install pwninit \
-    && ln -sf /root/.cargo/bin/pwninit /usr/local/bin/pwninit; \
+    && cargo install pwninit x8 \
+    && ln -sf /root/.cargo/bin/pwninit /usr/local/bin/pwninit \
+    && ln -sf /root/.cargo/bin/x8 /usr/local/bin/x8; \
     # Ghidra
     wget -q https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.1.2_build/ghidra_11.1.2_PUBLIC_20240709.zip \
     && unzip -q ghidra_11.1.2_PUBLIC_20240709.zip -d /opt/ \
@@ -80,6 +81,25 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && tar -xzf /tmp/zap.tar.gz -C /opt/ \
     && rm /tmp/zap.tar.gz \
     && ln -s /opt/ZAP_2.17.0/zap.sh /usr/local/bin/zaproxy; \
+    # WPScan
+    gem install wpscan; \
+    # JoomScan
+    git clone --depth 1 https://github.com/rezasp/joomscan.git /opt/joomscan \
+    && ln -sf /opt/joomscan/joomscan.pl /usr/local/bin/joomscan \
+    && chmod +x /opt/joomscan/joomscan.pl; \
+    # DotDotPwn
+    git clone --depth 1 https://github.com/wireghoul/dotdotpwn.git /opt/dotdotpwn \
+    && ln -sf /opt/dotdotpwn/dotdotpwn.pl /usr/local/bin/dotdotpwn \
+    && chmod +x /opt/dotdotpwn/dotdotpwn.pl; \
+    # XSSer
+    git clone --depth 1 https://github.com/epsylon/xsser.git /opt/xsser \
+    && ln -sf /opt/xsser/xsser /usr/local/bin/xsser \
+    && chmod +x /opt/xsser/xsser; \
+    # testssl.sh
+    git clone --depth 1 https://github.com/drwetter/testssl.sh.git /opt/testssl.sh \
+    && ln -sf /opt/testssl.sh/testssl.sh /usr/local/bin/testssl.sh \
+    && ln -sf /usr/local/bin/testssl.sh /usr/local/bin/testssl \
+    && chmod +x /usr/local/bin/testssl.sh; \
     fi
 
 
