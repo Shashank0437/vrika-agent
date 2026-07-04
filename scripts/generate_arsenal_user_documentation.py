@@ -190,7 +190,7 @@ def build_tool_bundle(name: str, meta: dict) -> tuple[str, str, str]:
 def main() -> None:
     here = Path(__file__).resolve()
     repo = here.parent.parent.parent if here.parent.name == "scripts" else here.parent.parent
-    agent_root = repo / "agent"
+    agent_root = repo / "vrika-agent"
     registry_path = agent_root / "tool_registry.py"
     if registry_path.exists():
         import sys

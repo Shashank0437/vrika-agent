@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Emit agent/server_api/tools_catalog/tool_catalog_docs.json (curated per-tool narratives).
+"""Emit vrika-agent/server_api/tools_catalog/tool_catalog_docs.json (curated per-tool narratives).
 
 Summaries distill widely cited upstream manuals (RFC-style behaviour, distro man pages,
 and project-maintainer README ecosystems). Run from repo root:
@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[2]
-_AGENT = _REPO / "agent"
+_AGENT = _REPO / "vrika-agent"
 if str(_AGENT) not in sys.path:
     sys.path.insert(0, str(_AGENT))
 
@@ -27,7 +27,7 @@ def _repo_root() -> Path:
 
 
 def _load_params_help() -> dict[str, dict[str, str]]:
-    p = _repo_root() / "agent" / "server_api" / "tools_catalog" / "param_key_help.json"
+    p = _repo_root() / "vrika-agent" / "server_api" / "tools_catalog" / "param_key_help.json"
     raw = json.loads(p.read_text(encoding="utf-8"))
     return {k: {"help": str(v.get("help") or "").strip()} for k, v in raw.items()}
 
@@ -831,12 +831,12 @@ def assemble_tool_bundle(name: str, meta: dict[str, object], pk: dict[str, dict[
 
 def main() -> None:
     repo = _repo_root()
-    sys.path.insert(0, str(repo / "agent"))
+    sys.path.insert(0, str(repo / "vrika-agent"))
     import tool_registry as tr
 
     pk = _load_params_help()
     bundles = {n: assemble_tool_bundle(n, tr.TOOLS[n], pk) for n in sorted(tr.TOOLS.keys())}
-    out = repo / "agent" / "server_api" / "tools_catalog" / "tool_catalog_docs.json"
+    out = repo / "vrika-agent" / "server_api" / "tools_catalog" / "tool_catalog_docs.json"
     out.write_text(json.dumps(bundles, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"Wrote {out} ({len(bundles)} tools)")
 

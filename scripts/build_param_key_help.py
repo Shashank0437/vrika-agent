@@ -13,7 +13,7 @@ from pathlib import Path
 
 def _collect_keys() -> list[str]:
     repo = Path(__file__).resolve().parents[2]
-    sys.path.insert(0, str(repo / "agent"))
+    sys.path.insert(0, str(repo / "vrika-agent"))
     import tool_registry as tr  # noqa: E402
 
     keys: set[str] = set()
@@ -374,7 +374,7 @@ def main() -> None:
     repo = Path(__file__).resolve().parents[2]
     keys = _collect_keys()
     doc = {k: {"help": _help(k)} for k in keys}
-    out = repo / "agent" / "server_api" / "tools_catalog" / "param_key_help.json"
+    out = repo / "vrika-agent" / "server_api" / "tools_catalog" / "param_key_help.json"
     out.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     missing = [k for k in keys if not doc[k]["help"].strip()]
     assert not missing, missing

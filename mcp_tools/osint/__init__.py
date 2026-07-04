@@ -2,3 +2,6 @@ from .sherlock import *
 from .spiderfoot import *
 from .sublist3r import *
 from .parsero import *
+from .maltego import *
+from .recon_ng import *
+from .theharvester import *

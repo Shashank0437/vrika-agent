@@ -50,9 +50,6 @@
   "auth": {
     "help": "Compact credential or Authorization header string for Schemathesis/HTTP harnesses."
   },
-  "auth_key": {
-    "help": "API key/bearer for premium vulnerability intel feeds."
-  },
   "auth_mode": {
     "help": "EAPHammer soft-AP authentication profile (OPEN, WPA2-PSK, enterprise)."
   },
@@ -125,6 +122,12 @@
   "client_mac": {
     "help": "Station MAC for directed deauthentication bursts."
   },
+  "client_name": {
+    "help": "The workspace forwards `client_name` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "cms": {
+    "help": "The workspace forwards `cms` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
   "command": {
     "help": "Escaped command string for psexec/wmiexec/smbexec-style runners."
   },
@@ -143,6 +146,9 @@
   "config_file": {
     "help": "Alternate YAML for Falco, Clair, or service-specific configs."
   },
+  "content_length": {
+    "help": "The workspace forwards `content_length` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
   "cookie": {
     "help": "Session cookie string for authenticated gospider crawls."
   },
@@ -154,9 +160,6 @@
   },
   "cover_file": {
     "help": "Carrier file for Steghide embed/extract."
-  },
-  "cve_id": {
-    "help": "CVE identifier for vulnx-style intel APIs."
   },
   "data": {
     "help": "sqlmap POST body, Commix injection context, or hashpump cleartext segment."
@@ -196,6 +199,9 @@
   },
   "display_filter": {
     "help": "The workspace forwards `display_filter` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "dns": {
+    "help": "The workspace forwards `dns` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
   },
   "domain": {
     "help": "Authorised DNS apex fed to Amass/subfinder/GAU style OSINT connectors."
@@ -242,17 +248,26 @@
   "exclude_operation_id": {
     "help": "Skip risky OpenAPI operationIds. Send JSON booleans true/false (Vrika modals serialize checkbox fields)."
   },
+  "exploit": {
+    "help": "The workspace forwards `exploit` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
   "exploit_type": {
     "help": "pwntools harness mode (`local` vs `remote`)."
   },
   "extended_input": {
     "help": "Allow MassDNS extended input encodings beyond bare labels. Send JSON booleans true/false (Vrika modals serialize checkbox fields)."
   },
+  "extensions": {
+    "help": "The workspace forwards `extensions` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
   "extra_args": {
     "help": "Trailing CLI tokens after mapped arguments for niche switches."
   },
   "extra_options": {
     "help": "Leading dash-options for Impacket scripts lacking structured fields."
+  },
+  "extract": {
+    "help": "The workspace forwards `extract` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
   },
   "file": {
     "help": "Binary/firmware specimen for binwalk/strings/checksec."
@@ -281,6 +296,9 @@
   "force_wpad_auth": {
     "help": "Force captive WPAD auth flows\u2014only in isolated RF labs. Send JSON booleans true/false (Vrika modals serialize checkbox fields)."
   },
+  "form_extraction": {
+    "help": "The workspace forwards `form_extraction` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
   "format": {
     "help": "msfvenom output container (`elf`, `exe`, `raw`, `python`)."
   },
@@ -295,6 +313,12 @@
   },
   "gadget_type": {
     "help": "Ropper category (`rop`, `jop`, `sys`)."
+  },
+  "generated_by": {
+    "help": "The workspace forwards `generated_by` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "get_versions": {
+    "help": "The workspace forwards `get_versions` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
   },
   "groups": {
     "help": "The workspace forwards `groups` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
@@ -370,6 +394,9 @@
   },
   "introspection": {
     "help": "GraphQL scanners may run introspection-assisted checks. Send JSON booleans true/false (Vrika modals serialize checkbox fields)."
+  },
+  "js_crawl": {
+    "help": "The workspace forwards `js_crawl` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
   },
   "json": {
     "help": "Emit JSON-line output for ShuffleDNS-compatible tooling. Send JSON booleans true/false (Vrika modals serialize checkbox fields)."
@@ -472,6 +499,9 @@
   },
   "no_redirect": {
     "help": "Disable HTTP redirect following for deterministic responses. Send JSON booleans true/false (Vrika modals serialize checkbox fields)."
+  },
+  "no_subs": {
+    "help": "The workspace forwards `no_subs` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
   },
   "norecurse": {
     "help": "MassDNS stub mode without recursive iteration. Send JSON booleans true/false (Vrika modals serialize checkbox fields)."
@@ -584,6 +614,9 @@
   "provider": {
     "help": "Cloud vendor (`aws`, `azure`, `gcp`, `oci`)."
   },
+  "providers": {
+    "help": "The workspace forwards `providers` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
   "proxy": {
     "help": "HTTP/S proxy URL for gospider or other HTTP utilities."
   },
@@ -622,6 +655,9 @@
   },
   "record_types": {
     "help": "dig driver issues these RR types sequentially against `target`."
+  },
+  "recursive": {
+    "help": "The workspace forwards `recursive` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
   },
   "region": {
     "help": "Cloud region focus for audit connectors."
@@ -689,9 +725,6 @@
   "script_file": {
     "help": "External automation script for Ghidra/GDB post-processing."
   },
-  "search": {
-    "help": "Keyword search for vulnx when CVE id unknown."
-  },
   "search_string": {
     "help": "Mnemonic substring filter for gadget dumps."
   },
@@ -709,9 +742,6 @@
   },
   "services": {
     "help": "Service allowlist for Scout Suite / cloud modules."
-  },
-  "session_id": {
-    "help": "Server-side Vrika/NyxStrike session UUID/hash used to reload transcripts for LLM planners."
   },
   "session_name": {
     "help": "Pacu workspace label isolating Dynamo-style AWS attack state on the agent."
@@ -803,6 +833,9 @@
   "target_host": {
     "help": "Remote host for pwntools or callback harnesses."
   },
+  "target_label": {
+    "help": "The workspace forwards `target_label` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
   "target_port": {
     "help": "Remote TCP port paired with `target_host` for exploit callbacks."
   },
@@ -883,6 +916,12 @@
   },
   "wayback": {
     "help": "hakrawler can fold Wayback-derived URLs into the crawl frontier. Send JSON booleans true/false (Vrika modals serialize checkbox fields)."
+  },
+  "web_info": {
+    "help": "The workspace forwards `web_info` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
+  },
+  "web_server": {
+    "help": "The workspace forwards `web_server` in the Vrika POST body unchanged after stripping empty optional fields. The NyxStrike connector binds it to the integration listed for your catalogue slug. If executions reject the value, open the bastion-side wrapper scripts to confirm quoting, path expectations, type coercion, or privilege requirements before escalating."
   },
   "wep_key": {
     "help": "ASCII/hex WEP key for airdecap-ng decryption."
