@@ -61,12 +61,12 @@ def _validate_registry(tools: Dict[str, dict]) -> None:
 TOOLS: Dict[str, dict] = {
     # ---- Vulnerability Intelligence ----
     "vulnx": {
-        "desc": "CVE vulnerability intelligence and analysis",
+        "desc": "CMS vulnerability scanner (WordPress, Joomla, PrestaShop, Drupal)",
         "endpoint": "/api/vuln-intel/vulnx",
         "method": "POST",
-        "category": "vulnerability_intelligence",
-        "params": {},
-        "optional": {"cve_id": "", "search": "", "auth_key": ""},
+        "category": "web_vuln",
+        "params": {"target": "REQUIRED"},
+        "optional": {"cms": False, "exploit": False, "web_info": False, "dns": False},
         "effectiveness": 0.90,
     },
 
