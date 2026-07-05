@@ -66,7 +66,7 @@ HEALTH_TOOL_CATEGORIES = {
 
     "ops": ["auto_install_missing_apt_tools"],
 
-    "intelligence": ["analyze-target", "preview-attack-chain", "create-attack-chain", "smart-scan", "technology-detection"],
+    "intelligence": ["analyze-target", "smart-scan", "technology-detection"],
 
     "data_processing": ["hurl", "anew"],
 

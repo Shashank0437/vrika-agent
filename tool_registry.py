@@ -92,26 +92,6 @@ TOOLS: Dict[str, dict] = {
         "effectiveness": 0.92,
     },
 
-    "create-attack-chain": {
-        "desc": "Create an intelligent attack chain based on target profile",
-        "endpoint": "/api/intelligence/create-attack-chain",
-        "method": "POST",
-        "category": "intelligence",
-        "params": {"target": {"required": True}},
-        "optional": {"objective": "comprehensive"},
-        "effectiveness": 0.90,
-    },
-
-    "preview-attack-chain": {
-        "desc": "Preview an intelligent attack chain without persisting a session",
-        "endpoint": "/api/intelligence/preview-attack-chain",
-        "method": "POST",
-        "category": "intelligence",
-        "params": {"target": {"required": True}},
-        "optional": {"objective": "comprehensive"},
-        "effectiveness": 0.89,
-    },
-
     "smart-scan": {
         "desc": "Meta-orchestrator: internally runs multiple scanners in parallel with AI-driven selection (appears as one tool execution in chat). For separate visible executions per scanner, use discrete tools (httpx, whatweb, nuclei, …) instead.",
         "endpoint": "/api/intelligence/smart-scan",
