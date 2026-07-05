@@ -122,7 +122,15 @@ def massdns():
             command_parts.append(additional_args)
 
         if domainlist:
-            command_parts.append(domainlist)
+            import os
+            # If domainlist doesn't seem to be a file path but rather a domain or list of domains
+            if not os.path.isfile(domainlist) and not domainlist.startswith('/'):
+                temp_file = f"/tmp/massdns_input_{os.getpid()}.txt"
+                with open(temp_file, "w") as f:
+                    f.write(domainlist.replace(',', '\n') + '\n')
+                command_parts.append(temp_file)
+            else:
+                command_parts.append(domainlist)
 
         command = " ".join(command_parts)
 

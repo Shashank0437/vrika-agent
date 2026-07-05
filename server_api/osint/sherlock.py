@@ -17,7 +17,11 @@ def sherlock():
             logger.warning("🔍 Sherlock called without username")
             return jsonify({"error": "Username is required"}), 400
 
-        command = f"sherlock {username} --output sherlock_results/{username}.json --json"
+        # Create output directory if it doesn't exist
+        import os
+        os.makedirs("sherlock_results", exist_ok=True)
+        # Sherlock outputs JSON to the specified file automatically if we name it .json, or we can omit --json flag since we provide --output
+        command = f"sherlock {username} --output sherlock_results/{username}.json"
         logger.info(f"🚀 Executing Sherlock: {command}")
         result = execute_command(command)
         logger.info(f"✅ Sherlock execution completed for {username}")

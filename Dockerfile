@@ -124,7 +124,15 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     # sublist3r
     git clone --depth 1 https://github.com/aboul3la/Sublist3r.git /opt/sublist3r \
     && ln -sf /opt/sublist3r/sublist3r.py /usr/local/bin/sublist3r \
-    && pip install -r /opt/sublist3r/requirements.txt; \
+    && pip install -r /opt/sublist3r/requirements.txt \
+    && sed -i 's/re.compile("<input type='"'"'hidden'"'"' name='"'"'csrfmiddlewaretoken'"'"' value='"'"'(.*?)'"'"' \/>", re.S)/re.compile("<input type=\\x27hidden\\x27 name=\\x27csrfmiddlewaretoken\\x27 value=\\x27(.*?)\\x27 \\/>", re.S)\\n        tokens = csrf_regex.findall(resp)\\n        if tokens:\\n            return tokens[0]\\n        return \\"\\"/g' /opt/sublist3r/sublist3r.py \
+    && sed -i 's/token = csrf_regex.findall(resp)\[0\]//g' /opt/sublist3r/sublist3r.py \
+    && sed -i 's/return token//g' /opt/sublist3r/sublist3r.py \
+    && sed -i 's/re.compile(/"/re.compile(r"/g' /opt/sublist3r/sublist3r.py \
+    && sed -i "s/re.compile('/re.compile(r'/g" /opt/sublist3r/sublist3r.py \
+    && sed -i "s/re.sub('/re.sub(r'/g" /opt/sublist3r/sublist3r.py \
+    && sed -i 's/re.sub("/re.sub(r"/g' /opt/sublist3r/sublist3r.py \
+    && sed -i 's/re.compile("/re.compile(r"/g' /opt/sublist3r/subbrute/subbrute.py; \
     # theHarvester
     git clone --depth 1 https://github.com/laramies/theHarvester.git /opt/theHarvester \
     && pip install /opt/theHarvester \
