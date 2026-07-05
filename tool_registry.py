@@ -778,7 +778,7 @@ TOOLS: Dict[str, dict] = {
     },
     "sublist3r": {
         "desc": "Subdomain enumeration using OSINT sources",
-        "endpoint": "/api/osint/tools/sublist3r",
+        "endpoint": "/api/tools/osint/sublist3r",
         "method": "POST",
         "category": "osint",
         "params": {"domain": {"required": True}},
@@ -1550,7 +1550,7 @@ TOOLS: Dict[str, dict] = {
     # },
     "recon-ng": {
         "desc": "Web reconnaissance framework with modular architecture",
-        "endpoint": "/api/tools/recon_ng",
+        "endpoint": "/api/tools/osint/recon_ng",
         "method": "POST",
         "category": "osint",
         "params": {"domain": {"required": True}},
@@ -1559,7 +1559,7 @@ TOOLS: Dict[str, dict] = {
     },
     "maltego": {
         "desc": "Link analysis and data mining for OSINT investigations",
-        "endpoint": "/api/tools/maltego",
+        "endpoint": "/api/tools/osint/maltego",
         "method": "POST",
         "category": "osint",
         "params": {"target": {"required": True}},
