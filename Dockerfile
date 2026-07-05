@@ -105,7 +105,7 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && ln -sf /usr/local/bin/testssl.sh /usr/local/bin/testssl \
     && chmod +x /usr/local/bin/testssl.sh; \
     # parsero
-    git clone --depth 1 https://github.com/jnqpblr/parsero.git /opt/parsero \
+    git clone --depth 1 https://github.com/behindthefirewalls/Parsero.git /opt/parsero \
     && ln -sf /opt/parsero/parsero /usr/local/bin/parsero \
     && chmod +x /opt/parsero/parsero; \
     # massdns
@@ -127,7 +127,7 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && pip install -r /opt/sublist3r/requirements.txt; \
     # theHarvester
     git clone --depth 1 https://github.com/laramies/theHarvester.git /opt/theHarvester \
-    && cd /opt/theHarvester && pip install -r requirements.txt && python3 setup.py install && cd /app \
+    && pip install /opt/theHarvester \
     && ln -sf /usr/local/bin/theHarvester /usr/local/bin/theharvester; \
     # maltego
     echo '#!/bin/bash\necho "Maltego CLI not directly supported in Docker"' > /usr/local/bin/maltego \
