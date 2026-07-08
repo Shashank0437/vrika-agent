@@ -685,9 +685,8 @@ TOOLS: Dict[str, dict] = {
         "endpoint": "/api/tools/shuffledns",
         "method": "POST",
         "category": "osint",
-        "params": {},
+        "params": {"domain": {"required": True}},
         "optional": {
-            "domain": "",
             "domains": [],
             "auto_domain": False,
             "list": "",
