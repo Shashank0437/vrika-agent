@@ -97,6 +97,12 @@ def massdns():
             command_parts.extend(["--rcvbuf", str(rcvbuf)])
         if retry:
             command_parts.extend(["--retry", str(retry)])
+        if not resolvers:
+            import os
+            resolvers = f"/tmp/massdns_resolvers_{os.getpid()}.txt"
+            with open(resolvers, "w") as f:
+                f.write("8.8.8.8\n1.1.1.1\n")
+        
         if resolvers:
             command_parts.extend(["-r", resolvers])
         if root:

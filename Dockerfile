@@ -116,7 +116,10 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && tar zxvf v4.0.tar.gz -C /opt \
     && mv /opt/spiderfoot-4.0 /opt/spiderfoot \
     && ln -sf /opt/spiderfoot/sf.py /usr/local/bin/spiderfoot \
-    && rm -f v4.0.tar.gz; \
+    && rm -f v4.0.tar.gz \
+    && sed -i "s/lxml.*//g" /opt/spiderfoot/requirements.txt \
+    && sed -i "s/pyyaml.*//g" /opt/spiderfoot/requirements.txt \
+    && pip install -r /opt/spiderfoot/requirements.txt lxml pyyaml cherrypy cherrypy-cors netaddr cryptography pyOpenSSL networkx; \
     # recon-ng
     git clone --depth 1 https://github.com/lanmaster53/recon-ng.git /opt/recon-ng \
     && ln -sf /opt/recon-ng/recon-ng /usr/local/bin/recon-ng \
