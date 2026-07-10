@@ -145,6 +145,7 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     # maltego
     echo '#!/bin/bash\necho "Maltego CLI not directly supported in Docker"' > /usr/local/bin/maltego \
     && chmod +x /usr/local/bin/maltego; \
+    rm -rf /tmp/* /var/tmp/*; \
     fi
 
 # 3.4 Install Rust Cargo Tools
@@ -185,7 +186,8 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements-root.txt -c pip_constraints.txt \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
       pip install --no-cache-dir dirsearch uro schemathesis pwntools ropper ROPGadget angr arjun git+https://github.com/devanshbatham/ParamSpider bbot waymore sherlock-project; \
-    fi
+    fi \
+    && rm -rf /root/.cache/pip /tmp/* /var/tmp/*
 
 # 6. Copy Application Source
 COPY . .
