@@ -142,6 +142,16 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     git clone --depth 1 https://github.com/laramies/theHarvester.git /opt/theHarvester \
     && pip install /opt/theHarvester \
     && ln -sf /usr/local/bin/theHarvester /usr/local/bin/theharvester; \
+    # enum4linux
+    git clone --depth 1 https://github.com/CiscoCXSecurity/enum4linux.git /opt/enum4linux \
+    && ln -sf /opt/enum4linux/enum4linux.pl /usr/local/bin/enum4linux \
+    && chmod +x /opt/enum4linux/enum4linux.pl; \
+    # responder
+    git clone --depth 1 https://github.com/SpiderLabs/Responder.git /opt/responder \
+    && ln -sf /opt/responder/Responder.py /usr/local/bin/responder \
+    && chmod +x /opt/responder/Responder.py; \
+    # evil-winrm
+    gem install evil-winrm; \
     # maltego
     echo '#!/bin/bash\necho "Maltego CLI not directly supported in Docker"' > /usr/local/bin/maltego \
     && chmod +x /usr/local/bin/maltego; \
