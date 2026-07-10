@@ -37,7 +37,7 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && rm -rf /var/lib/apt/lists/*; \
     fi
 
-# 3. Install Special Tools (Binaries/GitHub)
+# 3.1 Install Web Scanners & Payloads
 RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     # Nikto from GitHub
     git clone --depth 1 https://github.com/sullo/nikto.git /opt/nikto \
@@ -46,36 +46,9 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     # SQLmap from GitHub
     git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git /opt/sqlmap \
     && ln -sf /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap; \
-    # Radare2 from source
-    git clone --depth 1 https://github.com/radareorg/radare2.git /opt/radare2 \
-    && cd /opt/radare2 && sys/install.sh && cd /app; \
-    # Checksec
-    git clone --depth 1 https://github.com/slimm609/checksec.sh.git /opt/checksec \
-    && ln -sf /opt/checksec/checksec /usr/local/bin/checksec; \
     # Feroxbuster
     wget -q https://github.com/epi052/feroxbuster/releases/latest/download/feroxbuster_amd64.deb.zip \
     && unzip -q feroxbuster_amd64.deb.zip && dpkg -i feroxbuster_*.deb && rm -f feroxbuster*; \
-    # Rustscan
-    wget -q https://github.com/RustScan/RustScan/releases/download/2.3.0/rustscan_2.3.0_amd64.deb \
-    && dpkg -i rustscan_2.3.0_amd64.deb && rm -f rustscan*; \
-    # Amass
-    wget -q https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_linux_amd64.zip \
-    && unzip -q amass_linux_amd64.zip && mv amass_Linux_amd64/amass /usr/local/bin/ && rm -rf amass_Linux_amd64*; \
-    # Libc Database
-    git clone --depth 1 https://github.com/niklasb/libc-database.git /opt/libc-database; \
-    # One-gadget (Ruby)
-    gem install one_gadget; \
-    # Pwninit (Rust/Cargo) via Rustup
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
-    && export PATH="/root/.cargo/bin:${PATH}" \
-    && cargo install pwninit x8 \
-    && ln -sf /root/.cargo/bin/pwninit /usr/local/bin/pwninit \
-    && ln -sf /root/.cargo/bin/x8 /usr/local/bin/x8; \
-    # Ghidra
-    wget -q https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.1.2_build/ghidra_11.1.2_PUBLIC_20240709.zip \
-    && unzip -q ghidra_11.1.2_PUBLIC_20240709.zip -d /opt/ \
-    && ln -sf /opt/ghidra_11.1.2_PUBLIC/support/analyzeHeadless /usr/local/bin/ghidra \
-    && rm -f ghidra_*.zip; \
     # ZAP
     wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.17.0/ZAP_2.17.0_Linux.tar.gz -O /tmp/zap.tar.gz \
     && tar -xzf /tmp/zap.tar.gz -C /opt/ \
@@ -104,6 +77,35 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && ln -sf /opt/testssl.sh/testssl.sh /usr/local/bin/testssl.sh \
     && ln -sf /usr/local/bin/testssl.sh /usr/local/bin/testssl \
     && chmod +x /usr/local/bin/testssl.sh; \
+    fi
+
+# 3.2 Install Reversing & Binary Analysis Tools
+RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
+    # Radare2 from source
+    git clone --depth 1 https://github.com/radareorg/radare2.git /opt/radare2 \
+    && cd /opt/radare2 && sys/install.sh && cd /app; \
+    # Checksec
+    git clone --depth 1 https://github.com/slimm609/checksec.sh.git /opt/checksec \
+    && ln -sf /opt/checksec/checksec /usr/local/bin/checksec; \
+    # Libc Database
+    git clone --depth 1 https://github.com/niklasb/libc-database.git /opt/libc-database; \
+    # One-gadget (Ruby)
+    gem install one_gadget; \
+    # Ghidra
+    wget -q https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.1.2_build/ghidra_11.1.2_PUBLIC_20240709.zip \
+    && unzip -q ghidra_11.1.2_PUBLIC_20240709.zip -d /opt/ \
+    && ln -sf /opt/ghidra_11.1.2_PUBLIC/support/analyzeHeadless /usr/local/bin/ghidra \
+    && rm -f ghidra_*.zip; \
+    fi
+
+# 3.3 Install Recon, OSINT & DNS Tools
+RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
+    # Rustscan
+    wget -q https://github.com/RustScan/RustScan/releases/download/2.3.0/rustscan_2.3.0_amd64.deb \
+    && dpkg -i rustscan_2.3.0_amd64.deb && rm -f rustscan*; \
+    # Amass
+    wget -q https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_linux_amd64.zip \
+    && unzip -q amass_linux_amd64.zip && mv amass_Linux_amd64/amass /usr/local/bin/ && rm -rf amass_Linux_amd64*; \
     # parsero
     git clone --depth 1 https://github.com/behindthefirewalls/Parsero.git /opt/parsero \
     && ln -sf /opt/parsero/parsero.py /usr/local/bin/parsero \
@@ -145,6 +147,15 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && chmod +x /usr/local/bin/maltego; \
     fi
 
+# 3.4 Install Rust Cargo Tools
+RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
+    # Pwninit (Rust/Cargo) via Rustup
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && export PATH="/root/.cargo/bin:${PATH}" \
+    && cargo install pwninit x8 \
+    && ln -sf /root/.cargo/bin/pwninit /usr/local/bin/pwninit \
+    && ln -sf /root/.cargo/bin/x8 /usr/local/bin/x8; \
+    fi
 
 # 4. Install Go-based Tools
 RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
