@@ -106,8 +106,8 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && chmod +x /usr/local/bin/testssl.sh; \
     # parsero
     git clone --depth 1 https://github.com/behindthefirewalls/Parsero.git /opt/parsero \
-    && ln -sf /opt/parsero/parsero /usr/local/bin/parsero \
-    && chmod +x /opt/parsero/parsero; \
+    && ln -sf /opt/parsero/parsero.py /usr/local/bin/parsero \
+    && chmod +x /opt/parsero/parsero.py; \
     # massdns
     git clone --depth 1 https://github.com/blechschmidt/massdns.git /opt/massdns \
     && cd /opt/massdns && make && cp bin/massdns /usr/local/bin/ && cd /app; \
