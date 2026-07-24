@@ -1,6 +1,8 @@
 bbot>=2.8.3
 httpx>=0.28.1
 uro>=1.0.2
+# dirsearch imports pkg_resources (removed in setuptools 82+)
+setuptools>=70,<82
 dirsearch>=0.4.3
 waymore
 chardet>=3.0.2,<6.0.0

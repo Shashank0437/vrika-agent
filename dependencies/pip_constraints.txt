@@ -1,8 +1,10 @@
 # Optional pip constraints (used by nyxstrike.sh when present).
 # Mitmproxy 11 needs h11<=0.14 and Flask<=3.1.0; httpcore 1.0.9+ needs h11>=0.16 — loosen h11 bounds to support both if possible.
 # LLM (OpenRouter) needs openrouter SDK.
+# setuptools 82+ removed pkg_resources; dirsearch (and other legacy CLIs) still import it.
 openrouter>=0.9.1
 httpcore>=1.0.9
 h11>=0.13
 flask>=3.0.0,<=3.1.0
 PySocks>=1.7.0,<2
+setuptools>=70,<82

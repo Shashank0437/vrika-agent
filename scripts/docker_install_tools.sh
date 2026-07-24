@@ -215,7 +215,8 @@ install_amass
 install_zaproxy
 
 # Python tools
-pip install dirsearch uro schemathesis
+# setuptools 82+ removed pkg_resources; dirsearch still imports it at startup.
+pip install "setuptools>=70,<82" dirsearch uro schemathesis
 
 install_wordlists
 
