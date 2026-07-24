@@ -172,7 +172,7 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
 RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     go install github.com/ffuf/ffuf/v2@latest \
     && go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest \
-    && go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest \
+    && go install -tags gofuzz github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest \
     && go install github.com/projectdiscovery/httpx/cmd/httpx@latest \
     && go install github.com/projectdiscovery/katana/cmd/katana@latest \
     && go install github.com/tomnomnom/assetfinder@latest \

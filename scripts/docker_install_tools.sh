@@ -50,6 +50,18 @@ install_go_tool() {
   ln -sf "${GOPATH}/bin/$bin" "/usr/local/bin/$bin"
 }
 
+# Nuclei embeds bytedance/sonic SIMD JSON (amd64). On CPUs/VMs without PCLMULQDQ
+# (common under QEMU without host-passthrough), sonic's SSE path SIGILLs with
+# instruction 0x66 0x0f 0x3a 0x44. Build with -tags gofuzz so nuclei uses the
+# go-json fallback in pkg/utils/json instead of sonic.
+install_nuclei() {
+  export GOPATH="/root/go"
+  export PATH="${PATH}:${GOPATH}/bin"
+  echo "Installing nuclei via go install -tags gofuzz (sonic SIGILL workaround)..."
+  go install -tags gofuzz github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+  ln -sf "${GOPATH}/bin/nuclei" "/usr/local/bin/nuclei"
+}
+
 install_sqlmap() {
   if command -v sqlmap >/dev/null 2>&1; then
     return 0
@@ -204,7 +216,7 @@ export PATH="${PATH}:${GOPATH}/bin"
 install_go_tool ffuf github.com/ffuf/ffuf/v2@latest
 install_go_tool subfinder github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 install_go_tool assetfinder github.com/tomnomnom/assetfinder@latest
-install_go_tool nuclei github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+install_nuclei
 install_go_tool httpx github.com/projectdiscovery/httpx/cmd/httpx@latest
 install_go_tool katana github.com/projectdiscovery/katana/cmd/katana@latest
 install_go_tool qsreplace github.com/tomnomnom/qsreplace@latest
