@@ -34,8 +34,13 @@ install_nikto() {
   fi
   echo "Installing nikto from GitHub (not in Debian bookworm apt)..."
   git clone --depth 1 https://github.com/sullo/nikto.git /opt/nikto
-  ln -sf /opt/nikto/program/nikto.pl /usr/local/bin/nikto
-  chmod +x /opt/nikto/program/nikto.pl
+  # Wrapper so FindBin resolves plugins under /opt/nikto/program (not /usr/local/bin).
+  cat > /usr/local/bin/nikto <<'EOF'
+#!/bin/sh
+cd /opt/nikto/program || exit 1
+exec /usr/bin/perl ./nikto.pl "$@"
+EOF
+  chmod +x /usr/local/bin/nikto /opt/nikto/program/nikto.pl
 }
 
 install_go_tool() {
@@ -163,6 +168,8 @@ apt-get update
 echo "Installing build/runtime dependencies..."
 apt-get install -y --no-install-recommends \
   perl \
+  libjson-perl \
+  libwww-perl \
   libnet-ssleay-perl \
   openssl \
   python3 \
@@ -220,6 +227,7 @@ install_nuclei
 install_go_tool httpx github.com/projectdiscovery/httpx/cmd/httpx@latest
 install_go_tool katana github.com/projectdiscovery/katana/cmd/katana@latest
 install_go_tool qsreplace github.com/tomnomnom/qsreplace@latest
+install_go_tool dalfox github.com/hahwul/dalfox/v2@latest
 
 install_feroxbuster
 install_rustscan
@@ -232,7 +240,7 @@ pip install "setuptools>=70,<82" dirsearch uro schemathesis
 
 install_wordlists
 
-REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch amass qsreplace zaproxy)
+REQUIRED_BINS=(nmap nikto sqlmap gobuster ffuf hydra john hashcat tcpdump dig whois subfinder assetfinder nuclei httpx katana feroxbuster rustscan dirsearch amass qsreplace zaproxy dalfox)
 MISSING=()
 for bin in "${REQUIRED_BINS[@]}"; do
   if ! command -v "${bin}" >/dev/null 2>&1; then

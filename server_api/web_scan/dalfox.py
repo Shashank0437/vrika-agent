@@ -34,7 +34,7 @@ def dalfox():
             command += " --blind"
 
         if mining_dom:
-            command += " --dom"
+            command += " --mining-dom"
 
         if mining_dict:
             command += " --mining-dict"

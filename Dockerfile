@@ -17,7 +17,7 @@ WORKDIR /app
 
 # 1. Install System Build Dependencies & Modern Go
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl git ca-certificates wget unzip gcc make libc6-dev perl libnet-ssleay-perl openssl \
+    curl git ca-certificates wget unzip gcc make libc6-dev perl libjson-perl libwww-perl libnet-ssleay-perl openssl \
     ruby-full pkg-config patch elfutils patchelf default-jre-headless liblzma-dev \
     ruby-dev xz-utils python3-setuptools bsdmainutils procps libcurl4-nss-dev libssl-dev python3-pycurl wfuzz \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
@@ -39,10 +39,10 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
 
 # 3.1 Install Web Scanners & Payloads
 RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
-    # Nikto from GitHub
+    # Nikto from GitHub (wrapper keeps FindBin/plugin paths under /opt/nikto/program)
     git clone --depth 1 https://github.com/sullo/nikto.git /opt/nikto \
-    && ln -sf /opt/nikto/program/nikto.pl /usr/local/bin/nikto \
-    && chmod +x /opt/nikto/program/nikto.pl; \
+    && printf '%s\n' '#!/bin/sh' 'cd /opt/nikto/program || exit 1' 'exec /usr/bin/perl ./nikto.pl "$@"' > /usr/local/bin/nikto \
+    && chmod +x /usr/local/bin/nikto /opt/nikto/program/nikto.pl; \
     # SQLmap from GitHub
     git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git /opt/sqlmap \
     && ln -sf /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap; \
@@ -169,6 +169,7 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     fi
 
 # 4. Install Go-based Tools
+# nuclei: -tags gofuzz avoids bytedance/sonic SIMD (SIGILL on CPUs without PCLMULQDQ)
 RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     go install github.com/ffuf/ffuf/v2@latest \
     && go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest \
@@ -185,6 +186,9 @@ RUN if [ "$INSTALL_TOOLS" = "1" ]; then \
     && go install github.com/projectdiscovery/shuffledns/cmd/shuffledns@latest \
     && go install github.com/tomnomnom/waybackurls@latest \
     && go install github.com/jaeles-project/jaeles@latest \
+    && for b in nuclei dalfox httpx katana subfinder ffuf assetfinder qsreplace gospider hakrawler gau shuffledns waybackurls jaeles interactsh-client; do \
+         [ -x "/root/go/bin/$b" ] && ln -sf "/root/go/bin/$b" "/usr/local/bin/$b"; \
+       done \
     && rm -rf /root/go/pkg; \
     fi
 
@@ -195,7 +199,7 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt -c pip_constraints.txt \
     && pip install --no-cache-dir -r requirements-root.txt -c pip_constraints.txt \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
-      pip install --no-cache-dir dirsearch uro schemathesis pwntools ropper ROPGadget angr arjun git+https://github.com/devanshbatham/ParamSpider bbot waymore sherlock-project; \
+      pip install --no-cache-dir "setuptools>=70,<82" dirsearch uro schemathesis pwntools ropper ROPGadget angr arjun git+https://github.com/devanshbatham/ParamSpider bbot waymore sherlock-project; \
     fi \
     && rm -rf /root/.cache/pip /tmp/* /var/tmp/*
 
