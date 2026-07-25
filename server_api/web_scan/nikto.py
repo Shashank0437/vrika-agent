@@ -25,7 +25,9 @@ def nikto():
         if not target_lower.startswith("http://") and not target_lower.startswith("https://"):
             target = "https://" + target
 
-        command = f"nikto -h {target}"
+        # Cap runtime so nikto cannot hang until agent COMMAND_TIMEOUT (1800s).
+        # Full default nikto runs often exceed that against slow/lab hosts.
+        command = f"nikto -h {target} -nointeractive -maxtime 480s"
 
         if additional_args:
             command += f" {additional_args}"
