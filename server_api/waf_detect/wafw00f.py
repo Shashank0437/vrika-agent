@@ -11,15 +11,19 @@ api_waf_detect_wafw00f_bp = Blueprint("api_waf_detect_wafw00f", __name__)
 def wafw00f():
     """Execute wafw00f to identify and fingerprint WAF products with enhanced logging"""
     try:
-        params = request.json
-        target = params.get("target", "")
+        params = request.json or {}
+        raw = params.get("target") or params.get("url") or ""
+        target = str(raw).strip()
         additional_args = params.get("additional_args", "")
 
         if not target:
-            logger.warning("🛡️ Wafw00f called without target parameter")
+            logger.warning("🛡️ Wafw00f called without target/url parameter")
             return jsonify({
-                "error": "Target parameter is required"
+                "error": "Target or url parameter is required"
             }), 400
+
+        if not target.lower().startswith(("http://", "https://")):
+            target = "https://" + target
 
         command = f"wafw00f {target}"
 
