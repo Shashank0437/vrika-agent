@@ -249,7 +249,7 @@ TOOLS: Dict[str, dict] = {
         "endpoint": "/api/tools/gospider",
         "method": "POST",
         "category": "web_recon",
-        "params": {},
+        "params": {"url": {"required": True}},
         "optional": {
             "site": "",
             "sites": "",
