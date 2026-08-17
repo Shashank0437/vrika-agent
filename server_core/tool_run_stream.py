@@ -65,7 +65,7 @@ def _get_redis() -> redis.Redis | None:
 
 
 def stream_key(stream_run_id: str) -> str:
-    return f"cipherstrike:toolrun:{stream_run_id}"
+    return f"vrika:toolrun:{stream_run_id}"
 
 
 def publish_event(stream_run_id: str, payload: dict[str, Any]) -> None:
