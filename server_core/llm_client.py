@@ -1133,6 +1133,23 @@ class OpenRouterBackend(OpenAIBackend):
     )
 
 
+class GeminiBackend(OpenAIBackend):
+  """Google Gemini via Google's official OpenAI-compatible endpoint."""
+
+  def __init__(self, model: str, api_key: str, timeout: int, base_url: Optional[str] = None) -> None:
+    url = (base_url or "").strip() or "https://generativelanguage.googleapis.com/v1beta/openai"
+    m = (model or "gemini-2.5-flash").strip()
+    if m.startswith("models/"):
+      m = m.replace("models/", "")
+    super().__init__(
+      m,
+      api_key,
+      url,
+      timeout,
+      provider_label="gemini",
+    )
+
+
 def _resolve_llm_from_ai_mode() -> Optional[Dict[str, str]]:
   """When AI_MODE is set, return provider/model/base_url for that mode."""
   mode = _normalize_ai_mode(_cfg("AI_MODE") or "")
@@ -1607,7 +1624,7 @@ def create_llm_client(override_cfg: Optional[Dict[str, Any]] = None) -> LLMClien
     elif provider == "lmstudio":
       client._backend = LMStudioBackend(model, base_url or _resolve_lmstudio_url(), timeout)
     elif provider == "gemini":
-      client._backend = GeminiBackend(model, api_key, timeout, max_output_tokens=num_ctx)
+      client._backend = GeminiBackend(model or "gemini-2.5-flash", api_key, timeout, base_url=base_url)
     else:
       raise ValueError(f"Unsupported LLM provider: {provider}")
 
