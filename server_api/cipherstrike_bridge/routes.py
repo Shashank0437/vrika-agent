@@ -22,6 +22,7 @@ from flask import Blueprint, Response, jsonify, request, stream_with_context
 from server_core.singletons import llm_client
 from server_core.llm_client import create_llm_client
 from server_core.tool_schema import build_tool_schemas
+from server_core.adk import VrikaOrchestrator, build_consolidated_system_prompt, get_adk_tools_for_names, normalize_tool_parameters
 
 logger = logging.getLogger(__name__)
 
@@ -199,8 +200,25 @@ def route_intent():
             if len(desc) > 100:
                 desc = desc[:97] + "..."
             catalog_lines.append(f"- {name}: {desc}")
-        catalog_text = "\n".join(catalog_lines) if catalog_lines else "(no tools)"
         allowed_categories = frozenset(CATEGORIES.keys())
+
+        # ADK Fast-path Router check (deterministic intent classification & tool shortlisting)
+        adk_route = VrikaOrchestrator.classify_and_route(
+            message,
+            context_str=context_str,
+            max_tools=max_pick,
+        )
+        if adk_route.get("intent") == "operational" and adk_route.get("tool_names"):
+            valid_tools = [t for t in adk_route["tool_names"] if not allowed_names or t in allowed_names]
+            if valid_tools:
+                return jsonify({
+                    "success": True,
+                    "intent": "operational",
+                    "tool_names": valid_tools[:max_pick],
+                    "reply": adk_route.get("reply", ""),
+                    "category": adk_route.get("category", "web_vuln"),
+                })
+
         sys_prompt = _ROUTER_SYSTEM_TEMPLATE.format(
             max_tools=max_pick,
             catalog=catalog_text,
