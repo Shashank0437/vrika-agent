@@ -103,8 +103,10 @@ def resolve_cli_tool_go_paths_first(*names: str) -> Optional[str]:
 
     gopath = (os.environ.get("GOPATH") or "").strip() or os.path.expanduser(os.path.join("~", "go"))
     go_bins = (
+        "/root/go/bin",
         os.path.join(gopath, "bin"),
         os.path.expanduser("~/go/bin"),
+        "/usr/local/go/bin",
     )
     for bindir in go_bins:
         for name in ordered:
@@ -112,10 +114,19 @@ def resolve_cli_tool_go_paths_first(*names: str) -> Optional[str]:
             if os.path.isfile(p) and os.access(p, os.X_OK):
                 return p
 
-    for extra in ("/usr/local/bin", "/opt/homebrew/bin"):
+    for extra in ("/usr/local/bin", "/usr/bin", "/opt/homebrew/bin"):
         for name in ordered:
             p = os.path.join(extra, name)
             if os.path.isfile(p) and os.access(p, os.X_OK):
+                # If name is httpx and it's a python script (PyPI httpx), skip it in favor of ProjectDiscovery httpx
+                if name == "httpx":
+                    try:
+                        with open(p, "rb") as f:
+                            head = f.read(128)
+                            if b"python" in head:
+                                continue
+                    except Exception:
+                        pass
                 return p
 
     for name in ordered:
