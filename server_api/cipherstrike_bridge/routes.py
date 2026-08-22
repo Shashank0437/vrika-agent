@@ -20,6 +20,7 @@ from typing import Any, Dict, Generator, List
 from flask import Blueprint, Response, jsonify, request, stream_with_context
 
 from server_core.singletons import llm_client
+from server_core.llm_client import create_llm_client
 from server_core.tool_schema import build_tool_schemas
 
 logger = logging.getLogger(__name__)
@@ -439,7 +440,7 @@ def _yield_cipherstrike_tool_pending_sse(
         )
 
 
-def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dict[str, Any]]) -> Generator[str, None, None]:
+def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dict[str, Any]], active_client: Any = None) -> Generator[str, None, None]:
     """Non-streaming chat + tools (OpenAI/Anthropic or fallback); replay assistant text as SSE chunks.
 
     Operational turns with tool schemas on non-Gemini providers take this path: the model runs to
@@ -447,10 +448,11 @@ def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dic
     token stream until after ``llm_client.chat`` returns — expect a pause after ``[THINKING]``,
     then batched ``data:`` lines (still chunked for SSE framing, but not token-real-time).
     """
+    client = active_client or llm_client
     try:
         yield "data: [THINKING]\n\n"
         messages_adj = _messages_with_schema_nudges(messages, schemas)
-        result = llm_client.chat(messages_adj, tools=schemas)
+        result = client.chat(messages_adj, tools=schemas)
         tool_calls = result.get("tool_calls") if isinstance(result, dict) else None
         _raw = result.get("content", "") if isinstance(result, dict) else result
         content = _raw if isinstance(_raw, str) else ("" if _raw is None else str(_raw))
@@ -487,19 +489,20 @@ _THOUGHT_ONLY_FALLBACK_NUDGE = (
 )
 
 
-def _force_tool_call_retry(messages: List[Dict[str, Any]], tools: List[Dict[str, Any]] | None) -> Dict[str, Any]:
+def _force_tool_call_retry(messages: List[Dict[str, Any]], tools: List[Dict[str, Any]] | None, active_client: Any = None) -> Dict[str, Any]:
     """Force the model to emit a function call by setting tool_choice='required'.
 
     Bypasses LLMClient.chat (which hardcodes tool_choice='auto') to talk to the OpenAI-compatible
     client directly. Falls back to LLMClient.chat with 'auto' if the direct call fails.
     """
-    backend = getattr(llm_client, "_backend", None)
+    client = active_client or llm_client
+    backend = getattr(client, "_backend", None)
     inner_client = getattr(backend, "_client", None)
     model = getattr(backend, "_model", None)
     if inner_client is None or not model:
         # Backend doesn't expose an OpenAI-compatible client — fall back to abstract chat.
         try:
-            res = llm_client.chat(messages, tools=tools, think=False)
+            res = client.chat(messages, tools=tools, think=False)
             return res if isinstance(res, dict) else {"content": str(res or ""), "tool_calls": None}
         except Exception as exc:
             logger.warning("force_tool_call_retry: abstract chat failed: %s", exc)
@@ -540,7 +543,7 @@ def _force_tool_call_retry(messages: List[Dict[str, Any]], tools: List[Dict[str,
     except Exception as exc:
         logger.warning("force_tool_call_retry: direct OpenAI client call failed: %s; falling back to auto", exc)
         try:
-            res = llm_client.chat(messages, tools=tools, think=False)
+            res = client.chat(messages, tools=tools, think=False)
             return res if isinstance(res, dict) else {"content": str(res or ""), "tool_calls": None}
         except Exception as exc2:
             logger.warning("force_tool_call_retry: abstract chat also failed: %s", exc2)
@@ -571,14 +574,16 @@ def _stream_llm_sse(
     messages: List[Dict[str, Any]],
     schemas: List[Dict[str, Any]] | None = None,
     attack_chain_force_next_tool: bool = False,
+    active_client: Any = None,
 ) -> Generator[str, None, None]:
     """Stream tokens from the configured LLM; optional ``schemas`` enables tool mode."""
-    backend = getattr(llm_client, "_backend", None)
+    client = active_client or llm_client
+    backend = getattr(client, "_backend", None)
     provider = getattr(backend, "provider", None) if backend else None
     schemas_ok = isinstance(schemas, list) and len(schemas) > 0
 
-    if schemas_ok and provider not in ("gemini", "openai", "openrouter", "ollama", "lmstudio"):
-        yield from _stream_tools_blocking_sse(messages, schemas)
+    if schemas_ok and provider not in ("gemini", "openai", "openrouter", "ollama", "lmstudio", "custom"):
+        yield from _stream_tools_blocking_sse(messages, schemas, active_client=client)
         return
 
     tools_arg = schemas if schemas_ok else None
@@ -624,7 +629,7 @@ def _stream_llm_sse(
             )
             yield "data: [THINKING]\n\n"
             try:
-                result = _force_tool_call_retry(messages_adj, tools_arg)
+                result = _force_tool_call_retry(messages_adj, tools_arg, active_client=client)
                 if isinstance(result, dict):
                     retry_tcalls = result.get("tool_calls") or []
                     retry_text = (result.get("content") or "").strip() if isinstance(result.get("content"), str) else ""
@@ -652,7 +657,7 @@ def _stream_llm_sse(
 
     try:
         yield "data: [THINKING]\n\n"
-        for chunk in llm_client.stream_chat(messages_adj, tools=tools_arg):
+        for chunk in client.stream_chat(messages_adj, tools=tools_arg):
             if isinstance(chunk, dict):
                 if chunk.get("type") == "thinking":
                     yield f"data: [THINK_TOKEN] {json.dumps(chunk.get('content', ''))}\n\n"
@@ -702,7 +707,7 @@ def _stream_llm_sse(
                 retry_msgs = list(messages_adj) + [
                     {"role": "system", "content": _THOUGHT_ONLY_FALLBACK_NUDGE},
                 ]
-                result = _force_tool_call_retry(retry_msgs, tools_arg)
+                result = _force_tool_call_retry(retry_msgs, tools_arg, active_client=client)
                 logger.info(
                     "cipherstrike_bridge: retry result type=%s keys=%s",
                     type(result).__name__,
@@ -780,7 +785,7 @@ def _stream_llm_sse(
                             ),
                         },
                     ]
-                    result = _force_tool_call_retry(retry_msgs, tools_arg)
+                    result = _force_tool_call_retry(retry_msgs, tools_arg, active_client=client)
                     if isinstance(result, dict):
                         retry_tcalls = result.get("tool_calls") or []
                         retry_text = (result.get("content") or "").strip() if isinstance(result.get("content"), str) else ""
@@ -824,7 +829,7 @@ def _stream_llm_sse(
                             ),
                         },
                     ]
-                    result = _force_tool_call_retry(retry_msgs, tools_arg)
+                    result = _force_tool_call_retry(retry_msgs, tools_arg, active_client=client)
                     if isinstance(result, dict):
                         retry_tcalls = result.get("tool_calls") or []
                         if retry_tcalls:
@@ -876,17 +881,20 @@ def llm_chat():
     blocked = _require_bridge()
     if blocked:
         return blocked
-    if not llm_client.is_available():
-        return jsonify({"success": False, "error": "LLM is not available"}), 503
     try:
         body = request.get_json(force=True, silent=True) or {}
+        llm_cfg = body.get("llm_config")
+        active_client = create_llm_client(llm_cfg) if llm_cfg else llm_client
+        if not active_client.is_available():
+            return jsonify({"success": False, "error": f"LLM is not available ({active_client._init_error or 'no backend response'})"}), 503
+
         messages = body.get("messages")
         if not isinstance(messages, list):
             return jsonify({"success": False, "error": "messages must be a list"}), 400
         tools = body.get("tools")
         tool_list = tools if isinstance(tools, list) and tools else None
 
-        result = llm_client.chat(messages, tools=tool_list)
+        result = active_client.chat(messages, tools=tool_list)
 
         if isinstance(result, dict):
             out = {
@@ -913,10 +921,13 @@ def llm_stream():
     blocked = _require_bridge()
     if blocked:
         return blocked
-    if not llm_client.is_available():
-        return jsonify({"success": False, "error": "LLM is not available"}), 503
     try:
         body = request.get_json(force=True, silent=True) or {}
+        llm_cfg = body.get("llm_config")
+        active_client = create_llm_client(llm_cfg) if llm_cfg else llm_client
+        if not active_client.is_available():
+            return jsonify({"success": False, "error": f"LLM is not available ({active_client._init_error or 'no backend response'})"}), 503
+
         messages = body.get("messages")
         if not isinstance(messages, list):
             return jsonify({"success": False, "error": "messages must be a list"}), 400
@@ -931,6 +942,7 @@ def llm_stream():
                     messages,
                     schemas if isinstance(schemas, list) else None,
                     attack_chain_force_next_tool=attack_chain_force,
+                    active_client=active_client,
                 )
             ),
             mimetype="text/event-stream",
@@ -951,11 +963,13 @@ def llm_chat_tools_then_chunk():
     blocked = _require_bridge()
     if blocked:
         return blocked
-    if not llm_client.is_available():
-        return jsonify({"success": False, "error": "LLM is not available"}), 503
-
     try:
         body = request.get_json(force=True, silent=True) or {}
+        llm_cfg = body.get("llm_config")
+        active_client = create_llm_client(llm_cfg) if llm_cfg else llm_client
+        if not active_client.is_available():
+            return jsonify({"success": False, "error": f"LLM is not available ({active_client._init_error or 'no backend response'})"}), 503
+
         messages = body.get("messages")
         schemas = body.get("schemas")
         if not isinstance(messages, list):
@@ -964,7 +978,7 @@ def llm_chat_tools_then_chunk():
             return jsonify({"success": False, "error": "schemas must be a non-empty list"}), 400
 
         return Response(
-            stream_with_context(_stream_llm_sse(messages, schemas)),
+            stream_with_context(_stream_llm_sse(messages, schemas, active_client=active_client)),
             mimetype="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

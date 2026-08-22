@@ -1553,3 +1553,68 @@ class LLMClient:
       "max_loops": self.max_loops,
       "error": self._init_error if not available else "",
     }
+
+
+def create_llm_client(override_cfg: Optional[Dict[str, Any]] = None) -> LLMClient:
+  """Construct an LLMClient instance from an explicit configuration dict or env defaults."""
+  if not override_cfg or not isinstance(override_cfg, dict):
+    return LLMClient()
+
+  client = LLMClient.__new__(LLMClient)
+  client.max_loops = int(_cfg("VRIKA_LLM_MAX_LOOPS") or 9)
+  client._backend = None
+  client._init_error = ""
+  client._num_ctx_analyse = int(_cfg("VRIKA_LLM_NUM_CTX_ANALYSE") or 16384)
+
+  provider = (override_cfg.get("provider") or _cfg("VRIKA_LLM_PROVIDER") or "openrouter").lower().strip()
+  model = (override_cfg.get("model") or "").strip()
+  base_url = (override_cfg.get("base_url") or "").strip()
+  api_key = (override_cfg.get("api_key") or "").strip()
+  timeout = int(override_cfg.get("timeout") or _cfg("VRIKA_LLM_TIMEOUT") or 300)
+  num_ctx = int(override_cfg.get("context_limit") or override_cfg.get("max_tokens") or _cfg("VRIKA_LLM_NUM_CTX") or 8192)
+
+  if not model:
+    if provider == "openai":
+      model = "gpt-4o-mini"
+    elif provider == "anthropic":
+      model = "claude-3-5-haiku-20241022"
+    elif provider == "openrouter":
+      model = "openai/gpt-4.1-mini"
+    elif provider == "ollama":
+      model = "gemma4:e2b"
+
+  if not api_key:
+    if provider == "openrouter":
+      api_key = _resolve_openrouter_api_key("")
+    elif provider == "gemini":
+      api_key = (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY") or "").strip()
+    elif provider == "openai":
+      api_key = (os.environ.get("OPENAI_API_KEY") or os.environ.get("VRIKA_LLM_API_KEY") or "").strip()
+    elif provider == "anthropic":
+      api_key = (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("VRIKA_LLM_API_KEY") or "").strip()
+
+  try:
+    if provider in ("custom", "openai"):
+      openai_base = base_url or ("https://api.openai.com/v1" if provider == "openai" else None)
+      client._backend = OpenAIBackend(model, api_key or "none", openai_base, timeout, provider_label=provider)
+    elif provider == "openrouter":
+      openai_base = base_url or "https://openrouter.ai/api/v1"
+      client._backend = OpenRouterBackend(model, api_key, openai_base, timeout)
+    elif provider == "anthropic":
+      client._backend = AnthropicBackend(model, api_key, timeout)
+    elif provider == "ollama":
+      client._backend = OllamaBackend(model, base_url or _resolve_ollama_url(), timeout)
+    elif provider == "lmstudio":
+      client._backend = LMStudioBackend(model, base_url or _resolve_lmstudio_url(), timeout)
+    elif provider == "gemini":
+      client._backend = GeminiBackend(model, api_key, timeout, max_output_tokens=num_ctx)
+    else:
+      raise ValueError(f"Unsupported LLM provider: {provider}")
+
+    logger.info("create_llm_client: dynamically instantiated provider=%s model=%s base_url=%s", provider, model, base_url)
+  except Exception as exc:
+    client._init_error = str(exc)
+    logger.warning("create_llm_client: instantiation failed (%s) — %s", provider, exc)
+
+  return client
+
