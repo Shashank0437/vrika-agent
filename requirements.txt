@@ -4,6 +4,9 @@ openrouter>=0.9.1
 openai>=1.0.0
 pydantic>=2.0.0
 google-adk>=0.1.0
+langfuse>=2.0.0
+opentelemetry-exporter-otlp>=1.20.0
 impacket>=0.11.0
 ldapdomaindump>=0.9.4
+
 

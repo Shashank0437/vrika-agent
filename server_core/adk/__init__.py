@@ -10,6 +10,7 @@ from server_core.adk.tools import get_adk_tools_for_names, get_adk_tool_declarat
 from server_core.adk.agents import VrikaOrchestrator, SPECIALIST_REGISTRY
 from server_core.adk.summarizer import compact_dialogue_turns
 from server_core.adk.runner import stream_adk_agent_turn
+from server_core.adk.telemetry import get_langfuse, trace_turn, TraceContext
 
 __all__ = [
     "VrikaAgentState",
@@ -24,4 +25,8 @@ __all__ = [
     "SPECIALIST_REGISTRY",
     "compact_dialogue_turns",
     "stream_adk_agent_turn",
+    "get_langfuse",
+    "trace_turn",
+    "TraceContext",
 ]
+
