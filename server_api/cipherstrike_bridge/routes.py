@@ -94,11 +94,25 @@ def _messages_with_schema_nudges(
     messages: List[Dict[str, Any]],
     schemas: List[Dict[str, Any]] | None,
 ) -> List[Dict[str, Any]]:
-    out = list(messages)
+    nudges: List[str] = []
     if _schemas_include_tool_name(schemas, "penetration-report"):
-        out.append({"role": "system", "content": _PENETRATION_REPORT_SCHEMA_NUDGE})
+        nudges.append(_PENETRATION_REPORT_SCHEMA_NUDGE)
     if _schemas_include_tool_name(schemas, "nmap"):
-        out.append({"role": "system", "content": _NMAP_TARGET_SCHEMA_NUDGE})
+        nudges.append(_NMAP_TARGET_SCHEMA_NUDGE)
+    if not nudges:
+        return list(messages)
+
+    nudge_text = "\n\n" + "\n\n".join(nudges)
+    out: List[Dict[str, Any]] = []
+    found_sys = False
+    for m in messages:
+        if isinstance(m, dict) and str(m.get("role") or "").lower() == "system" and not found_sys:
+            found_sys = True
+            out.append({"role": "system", "content": str(m.get("content") or "") + nudge_text})
+        else:
+            out.append(dict(m))
+    if not found_sys:
+        out.insert(0, {"role": "system", "content": nudge_text.strip()})
     return out
 
 
@@ -192,15 +206,16 @@ def route_intent():
             catalog=catalog_text,
             categories=_ROUTER_CATEGORY_ENUM,
         )
-        chat_messages: List[Dict[str, Any]] = [{"role": "system", "content": sys_prompt}]
+        full_sys_prompt = sys_prompt
         if context_str:
             # Trim defensively; the server already caps this, but be safe.
             ctx_trim = context_str if len(context_str) <= 2000 else context_str[-2000:]
-            chat_messages.append({
-                "role": "system",
-                "content": f"Recent conversation context (most recent last):\n{ctx_trim}",
-            })
-        chat_messages.append({"role": "user", "content": message.strip()})
+            full_sys_prompt += f"\n\nRecent conversation context (most recent last):\n{ctx_trim}"
+
+        chat_messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": full_sys_prompt},
+            {"role": "user", "content": message.strip()},
+        ]
         result = llm_client.chat(chat_messages, tools=None)
         text_out = result if isinstance(result, str) else str((result or {}).get("content") or "")
         parsed = _extract_json_object(text_out) or {}

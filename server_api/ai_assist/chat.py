@@ -153,31 +153,30 @@ def _build_llm_messages(
   session_id: str = "",
 ) -> list:
   """Construct the full message list to send to the LLM."""
-  messages = []
+  system_parts = []
 
   # 1. System persona
   system_prompt = config_core.get(
     "CHAT_SYSTEM_PROMPT",
     "You are NyxStrike, an expert penetration testing AI assistant.",
   )
-  messages.append({"role": "system", "content": system_prompt})
+  if system_prompt:
+    system_parts.append(system_prompt)
 
   # 2. Session context (current page)
   ctx = _session_context_snippet(page, session_id)
   if ctx:
-    messages.append({
-      "role": "system",
-      "content": f"The operator is currently viewing:\n{ctx}",
-    })
+    system_parts.append(f"The operator is currently viewing:\n{ctx}")
 
   # 3. Rolling summary of old messages
   chat_sess = db.get_chat_session(chat_session_id)
   summary = _str_field((chat_sess or {}).get("summary"))
   if summary:
-    messages.append({
-      "role": "system",
-      "content": f"Earlier in this conversation:\n{summary}",
-    })
+    system_parts.append(f"Earlier in this conversation:\n{summary}")
+
+  messages = []
+  if system_parts:
+    messages.append({"role": "system", "content": "\n\n".join(system_parts)})
 
   # 4. Active (non-summarized) message history
   active = db.get_active_chat_messages(chat_session_id)

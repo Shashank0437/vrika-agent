@@ -218,23 +218,42 @@ def _want_thoughts(think: Optional[bool]) -> bool:
 
 
 def _normalize_openai_compatible_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-  """OpenRouter / OpenAI require tool role messages to include ``name`` or ``tool_call_id``."""
-  out: List[Dict[str, Any]] = []
+  """Consolidate system messages and format tool messages for OpenAI / vLLM / Ollama / OpenRouter:
+  1. Strict Chat Template Compliance: Merge all system messages into a SINGLE leading system message at index 0.
+  2. Format tool messages to ensure tool_call_id or name exists.
+  """
+  system_parts: List[str] = []
+  non_system_messages: List[Dict[str, Any]] = []
+
   for m in messages:
     if not isinstance(m, dict):
       continue
-    if str(m.get("role") or "") != "tool":
-      out.append(dict(m))
+    role = str(m.get("role") or "").strip().lower()
+    if role == "system":
+      content = m.get("content", "")
+      text = content if isinstance(content, str) else json.dumps(content)
+      if text.strip():
+        system_parts.append(text.strip())
       continue
+
+    if role != "tool":
+      non_system_messages.append(dict(m))
+      continue
+
     nm = dict(m)
     if not nm.get("tool_call_id") and not nm.get("name"):
       content = nm.get("content", "")
       if not isinstance(content, str):
         content = json.dumps(content)
-      # Google AI Studio via OpenRouter rejects bare tool messages — fold into user turn.
-      out.append({"role": "user", "content": f"[Tool result]\n{content}"})
+      # Google AI Studio / custom endpoints reject bare tool messages — fold into user turn.
+      non_system_messages.append({"role": "user", "content": f"[Tool result]\n{content}"})
       continue
-    out.append(nm)
+    non_system_messages.append(nm)
+
+  out: List[Dict[str, Any]] = []
+  if system_parts:
+    out.append({"role": "system", "content": "\n\n".join(system_parts)})
+  out.extend(non_system_messages)
   return out
 
 
