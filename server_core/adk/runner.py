@@ -74,7 +74,9 @@ def stream_adk_agent_turn(
 
                 # Tool Calls received from model
                 if chunk_type == "_cipherstrike_tool_calls":
+                    from tool_registry import TOOLS
                     tool_calls = chunk.get("tool_calls") or []
+                    batch_payloads = []
                     for tc in tool_calls:
                         fn = tc.get("function") or {}
                         raw_name = fn.get("name", "")
@@ -86,12 +88,19 @@ def stream_adk_agent_turn(
                                 raw_args = {"_raw": raw_args}
 
                         norm_args = normalize_tool_parameters(raw_name, raw_args if isinstance(raw_args, dict) else {})
-                        pending_payload = {
+                        tool_def = TOOLS.get(raw_name) or {}
+                        batch_payloads.append({
                             "tool_name": raw_name,
-                            "parameters": norm_args,
+                            "arguments": norm_args,
+                            "endpoint": str(tool_def.get("endpoint") or ""),
+                            "description": str(tool_def.get("desc") or ""),
                             "tool_call_id": tc.get("id", ""),
-                        }
-                        yield f"data: [TOOL_PENDING] {json.dumps(pending_payload)}\n\n"
+                        })
+
+                    if len(batch_payloads) == 1:
+                        yield f"data: [TOOL_CALL_PENDING] {json.dumps(batch_payloads[0])}\n\n"
+                    elif len(batch_payloads) > 1:
+                        yield f"data: [TOOL_CALL_BATCH_PENDING] {json.dumps({'calls': batch_payloads})}\n\n"
 
                     if "usage" in chunk:
                         yield f"data: [STATS] {json.dumps({'type': 'usage', 'usage': chunk['usage']})}\n\n"
