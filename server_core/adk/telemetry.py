@@ -88,7 +88,29 @@ class TraceContext:
             except Exception as e:
                 logger.debug("Langfuse tool logging error: %s", e)
 
+    def log_llm_response(self, model: str, prompt: Any, response: str, thinking: str = "", metadata: Optional[Dict[str, Any]] = None):
+        if self._trace:
+            try:
+                self._trace.generation(
+                    name="llm_reasoning",
+                    model=model,
+                    input=prompt,
+                    output=response,
+                    metadata={"thinking": thinking, **(metadata or {})},
+                )
+            except Exception as e:
+                logger.debug("Langfuse LLM logging error: %s", e)
+
+    def flush(self):
+        lf = get_langfuse()
+        if lf:
+            try:
+                lf.flush()
+            except Exception:
+                pass
+
 
 def trace_turn(session_id: str, name: str = "vrika_agent_turn", metadata: Optional[Dict[str, Any]] = None) -> TraceContext:
     """Create a trace context for a turn."""
     return TraceContext(trace_id=session_id, name=name, metadata=metadata)
+

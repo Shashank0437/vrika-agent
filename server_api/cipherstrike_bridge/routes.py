@@ -955,6 +955,12 @@ def _stream_adk_orchestrated_sse(
         logger.error("cipherstrike_bridge ADK orchestrated stream: %s", exc)
         yield f"data: [ERROR] {str(exc)}\n\n"
         yield "data: [DONE]\n\n"
+    finally:
+        try:
+            trace.flush()
+        except Exception:
+            pass
+
 
 
 @api_cipherstrike_bridge_bp.route("/api/cipherstrike/schemas-from-tools", methods=["POST"])
