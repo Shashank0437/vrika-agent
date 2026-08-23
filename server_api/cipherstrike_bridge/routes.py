@@ -32,6 +32,12 @@ from server_core.adk import (
     trace_turn,
 )
 
+# NOTE: route-intent has no session_id from the caller today (vrika-server's
+# plan_router_turn doesn't thread one through). Traces for the router step are
+# keyed on a fresh id per call rather than the turn's session_id, so they will
+# NOT appear correlated with that turn's llm-stream trace in Langfuse until
+# vrika-server passes session_id in the route-intent payload.
+
 logger = logging.getLogger(__name__)
 
 _MAX_MULTI_TOOL_CALLS = max(1, int(os.environ.get("VRIKA_MAX_MULTI_TOOL_CALLS", "30")))
@@ -126,6 +132,7 @@ def _messages_with_schema_nudges(
         role = "recon"
 
     out: List[Dict[str, Any]] = []
+    server_system_parts: List[str] = []
     for m in messages:
         if not isinstance(m, dict):
             continue
@@ -133,7 +140,7 @@ def _messages_with_schema_nudges(
         if message_role == "system":
             content = str(m.get("content") or "").strip()
             if content:
-                system_parts.append(content)
+                server_system_parts.append(content)
             continue
         if message_role == "tool":
             extract_state_from_tool_output(
@@ -148,9 +155,14 @@ def _messages_with_schema_nudges(
         knowledge=knowledge,
         active_tools=schema_names,
     )
+    # Static, role-invariant content (persona/mission) goes first so providers with
+    # prompt-prefix caching can reuse it across turns; per-turn content (server-supplied
+    # system text, live knowledge snapshot, tool nudges) is appended after it since it
+    # changes turn-to-turn and would otherwise bust the cache for everything after it.
+    system_parts.append(adk_prompt)
+    system_parts.extend(server_system_parts)
     if nudges:
         system_parts.append("\n\n".join(nudges))
-    system_parts.append(adk_prompt)
     out.insert(0, {"role": "system", "content": "\n\n".join(system_parts)})
     return out
 
@@ -184,6 +196,7 @@ Rules:
 - If the user asks for a **penetration test report**, **security report**, **PDF report**, **executive summary / write-up** of findings, or to **create / generate / export a report** from the session → **operational**, **category** **reporting**, and include **penetration-report** in **tool_names** when that exact name appears in the tool list (often as the only tool for that request).
 - If the message contains **http:// or https://** and asks for testing, assessment, or a pentest → **operational** and pick suitable tools from the list (e.g. HTTP probe, tech fingerprint, vuln templates, web scanner — use names that exist below).
 - If the user asks to **run nmap** (or port scan) on a **URL, hostname, or IP** → **operational**, **category** **network_recon** (or **essential**), and include **nmap** in **tool_names** when listed. URLs are valid targets for the backend.
+- **NAMED-TOOL FIDELITY**: if the user names a specific tool by its exact or near-exact name (e.g. "run nmap", "use nuclei", "try rustscan"), you MUST include that exact tool name in **tool_names** whenever it appears in the catalog below — never substitute a different tool that does something similar (e.g. do not swap nmap for rustscan or masscan, or nuclei for nikto) just because it seems faster, more suitable, or interchangeable. Only fall back to a different tool of the same category if the named tool is absent from the catalog.
 - If the user uses pronouns or shortcuts like **"same"**, **"this"**, **"that"**, **"it"**, **"the target"**, **"same target"** (e.g. "run dig on same", "scan it with nuclei", "try nikto on the target") → resolve them using the conversation context above. If a target (URL/host/IP) was mentioned in the recent context, treat the request as **operational** on that same target. Do NOT ask "what target?" when the answer is obvious from the prior turns.
 - **CRITICAL CONTEXT RULE**: If the conversation context contains a line starting with **"Most recent target(s) in this conversation:"** the user's current request is on that target **even if the request does NOT explicitly name a target**. Examples that MUST be treated as operational on the recent target: "run nuclei", "do a comprehensive scan", "full network scan", "scan it", "run all the tools", "pentest this". Never ask the user to re-specify a target that is already listed in the context. Pick suitable tools and respond with **operational** + appropriate **tool_names**.
 - If the user gives a **short affirmation** (e.g. "yes", "ok", "use both", "run them", "ok fine use those tools") after the assistant already named specific tools → **operational** and put **those exact tool names** in **tool_names** (e.g. assistant offered amass and subfinder → include both; user approving after batch rejections → only the rejected scanner names, not tools already executed).
@@ -207,6 +220,8 @@ def route_intent():
     blocked = _require_bridge()
     if blocked:
         return blocked
+    body: Dict[str, Any] = {}
+    trace = None
     try:
         body = request.get_json(force=True, silent=True) or {}
         llm_cfg = body.get("llm_config")
@@ -223,6 +238,8 @@ def route_intent():
         if not isinstance(context_str, str):
             context_str = ""
         context_str = context_str.strip()
+        turn_id = str(body.get("session_id") or "") or uuid.uuid4().hex
+        trace = trace_turn(turn_id, name="vrika_route_intent", metadata={"message": message[:200]})
 
         if not active_client.is_available():
             fallback = VrikaOrchestrator.classify_and_route(
@@ -257,19 +274,38 @@ def route_intent():
             catalog=catalog_text,
             categories=_ROUTER_CATEGORY_ENUM,
         )
-        full_sys_prompt = sys_prompt
+
+        # Keep the system prompt static (persona + catalog + rules only) so providers that
+        # support prompt-prefix caching can reuse it across turns. Recent conversation is
+        # per-turn and belongs in the message list, not glued into the system role.
+        chat_messages: List[Dict[str, Any]] = [{"role": "system", "content": sys_prompt}]
         if context_str:
             # Trim defensively; the server already caps this, but be safe.
             ctx_trim = context_str if len(context_str) <= 2000 else context_str[-2000:]
-            full_sys_prompt += f"\n\nRecent conversation context (most recent last):\n{ctx_trim}"
-
-        chat_messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": full_sys_prompt},
-            {"role": "user", "content": message.strip()},
-        ]
+            chat_messages.append(
+                {
+                    "role": "user",
+                    "content": f"Recent conversation context (most recent last):\n{ctx_trim}",
+                },
+            )
+            chat_messages.append(
+                {
+                    "role": "assistant",
+                    "content": "Noted — I'll use that context to resolve pronouns and recent targets.",
+                },
+            )
+        chat_messages.append({"role": "user", "content": message.strip()})
         result = active_client.chat(chat_messages, tools=None)
 
         text_out = result if isinstance(result, str) else str((result or {}).get("content") or "")
+        backend = getattr(active_client, "_backend", None)
+        trace.log_llm_response(
+            model=str(getattr(backend, "provider", None) or "unknown"),
+            prompt=message.strip(),
+            response=text_out,
+            metadata={"stage": "route_intent"},
+        )
+        trace.flush()
         parsed = _extract_json_object(text_out) or {}
         intent = str(parsed.get("intent") or "conversational").lower().strip()
         if intent not in ("operational", "conversational"):
@@ -315,6 +351,13 @@ def route_intent():
         )
     except Exception as exc:
         logger.exception("cipherstrike_bridge route-intent; using catalog-aware ADK fallback")
+        try:
+            err_trace = trace or trace_turn(
+                str(body.get("session_id") or "") or uuid.uuid4().hex, name="vrika_route_intent",
+            )
+            err_trace.log_llm_response(model="unknown", prompt="", response="", metadata={"error": str(exc)})
+        except Exception:
+            pass
         fallback = VrikaOrchestrator.classify_and_route(
             message if isinstance(message, str) else "",
             context_str=context_str if isinstance(context_str, str) else "",
@@ -587,13 +630,38 @@ _THOUGHT_ONLY_FALLBACK_NUDGE = (
 )
 
 
-def _force_tool_call_retry(messages: List[Dict[str, Any]], tools: List[Dict[str, Any]] | None, active_client: Any = None) -> Dict[str, Any]:
+def _force_tool_call_retry(
+    messages: List[Dict[str, Any]],
+    tools: List[Dict[str, Any]] | None,
+    active_client: Any = None,
+    trace: Any = None,
+    reason: str = "unspecified",
+) -> Dict[str, Any]:
     """Force the model to emit a function call by setting tool_choice='required'.
 
     Bypasses LLMClient.chat (which hardcodes tool_choice='auto') to talk to the OpenAI-compatible
     client directly. Falls back to LLMClient.chat with 'auto' if the direct call fails.
+    ``trace``/``reason`` (when supplied) log this forced retry to Langfuse regardless of which of
+    the 4 call sites in the streaming turn triggered it, so none go unrecorded.
     """
     client = active_client or llm_client
+
+    def _log(result: Dict[str, Any], *, error: str | None = None) -> Dict[str, Any]:
+        if trace is not None:
+            try:
+                meta: Dict[str, Any] = {"stage": "forced_retry", "reason": reason}
+                if error:
+                    meta["error"] = error
+                trace.log_llm_response(
+                    model=str(getattr(getattr(client, "_backend", None), "provider", None) or "unknown"),
+                    prompt=messages[-1] if messages else "",
+                    response=str(result.get("content") or ""),
+                    metadata=meta,
+                )
+            except Exception:
+                pass
+        return result
+
     backend = getattr(client, "_backend", None)
     inner_client = getattr(backend, "_client", None)
     model = getattr(backend, "_model", None)
@@ -601,10 +669,10 @@ def _force_tool_call_retry(messages: List[Dict[str, Any]], tools: List[Dict[str,
         # Backend doesn't expose an OpenAI-compatible client — fall back to abstract chat.
         try:
             res = client.chat(messages, tools=tools, think=False)
-            return res if isinstance(res, dict) else {"content": str(res or ""), "tool_calls": None}
+            return _log(res if isinstance(res, dict) else {"content": str(res or ""), "tool_calls": None})
         except Exception as exc:
             logger.warning("force_tool_call_retry: abstract chat failed: %s", exc)
-            return {"content": "", "tool_calls": None}
+            return _log({"content": "", "tool_calls": None}, error=str(exc))
 
     try:
         kwargs: Dict[str, Any] = {
@@ -637,15 +705,15 @@ def _force_tool_call_retry(messages: List[Dict[str, Any]], tools: List[Dict[str,
                     "function": {"name": tc.function.name, "arguments": parsed},
                 }
             )
-        return {"content": content, "tool_calls": out_calls or None}
+        return _log({"content": content, "tool_calls": out_calls or None})
     except Exception as exc:
         logger.warning("force_tool_call_retry: direct OpenAI client call failed: %s; falling back to auto", exc)
         try:
             res = client.chat(messages, tools=tools, think=False)
-            return res if isinstance(res, dict) else {"content": str(res or ""), "tool_calls": None}
+            return _log(res if isinstance(res, dict) else {"content": str(res or ""), "tool_calls": None}, error=str(exc))
         except Exception as exc2:
             logger.warning("force_tool_call_retry: abstract chat also failed: %s", exc2)
-            return {"content": "", "tool_calls": None}
+            return _log({"content": "", "tool_calls": None}, error=f"{exc}; {exc2}")
 
 
 def _normalize_openai_compatible_messages_local(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -693,6 +761,7 @@ def _stream_adk_orchestrated_sse(
     stream_tool_call_chunk_seen = False
     stream_tool_call_count = 0
     stream_text_chars = 0
+    stream_text_parts: List[str] = []
     # Log the offered tool names and the user message that triggered this stream so we can
     # diagnose "model produced nothing" cases from agent logs alone.
     try:
@@ -730,7 +799,9 @@ def _stream_adk_orchestrated_sse(
             )
             yield "data: [THINKING]\n\n"
             try:
-                result = _force_tool_call_retry(messages_adj, tools_arg, active_client=client)
+                result = _force_tool_call_retry(
+                    messages_adj, tools_arg, active_client=client, trace=trace, reason="deferred_tool_fast_path",
+                )
                 if isinstance(result, dict):
                     retry_tcalls = result.get("tool_calls") or []
                     retry_text = (result.get("content") or "").strip() if isinstance(result.get("content"), str) else ""
@@ -802,8 +873,17 @@ def _stream_adk_orchestrated_sse(
                 yield f"data: [STATS] {json.dumps(chunk)}\n\n"
                 continue
             saw_visible_output = True
-            stream_text_chars += len(chunk) if isinstance(chunk, str) else 0
+            if isinstance(chunk, str):
+                stream_text_chars += len(chunk)
+                stream_text_parts.append(chunk)
             yield f"data: {json.dumps(chunk)}\n\n"
+
+        if stream_text_parts:
+            trace.log_llm_response(
+                model=str(provider or "unknown"),
+                prompt=messages_adj[-1] if messages_adj else "",
+                response="".join(stream_text_parts),
+            )
 
         # Stream ended with no visible output (only thinking or nothing). If tools were
         # offered AND nothing actionable was produced, retry once non-streaming with
@@ -817,7 +897,9 @@ def _stream_adk_orchestrated_sse(
                 retry_msgs = list(messages_adj) + [
                     {"role": "system", "content": _THOUGHT_ONLY_FALLBACK_NUDGE},
                 ]
-                result = _force_tool_call_retry(retry_msgs, tools_arg, active_client=client)
+                result = _force_tool_call_retry(
+                    retry_msgs, tools_arg, active_client=client, trace=trace, reason="thought_only_no_output",
+                )
                 logger.info(
                     "cipherstrike_bridge: retry result type=%s keys=%s",
                     type(result).__name__,
@@ -895,7 +977,9 @@ def _stream_adk_orchestrated_sse(
                             ),
                         },
                     ]
-                    result = _force_tool_call_retry(retry_msgs, tools_arg, active_client=client)
+                    result = _force_tool_call_retry(
+                        retry_msgs, tools_arg, active_client=client, trace=trace, reason="attack_chain_force_next_tool",
+                    )
                     if isinstance(result, dict):
                         retry_tcalls = result.get("tool_calls") or []
                         retry_text = (result.get("content") or "").strip() if isinstance(result.get("content"), str) else ""
@@ -939,7 +1023,9 @@ def _stream_adk_orchestrated_sse(
                             ),
                         },
                     ]
-                    result = _force_tool_call_retry(retry_msgs, tools_arg, active_client=client)
+                    result = _force_tool_call_retry(
+                        retry_msgs, tools_arg, active_client=client, trace=trace, reason="deferred_tool_skipped_in_text",
+                    )
                     if isinstance(result, dict):
                         retry_tcalls = result.get("tool_calls") or []
                         if retry_tcalls:
@@ -965,6 +1051,12 @@ def _stream_adk_orchestrated_sse(
         raise
     except Exception as exc:
         logger.error("cipherstrike_bridge ADK orchestrated stream: %s", exc)
+        try:
+            trace.log_llm_response(
+                model=str(provider or "unknown"), prompt="", response="", metadata={"error": str(exc)},
+            )
+        except Exception:
+            pass
         yield f"data: [ERROR] {str(exc)}\n\n"
         yield "data: [DONE]\n\n"
     finally:
@@ -997,6 +1089,7 @@ def llm_chat():
     blocked = _require_bridge()
     if blocked:
         return blocked
+    body: Dict[str, Any] = {}
     try:
         body = request.get_json(force=True, silent=True) or {}
         llm_cfg = body.get("llm_config")
@@ -1010,6 +1103,13 @@ def llm_chat():
         tools = body.get("tools")
         tool_list = tools if isinstance(tools, list) and tools else None
 
+        turn_id = str(body.get("session_id") or "") or uuid.uuid4().hex
+        trace = trace_turn(turn_id, name="vrika_llm_chat", metadata={"stage": body.get("purpose") or "llm_chat"})
+        last_user = next(
+            (m.get("content") for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "user"),
+            "",
+        )
+
         result = active_client.chat(messages, tools=tool_list)
 
         if isinstance(result, dict):
@@ -1021,14 +1121,33 @@ def llm_chat():
             }
             if "usage" in result:
                 out["usage"] = result["usage"]
+            trace.log_llm_response(
+                model=str(getattr(getattr(active_client, "_backend", None), "provider", None) or "unknown"),
+                prompt=last_user,
+                response=out["content"],
+            )
+            trace.flush()
             return jsonify(out)
 
         text = result if isinstance(result, str) else ("" if result is None else str(result))
+        trace.log_llm_response(
+            model=str(getattr(getattr(active_client, "_backend", None), "provider", None) or "unknown"),
+            prompt=last_user,
+            response=text.strip(),
+        )
+        trace.flush()
         return jsonify({"success": True, "content": text.strip(), "tool_calls": None})
     except RuntimeError as exc:
         return jsonify({"success": False, "error": str(exc)}), 503
     except Exception as exc:
         logger.exception("cipherstrike_bridge llm-chat")
+        try:
+            err_turn_id = str(body.get("session_id") or "") or uuid.uuid4().hex
+            trace_turn(err_turn_id, name="vrika_llm_chat").log_llm_response(
+                model="unknown", prompt="", response="", metadata={"error": str(exc)},
+            )
+        except Exception:
+            pass
         return jsonify({"success": False, "error": str(exc)}), 500
 
 

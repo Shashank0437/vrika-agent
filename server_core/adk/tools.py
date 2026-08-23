@@ -61,4 +61,3 @@ def normalize_tool_parameters(tool_name: str, args: Dict[str, Any]) -> Dict[str,
                 out[k] = False
 
     return out
-    return declarations
