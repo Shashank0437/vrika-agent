@@ -515,7 +515,11 @@ def _llm_fill_report(transcript: str, llm_client: Any, session_id: str | None = 
         "--- TRANSCRIPT ---\n"
         + transcript.strip()
     )
-    trace = trace_turn(session_id or uuid.uuid4().hex, name="vrika_penetration_report")
+    trace = trace_turn(
+        session_id or uuid.uuid4().hex,
+        name="vrika_penetration_report",
+        input_data=user_content[:2000],
+    )
     raw = llm_client.chat(
         [
             {"role": "system", "content": _LLM_SYSTEM},
@@ -524,6 +528,7 @@ def _llm_fill_report(transcript: str, llm_client: Any, session_id: str | None = 
         num_ctx=getattr(llm_client, "num_ctx_analyse", None) or 16384,
     )
     text = raw if isinstance(raw, str) else str((raw or {}).get("content") or "")
+    parsed = extract_json_object(text) or {}
     try:
         trace.log_llm_response(
             model=str(getattr(getattr(llm_client, "_backend", None), "provider", None) or "unknown"),
@@ -531,10 +536,10 @@ def _llm_fill_report(transcript: str, llm_client: Any, session_id: str | None = 
             response=text,
             metadata={"stage": "penetration_report_fill"},
         )
+        trace.update(output=parsed if parsed else {"error": "no_json_returned"})
         trace.flush()
     except Exception:
         pass
-    parsed = extract_json_object(text) or {}
     if not parsed:
         logger.warning("pt_report_pdf: LLM returned no JSON; using minimal shell")
         return {

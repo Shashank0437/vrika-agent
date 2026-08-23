@@ -239,7 +239,9 @@ def route_intent():
             context_str = ""
         context_str = context_str.strip()
         turn_id = str(body.get("session_id") or "") or uuid.uuid4().hex
-        trace = trace_turn(turn_id, name="vrika_route_intent", metadata={"message": message[:200]})
+        trace = trace_turn(
+            turn_id, name="vrika_route_intent", metadata={"message": message[:200]}, input_data=message.strip(),
+        )
 
         if not active_client.is_available():
             fallback = VrikaOrchestrator.classify_and_route(
@@ -340,15 +342,15 @@ def route_intent():
                 intent = "operational"
                 if not category_slug:
                     category_slug = str(fallback.get("category") or "")
-        return jsonify(
-            {
-                "success": True,
-                "intent": intent,
-                "tool_names": tool_names,
-                "reply": reply_str,
-                "category": category_slug,
-            },
-        )
+        out = {
+            "success": True,
+            "intent": intent,
+            "tool_names": tool_names,
+            "reply": reply_str,
+            "category": category_slug,
+        }
+        trace.update(output=out)
+        return jsonify(out)
     except Exception as exc:
         logger.exception("cipherstrike_bridge route-intent; using catalog-aware ADK fallback")
         try:
@@ -746,12 +748,29 @@ def _stream_adk_orchestrated_sse(
     """Execute the canonical ADK-controlled turn and emit the Vrika SSE contract."""
     client = active_client or llm_client
     turn_id = session_id or uuid.uuid4().hex
-    trace = trace_turn(turn_id, metadata={"schemas": _schema_tool_names(schemas)})
+    _last_user_input = ""
+    for _m in reversed(messages):
+        if isinstance(_m, dict) and str(_m.get("role") or "") == "user":
+            _last_user_input = str(_m.get("content") or "")
+            break
+    trace = trace_turn(
+        turn_id,
+        name="vrika_llm_stream",
+        metadata={"schemas": _schema_tool_names(schemas)},
+        input_data=_last_user_input,
+    )
+    orchestrator_span = trace.span("adk_orchestrator", input_data=_last_user_input)
+    tool_selection_span = orchestrator_span.span(
+        "adk_tool_selection", input_data={"offered_tools": _schema_tool_names(schemas)},
+    )
     backend = getattr(client, "_backend", None)
     provider = getattr(backend, "provider", None) if backend else None
     schemas_ok = isinstance(schemas, list) and len(schemas) > 0
 
     if schemas_ok and provider not in ("gemini", "openai", "openrouter", "ollama", "lmstudio", "custom"):
+        tool_selection_span.end()
+        orchestrator_span.end()
+        trace.flush()
         yield from _stream_tools_blocking_sse(messages, schemas, active_client=client)
         return
 
@@ -761,6 +780,7 @@ def _stream_adk_orchestrated_sse(
     stream_tool_call_chunk_seen = False
     stream_tool_call_count = 0
     stream_text_chars = 0
+    turn_outcome: Dict[str, Any] = {}
     stream_text_parts: List[str] = []
     # Log the offered tool names and the user message that triggered this stream so we can
     # diagnose "model produced nothing" cases from agent logs alone.
@@ -800,7 +820,7 @@ def _stream_adk_orchestrated_sse(
             yield "data: [THINKING]\n\n"
             try:
                 result = _force_tool_call_retry(
-                    messages_adj, tools_arg, active_client=client, trace=trace, reason="deferred_tool_fast_path",
+                    messages_adj, tools_arg, active_client=client, trace=tool_selection_span, reason="deferred_tool_fast_path",
                 )
                 if isinstance(result, dict):
                     retry_tcalls = result.get("tool_calls") or []
@@ -822,6 +842,7 @@ def _stream_adk_orchestrated_sse(
                         pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls, schemas))
                         for ln in pending_sse:
                             yield ln
+                        turn_outcome.update({"path": "deferred_fast_path", "tool_calls": retry_raw_names, "text": retry_text})
                         yield "data: [DONE]\n\n"
                         return
             except Exception as fp_exc:
@@ -849,10 +870,16 @@ def _stream_adk_orchestrated_sse(
                     if "usage" in chunk:
                         usage_chunk = {"type": "usage", "usage": chunk["usage"]}
                         yield f"data: [STATS] {json.dumps(usage_chunk)}\n\n"
+                    tool_selection_span.log_llm_response(
+                        model=str(provider or "unknown"),
+                        prompt="".join(stream_text_parts) or _last_user_input,
+                        response=f"[tool_calls] {raw_names}",
+                        metadata={"stage": "tool_call_decision"},
+                    )
                     for tool_call in tcalls if isinstance(tcalls, list) else []:
                         function = tool_call.get("function") if isinstance(tool_call, dict) else {}
                         if isinstance(function, dict):
-                            trace.log_tool_execution(
+                            tool_selection_span.log_tool_execution(
                                 str(function.get("name") or "unknown"),
                                 function.get("arguments") if isinstance(function.get("arguments"), dict) else {},
                                 "pending approval/execution",
@@ -868,6 +895,7 @@ def _stream_adk_orchestrated_sse(
                             "cipherstrike_bridge: stream tool_calls present but ALL dropped by _yield_cipherstrike_tool_pending_sse (raw_names=%s)",
                             raw_names,
                         )
+                    turn_outcome.update({"path": "tool_calls", "tool_calls": raw_names})
                     yield "data: [DONE]\n\n"
                     return
                 yield f"data: [STATS] {json.dumps(chunk)}\n\n"
@@ -879,11 +907,13 @@ def _stream_adk_orchestrated_sse(
             yield f"data: {json.dumps(chunk)}\n\n"
 
         if stream_text_parts:
-            trace.log_llm_response(
+            final_text = "".join(stream_text_parts)
+            orchestrator_span.log_llm_response(
                 model=str(provider or "unknown"),
-                prompt=messages_adj[-1] if messages_adj else "",
-                response="".join(stream_text_parts),
+                prompt=_last_user_input,
+                response=final_text,
             )
+            turn_outcome.update({"path": "text_response", "text": final_text})
 
         # Stream ended with no visible output (only thinking or nothing). If tools were
         # offered AND nothing actionable was produced, retry once non-streaming with
@@ -898,7 +928,7 @@ def _stream_adk_orchestrated_sse(
                     {"role": "system", "content": _THOUGHT_ONLY_FALLBACK_NUDGE},
                 ]
                 result = _force_tool_call_retry(
-                    retry_msgs, tools_arg, active_client=client, trace=trace, reason="thought_only_no_output",
+                    retry_msgs, tools_arg, active_client=client, trace=tool_selection_span, reason="thought_only_no_output",
                 )
                 logger.info(
                     "cipherstrike_bridge: retry result type=%s keys=%s",
@@ -978,7 +1008,7 @@ def _stream_adk_orchestrated_sse(
                         },
                     ]
                     result = _force_tool_call_retry(
-                        retry_msgs, tools_arg, active_client=client, trace=trace, reason="attack_chain_force_next_tool",
+                        retry_msgs, tools_arg, active_client=client, trace=tool_selection_span, reason="attack_chain_force_next_tool",
                     )
                     if isinstance(result, dict):
                         retry_tcalls = result.get("tool_calls") or []
@@ -998,6 +1028,7 @@ def _stream_adk_orchestrated_sse(
                             pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls, schemas))
                             for ln in pending_sse:
                                 yield ln
+                            turn_outcome.update({"path": "attack_chain_forced_tool", "tool_calls": retry_raw_names, "text": retry_text})
                             yield "data: [DONE]\n\n"
                             return
                 except Exception as retry_exc:
@@ -1024,7 +1055,7 @@ def _stream_adk_orchestrated_sse(
                         },
                     ]
                     result = _force_tool_call_retry(
-                        retry_msgs, tools_arg, active_client=client, trace=trace, reason="deferred_tool_skipped_in_text",
+                        retry_msgs, tools_arg, active_client=client, trace=tool_selection_span, reason="deferred_tool_skipped_in_text",
                     )
                     if isinstance(result, dict):
                         retry_tcalls = result.get("tool_calls") or []
@@ -1040,6 +1071,7 @@ def _stream_adk_orchestrated_sse(
                             pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls, schemas))
                             for ln in pending_sse:
                                 yield ln
+                            turn_outcome.update({"path": "deferred_tool_skipped_in_text_retry", "tool_calls": retry_raw_names})
                             # Replace the [DONE] with a tool-call flow — need to return before the final DONE.
                             yield "data: [DONE]\n\n"
                             return
@@ -1052,14 +1084,28 @@ def _stream_adk_orchestrated_sse(
     except Exception as exc:
         logger.error("cipherstrike_bridge ADK orchestrated stream: %s", exc)
         try:
-            trace.log_llm_response(
+            orchestrator_span.log_llm_response(
                 model=str(provider or "unknown"), prompt="", response="", metadata={"error": str(exc)},
             )
         except Exception:
             pass
+        turn_outcome.setdefault("error", str(exc))
         yield f"data: [ERROR] {str(exc)}\n\n"
         yield "data: [DONE]\n\n"
     finally:
+        try:
+            tool_selection_span.end(output=turn_outcome or None)
+        except Exception:
+            pass
+        try:
+            orchestrator_span.end(output=turn_outcome or None)
+        except Exception:
+            pass
+        try:
+            if turn_outcome:
+                trace.update(output=turn_outcome)
+        except Exception:
+            pass
         try:
             trace.flush()
         except Exception:
@@ -1104,10 +1150,12 @@ def llm_chat():
         tool_list = tools if isinstance(tools, list) and tools else None
 
         turn_id = str(body.get("session_id") or "") or uuid.uuid4().hex
-        trace = trace_turn(turn_id, name="vrika_llm_chat", metadata={"stage": body.get("purpose") or "llm_chat"})
         last_user = next(
             (m.get("content") for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "user"),
             "",
+        )
+        trace = trace_turn(
+            turn_id, name="vrika_llm_chat", metadata={"stage": body.get("purpose") or "llm_chat"}, input_data=last_user,
         )
 
         result = active_client.chat(messages, tools=tool_list)
@@ -1126,17 +1174,20 @@ def llm_chat():
                 prompt=last_user,
                 response=out["content"],
             )
+            trace.update(output=out)
             trace.flush()
             return jsonify(out)
 
         text = result if isinstance(result, str) else ("" if result is None else str(result))
+        out = {"success": True, "content": text.strip(), "tool_calls": None}
         trace.log_llm_response(
             model=str(getattr(getattr(active_client, "_backend", None), "provider", None) or "unknown"),
             prompt=last_user,
             response=text.strip(),
         )
+        trace.update(output=out)
         trace.flush()
-        return jsonify({"success": True, "content": text.strip(), "tool_calls": None})
+        return jsonify(out)
     except RuntimeError as exc:
         return jsonify({"success": False, "error": str(exc)}), 503
     except Exception as exc:

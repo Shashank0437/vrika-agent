@@ -47,59 +47,123 @@ def get_langfuse():
     return _langfuse_client
 
 
-class TraceContext:
-    """Scoped trace context for ADK agent executions."""
-    def __init__(self, trace_id: str, name: str, user_id: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None):
-        self.trace_id = trace_id
-        self.name = name
-        self.user_id = user_id
-        self.metadata = metadata or {}
-        self._trace = None
+class SpanContext:
+    """A nestable observation (trace-root or span) that can host child spans/generations.
 
-        lf = get_langfuse()
-        if lf:
+    Wraps whichever Langfuse stateful client sits at this level (``StatefulTraceClient`` or
+    ``StatefulSpanClient`` — both expose the same ``.span()``/``.generation()`` shape) so callers
+    can build a real parent/child tree: ``trace.span("adk_orchestrator").span("adk_tool_selection")
+    .log_tool_execution(...)`` — matching how Langfuse expects nested spans/generations rather than
+    everything logged flat as siblings directly on the trace root.
+    """
+
+    def __init__(self, client: Any):
+        self._client = client
+
+    def span(self, name: str, input_data: Any = None, metadata: Optional[Dict[str, Any]] = None) -> "SpanContext":
+        if self._client:
             try:
-                self._trace = lf.trace(
-                    id=trace_id,
-                    name=name,
-                    user_id=user_id,
-                    metadata=self.metadata,
-                )
+                child = self._client.span(name=name, input=input_data, metadata=metadata)
+                return SpanContext(child)
             except Exception as e:
-                logger.debug("Langfuse trace creation skipped: %s", e)
+                logger.warning("Langfuse span creation failed: %s", e)
+        return SpanContext(None)
 
-    def span(self, name: str, input_data: Any = None):
-        if self._trace:
-            try:
-                return self._trace.span(name=name, input=input_data)
-            except Exception:
-                pass
-        return None
+    def end(self, *, output: Any = None, metadata: Optional[Dict[str, Any]] = None) -> None:
+        if not self._client or not hasattr(self._client, "end"):
+            return
+        try:
+            kwargs: Dict[str, Any] = {}
+            if output is not None:
+                kwargs["output"] = output
+            if metadata:
+                kwargs["metadata"] = metadata
+            self._client.end(**kwargs)
+        except Exception as e:
+            logger.warning("Langfuse span end failed: %s", e)
 
     def log_tool_execution(self, tool_name: str, args: Dict[str, Any], output: Any, status: str = "success"):
-        if self._trace:
+        if self._client:
             try:
-                self._trace.generation(
+                self._client.generation(
                     name=f"tool:{tool_name}",
                     input=args,
                     output=str(output)[:2000],
                     metadata={"tool_name": tool_name, "status": status},
                 )
             except Exception as e:
-                logger.debug("Langfuse tool logging error: %s", e)
+                logger.warning("Langfuse tool logging error: %s", e)
 
     def log_llm_response(self, model: str, prompt: Any, response: str, thinking: str = "", metadata: Optional[Dict[str, Any]] = None):
-        if self._trace:
+        if self._client:
             try:
-                self._trace.generation(
-                    name="llm_reasoning",
+                self._client.generation(
+                    name="llm_call",
                     model=model,
                     input=prompt,
                     output=response,
                     metadata={"thinking": thinking, **(metadata or {})},
                 )
             except Exception as e:
-                logger.debug("Langfuse LLM logging error: %s", e)
+                logger.warning("Langfuse LLM logging error: %s", e)
+
+
+class TraceContext(SpanContext):
+    """Scoped trace context for ADK agent executions — the root of a nested span tree.
+
+    ``trace_id`` uniquely identifies this call (route-intent, one llm-stream
+    turn, a report generation, ...); ``chat_session_id`` is the durable chat
+    session id from vrika-server and is passed as Langfuse's own
+    ``session_id`` so the Langfuse Sessions view groups every trace from one
+    chat conversation together. Passing the chat session id as ``id=`` instead
+    (the previous behavior) makes every call with the same id upsert into a
+    single trace and never populates Langfuse's session grouping at all.
+    """
+    def __init__(
+        self,
+        trace_id: str,
+        name: str,
+        user_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        input_data: Any = None,
+        chat_session_id: Optional[str] = None,
+    ):
+        self.trace_id = trace_id
+        self.name = name
+        self.user_id = user_id
+        self.metadata = metadata or {}
+        trace_client = None
+
+        lf = get_langfuse()
+        if lf:
+            try:
+                trace_client = lf.trace(
+                    id=trace_id,
+                    name=name,
+                    user_id=user_id,
+                    metadata=self.metadata,
+                    input=input_data,
+                    session_id=chat_session_id or None,
+                )
+            except Exception as e:
+                logger.warning("Langfuse trace creation failed: %s", e)
+        super().__init__(trace_client)
+        self._trace = trace_client  # kept for update()/flush() below
+
+    def update(self, *, output: Any = None, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Set the trace-level output (and optionally merge metadata) once the turn concludes."""
+        if not self._trace:
+            return
+        try:
+            kwargs: Dict[str, Any] = {}
+            if output is not None:
+                kwargs["output"] = output
+            if metadata:
+                kwargs["metadata"] = {**self.metadata, **metadata}
+            if kwargs:
+                self._trace.update(**kwargs)
+        except Exception as e:
+            logger.warning("Langfuse trace update failed: %s", e)
 
     def flush(self):
         lf = get_langfuse()
@@ -110,7 +174,27 @@ class TraceContext:
                 pass
 
 
-def trace_turn(session_id: str, name: str = "vrika_agent_turn", metadata: Optional[Dict[str, Any]] = None) -> TraceContext:
-    """Create a trace context for a turn."""
-    return TraceContext(trace_id=session_id, name=name, metadata=metadata)
+def trace_turn(
+    session_id: str,
+    name: str = "vrika_agent_turn",
+    metadata: Optional[Dict[str, Any]] = None,
+    input_data: Any = None,
+) -> TraceContext:
+    """Create a trace context for one call within a chat session.
+
+    ``session_id`` is the durable vrika-server chat session id. Each call gets
+    its own fresh trace id (so route-intent, the main llm-stream turn, forced
+    retries, and report generation each show as a distinct trace) while all
+    sharing ``session_id`` so Langfuse's Sessions view groups them together.
+    """
+    import uuid as _uuid
+
+    trace_id = f"{session_id}:{_uuid.uuid4().hex[:12]}" if session_id else _uuid.uuid4().hex
+    return TraceContext(
+        trace_id=trace_id,
+        name=name,
+        metadata=metadata,
+        input_data=input_data,
+        chat_session_id=session_id or None,
+    )
 
