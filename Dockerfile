@@ -3,7 +3,7 @@
 
 FROM python:3.13-slim-bookworm
 
-ARG INSTALL_TOOLS=0
+ARG INSTALL_TOOLS=1
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -200,6 +200,9 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements-root.txt -c pip_constraints.txt \
     && if [ "$INSTALL_TOOLS" = "1" ]; then \
       pip install --no-cache-dir "setuptools>=70,<82" dirsearch uro schemathesis pwntools ropper ROPGadget angr arjun git+https://github.com/devanshbatham/ParamSpider bbot waymore sherlock-project; \
+      for b in nuclei dalfox httpx katana subfinder ffuf assetfinder qsreplace gospider hakrawler gau shuffledns waybackurls jaeles interactsh-client; do \
+        [ -x "/root/go/bin/$b" ] && ln -sf "/root/go/bin/$b" "/usr/local/bin/$b"; \
+      done; \
     fi \
     && rm -rf /root/.cache/pip /tmp/* /var/tmp/*
 

@@ -5,9 +5,12 @@ from __future__ import annotations
 import json
 import logging
 import re
+import uuid
 from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any, Dict, List, Tuple
+
+from server_core.adk.telemetry import trace_turn
 
 logger = logging.getLogger(__name__)
 
@@ -504,13 +507,18 @@ def _normalize_report_data(raw: Dict[str, Any], *, fallback_client: str, fallbac
     return _sanitize_client_report_payload(out)
 
 
-def _llm_fill_report(transcript: str, llm_client: Any) -> Dict[str, Any]:
+def _llm_fill_report(transcript: str, llm_client: Any, session_id: str | None = None) -> Dict[str, Any]:
     user_content = (
         "Produce the JSON report for CLIENT DELIVERY. Audience: client security leadership and technical owners. "
         "They need clear risk and remediation guidance for THEIR environment—not internal agent/platform errors "
         "(omit those entirely from client sections; neutral engagement limitations only in appendix_limitations).\n\n"
         "--- TRANSCRIPT ---\n"
         + transcript.strip()
+    )
+    trace = trace_turn(
+        session_id or uuid.uuid4().hex,
+        name="vrika_penetration_report",
+        input_data=user_content[:2000],
     )
     raw = llm_client.chat(
         [
@@ -521,6 +529,17 @@ def _llm_fill_report(transcript: str, llm_client: Any) -> Dict[str, Any]:
     )
     text = raw if isinstance(raw, str) else str((raw or {}).get("content") or "")
     parsed = extract_json_object(text) or {}
+    try:
+        trace.log_llm_response(
+            model=str(getattr(getattr(llm_client, "_backend", None), "provider", None) or "unknown"),
+            prompt=user_content[:2000],
+            response=text,
+            metadata={"stage": "penetration_report_fill"},
+        )
+        trace.update(output=parsed if parsed else {"error": "no_json_returned"})
+        trace.flush()
+    except Exception:
+        pass
     if not parsed:
         logger.warning("pt_report_pdf: LLM returned no JSON; using minimal shell")
         return {
@@ -899,6 +918,7 @@ def generate_penetration_report(
     generated_by: str = "Vrika",
     ui_context: str = "",
     llm_client: Any,
+    session_id: str | None = None,
 ) -> Tuple[bytes, str, str]:
     """Return (pdf_bytes, filename, summary_for_llm)."""
     if not session_transcript or not str(session_transcript).strip():
@@ -910,7 +930,7 @@ def generate_penetration_report(
     if ui_context and ui_context.strip():
         extra = "\n\nAdditional UI context:\n" + ui_context.strip()
 
-    raw_llm = _llm_fill_report(session_transcript.strip() + extra, llm_client)
+    raw_llm = _llm_fill_report(session_transcript.strip() + extra, llm_client, session_id=session_id)
     data = _normalize_report_data(raw_llm, fallback_client=client_name, fallback_target=target_label)
     pdf = _build_pdf_bytes(data, generated_by="Vrika")
 
