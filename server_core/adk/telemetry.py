@@ -179,22 +179,34 @@ def trace_turn(
     name: str = "vrika_agent_turn",
     metadata: Optional[Dict[str, Any]] = None,
     input_data: Any = None,
+    chat_session_id: Optional[str] = None,
+    trace_id: Optional[str] = None,
 ) -> TraceContext:
-    """Create a trace context for one call within a chat session.
+    """Create (or resume) a trace context.
 
-    ``session_id`` is the durable vrika-server chat session id. Each call gets
-    its own fresh trace id (so route-intent, the main llm-stream turn, forced
-    retries, and report generation each show as a distinct trace) while all
-    sharing ``session_id`` so Langfuse's Sessions view groups them together.
+    ``session_id`` is the durable vrika-server chat session id (spans many
+    turns) and is passed as Langfuse's own ``session_id`` so the Sessions view
+    groups every trace from one conversation together.
+
+    Each call gets its OWN fresh Langfuse trace id by default (so unrelated
+    calls sharing the same chat session — e.g. two separate messages, or a
+    summarization call — don't collapse into one trace). Pass ``trace_id``
+    explicitly when you want this call to join an EXISTING trace instead: e.g.
+    route-intent, the tool-call llm-stream turn, and the later tool-confirm
+    follow-up all pass the same per-user-message id (vrika-server mints it once
+    and persists it as ``turn_id`` on the pending tool-call row so the separate
+    confirm/reject request can resume it) so all three nest into one trace.
     """
     import uuid as _uuid
 
-    trace_id = f"{session_id}:{_uuid.uuid4().hex[:12]}" if session_id else _uuid.uuid4().hex
+    resolved_trace_id = trace_id or (
+        f"{session_id}:{_uuid.uuid4().hex[:12]}" if session_id else _uuid.uuid4().hex
+    )
     return TraceContext(
-        trace_id=trace_id,
+        trace_id=resolved_trace_id,
         name=name,
         metadata=metadata,
         input_data=input_data,
-        chat_session_id=session_id or None,
+        chat_session_id=chat_session_id or session_id or None,
     )
 

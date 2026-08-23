@@ -238,9 +238,14 @@ def route_intent():
         if not isinstance(context_str, str):
             context_str = ""
         context_str = context_str.strip()
-        turn_id = str(body.get("session_id") or "") or uuid.uuid4().hex
+        chat_session_id = str(body.get("session_id") or "") or uuid.uuid4().hex
+        combining_turn_id = str(body.get("turn_id") or "").strip() or None
         trace = trace_turn(
-            turn_id, name="vrika_route_intent", metadata={"message": message[:200]}, input_data=message.strip(),
+            chat_session_id,
+            name="vrika_route_intent",
+            metadata={"message": message[:200]},
+            input_data=message.strip(),
+            trace_id=combining_turn_id,
         )
 
         if not active_client.is_available():
@@ -744,20 +749,22 @@ def _stream_adk_orchestrated_sse(
     attack_chain_force_next_tool: bool = False,
     active_client: Any = None,
     session_id: str | None = None,
+    turn_id: str | None = None,
 ) -> Generator[str, None, None]:
     """Execute the canonical ADK-controlled turn and emit the Vrika SSE contract."""
     client = active_client or llm_client
-    turn_id = session_id or uuid.uuid4().hex
+    chat_session_id = session_id or uuid.uuid4().hex
     _last_user_input = ""
     for _m in reversed(messages):
         if isinstance(_m, dict) and str(_m.get("role") or "") == "user":
             _last_user_input = str(_m.get("content") or "")
             break
     trace = trace_turn(
-        turn_id,
+        chat_session_id,
         name="vrika_llm_stream",
         metadata={"schemas": _schema_tool_names(schemas)},
         input_data=_last_user_input,
+        trace_id=turn_id,
     )
     orchestrator_span = trace.span("adk_orchestrator", input_data=_last_user_input)
     tool_selection_span = orchestrator_span.span(
@@ -1149,13 +1156,17 @@ def llm_chat():
         tools = body.get("tools")
         tool_list = tools if isinstance(tools, list) and tools else None
 
-        turn_id = str(body.get("session_id") or "") or uuid.uuid4().hex
+        chat_session_id = str(body.get("session_id") or "") or uuid.uuid4().hex
         last_user = next(
             (m.get("content") for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "user"),
             "",
         )
         trace = trace_turn(
-            turn_id, name="vrika_llm_chat", metadata={"stage": body.get("purpose") or "llm_chat"}, input_data=last_user,
+            chat_session_id,
+            name="vrika_llm_chat",
+            metadata={"stage": body.get("purpose") or "llm_chat"},
+            input_data=last_user,
+            trace_id=str(body.get("turn_id") or "").strip() or None,
         )
 
         result = active_client.chat(messages, tools=tool_list)
@@ -1230,6 +1241,7 @@ def llm_stream():
                     attack_chain_force_next_tool=attack_chain_force,
                     active_client=active_client,
                     session_id=str(body.get("session_id") or "") or None,
+                    turn_id=str(body.get("turn_id") or "").strip() or None,
                 )
             ),
             mimetype="text/event-stream",
@@ -1265,7 +1277,11 @@ def llm_chat_tools_then_chunk():
             return jsonify({"success": False, "error": "schemas must be a non-empty list"}), 400
 
         return Response(
-            stream_with_context(_stream_adk_orchestrated_sse(messages, schemas, active_client=active_client, session_id=str(body.get("session_id") or "") or None)),
+            stream_with_context(_stream_adk_orchestrated_sse(
+                messages, schemas, active_client=active_client,
+                session_id=str(body.get("session_id") or "") or None,
+                turn_id=str(body.get("turn_id") or "").strip() or None,
+            )),
             mimetype="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
