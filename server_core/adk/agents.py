@@ -8,6 +8,7 @@ Defines Supervisor, Recon, Vulnerability Assessment, Cloud, and Reporting Agents
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -117,6 +118,19 @@ class VrikaOrchestrator:
                     scored.append((score, name))
             return [name for _, name in sorted(scored, key=lambda item: (-item[0], item[1]))[:max_tools]]
 
+        # 0. Check for explicit tool name mentions first (e.g. "run nmap on ...", "use nuclei ...")
+        for tname in ["nmap", "rustscan", "nuclei", "nikto", "sqlmap", "httpx", "subfinder", "whatweb", "wafw00f", "dalfox", "gobuster", "ffuf", "dirb", "masscan", "penetration-report"]:
+            if re.search(r"\b" + re.escape(tname) + r"\b", text_lower):
+                matched = available([tname])
+                if matched:
+                    cat = "reporting" if tname == "penetration-report" else "network_recon" if tname in ("nmap", "rustscan", "masscan") else "web_vuln" if tname in ("nuclei", "nikto", "sqlmap", "dalfox") else "web_recon"
+                    return {
+                        "intent": "operational",
+                        "category": cat,
+                        "tool_names": matched,
+                        "reply": "",
+                    }
+
         # 1. Check for PDF / Report request
         if any(w in text_lower for w in ["report", "pdf", "writeup", "write-up", "executive summary", "document findings"]):
             return {
@@ -127,13 +141,14 @@ class VrikaOrchestrator:
             }
 
         # 2. Check for Reconnaissance / Port Scan
-        if any(w in text_lower for w in ["nmap", "port scan", "ports", "subdomain", "subfinder", "httpx", "recon", "fingerprint", "whatweb"]):
+        if any(w in text_lower for w in ["port scan", "ports", "subdomain", "subfinder", "httpx", "recon", "fingerprint", "whatweb"]):
             return {
                 "intent": "operational",
-                "category": "network_recon" if any(w in text_lower for w in ["nmap", "port", "masscan", "rustscan"]) else "web_recon",
-                "tool_names": available(["httpx", "nmap", "whatweb", "wafw00f", "subfinder", "masscan", "rustscan"]),
+                "category": "network_recon" if any(w in text_lower for w in ["port", "masscan", "rustscan"]) else "web_recon",
+                "tool_names": available(["nmap", "httpx", "whatweb", "wafw00f", "subfinder", "masscan", "rustscan"]),
                 "reply": "",
             }
+
 
         # 3. Check for Comprehensive Pentest / URL Vulnerability Scan
         if ("http://" in user_message or "https://" in user_message or "canplus" in user_message or "target" in combined_text) and any(

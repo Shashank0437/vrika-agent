@@ -207,10 +207,11 @@ def route_intent():
     blocked = _require_bridge()
     if blocked:
         return blocked
-    if not llm_client.is_available():
-        return jsonify({"success": False, "error": "LLM is not available"}), 503
     try:
         body = request.get_json(force=True, silent=True) or {}
+        llm_cfg = body.get("llm_config")
+        active_client = create_llm_client(llm_cfg) if llm_cfg else llm_client
+
         message = body.get("message")
         if not isinstance(message, str) or not message.strip():
             return jsonify({"success": False, "error": "message is required"}), 400
@@ -222,6 +223,16 @@ def route_intent():
         if not isinstance(context_str, str):
             context_str = ""
         context_str = context_str.strip()
+
+        if not active_client.is_available():
+            fallback = VrikaOrchestrator.classify_and_route(
+                message,
+                context_str=context_str,
+                catalog_tools=tools,
+                max_tools=max_pick,
+            )
+            return jsonify({"success": True, **fallback, "fallback": "adk"})
+
         allowed_names = {
             str(t.get("name") or "").strip()
             for t in tools
@@ -256,7 +267,8 @@ def route_intent():
             {"role": "system", "content": full_sys_prompt},
             {"role": "user", "content": message.strip()},
         ]
-        result = llm_client.chat(chat_messages, tools=None)
+        result = active_client.chat(chat_messages, tools=None)
+
         text_out = result if isinstance(result, str) else str((result or {}).get("content") or "")
         parsed = _extract_json_object(text_out) or {}
         intent = str(parsed.get("intent") or "conversational").lower().strip()
