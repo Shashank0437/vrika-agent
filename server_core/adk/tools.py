@@ -1,56 +1,56 @@
 """
 server_core/adk/tools.py
 
-Typed Tool Definitions and Schemas for Google ADK Agents.
-Translates NyxStrike tool_registry into validated OpenAI/Gemini/ADK tool declarations.
+Canonical parameter normalization for the ADK orchestration layer.
 """
 
 from __future__ import annotations
 
-import json
-import re
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict
 from urllib.parse import urlparse
 
 from tool_registry import TOOLS
-from server_core.adk.state import TargetKnowledgeState, extract_state_from_tool_output
-
-
-# Parameter overrides for security tools
-_PARAM_OVERRIDES: Dict[tuple[str, str], str] = {
-    ("nmap", "target"): "Hostname, IP, CIDR, or URL (URL scheme is stripped automatically)",
-    ("masscan", "target"): "Hostname, IP, CIDR, or URL",
-    ("rustscan", "target"): "Hostname, IP, or URL",
-    ("nuclei", "target"): "Target URL (e.g. https://example.com) or IP address",
-    ("httpx", "target"): "Target URL or hostname to probe",
-    ("wafw00f", "url"): "Target URL to test for WAF (e.g. https://example.com)",
-    ("penetration-report", "session_id"): "Optional session ID for report generation",
-}
-
-
-def _infer_json_schema_type(val: Any) -> str:
-    if isinstance(val, bool):
-        return "boolean"
-    if isinstance(val, (int, float)):
-        return "number"
-    return "string"
 
 
 def normalize_tool_parameters(tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
-    """Clean and normalize parameters before execution (e.g. strip URL scheme for nmap)."""
+    """Normalize model argument aliases against the canonical registry schema."""
     clean_name = tool_name.strip().lower()
     out = dict(args)
+    tool_def = TOOLS.get(clean_name) or {}
+    accepted = set((tool_def.get("params") or {}).keys()) | set((tool_def.get("optional") or {}).keys())
+
+    # Models commonly use one generic target field while the registry uses
+    # url/domain/input/host.  Map only to an actual schema field; this prevents
+    # silently forwarding unsupported aliases to the execution API.
+    target_value = next(
+        (
+            out[key]
+            for key in ("target", "url", "domain", "host", "input")
+            if isinstance(out.get(key), str) and out[key].strip()
+        ),
+        None,
+    )
+    if isinstance(target_value, str):
+        address_fields = [field for field in ("target", "url", "domain", "host", "input") if field in accepted]
+        if len(address_fields) == 1:
+            out[address_fields[0]] = target_value
+        elif "target" in accepted and "target" not in out:
+            out["target"] = target_value
 
     # 1. Target URL/Host normalization for raw port scanners
     if clean_name in ("nmap", "nmap_advanced", "masscan", "rustscan", "amass", "subfinder"):
-        target = out.get("target") or out.get("domain") or out.get("host")
+        target = out.get("target") or out.get("domain") or out.get("host") or out.get("url") or out.get("input")
         if isinstance(target, str) and (target.startswith("http://") or target.startswith("https://")):
             parsed = urlparse(target)
             host_only = parsed.netloc.split(":")[0]
-            if "target" in out:
-                out["target"] = host_only
-            elif "domain" in out:
-                out["domain"] = host_only
+            for field in ("target", "domain", "host", "input"):
+                if field in accepted and (field in out or len([f for f in ("target", "domain", "host", "input") if f in accepted]) == 1):
+                    out[field] = host_only
+                    break
+
+    # Never forward model-invented keys when a registry schema is known.
+    if accepted:
+        out = {key: value for key, value in out.items() if key in accepted}
 
     # 2. Boolean strings
     for k, v in list(out.items()):
@@ -61,58 +61,4 @@ def normalize_tool_parameters(tool_name: str, args: Dict[str, Any]) -> Dict[str,
                 out[k] = False
 
     return out
-
-
-def get_adk_tool_declaration(tool_name: str) -> Optional[Dict[str, Any]]:
-    """Build OpenAI/Gemini/ADK-compliant function tool schema from tool_registry.TOOLS."""
-    defn = TOOLS.get(tool_name)
-    if not defn:
-        return None
-
-    properties: Dict[str, Any] = {}
-    required: List[str] = []
-
-    # Required params
-    for param_name, param_meta in defn.get("params", {}).items():
-        desc = _PARAM_OVERRIDES.get((tool_name, param_name), f"{param_name} (required)")
-        properties[param_name] = {
-            "type": "string",
-            "description": desc,
-        }
-        required.append(param_name)
-
-    # Optional params
-    for param_name, default_val in defn.get("optional", {}).items():
-        p_type = _infer_json_schema_type(default_val)
-        desc = _PARAM_OVERRIDES.get((tool_name, param_name), f"{param_name} (optional, default: {default_val})")
-        properties[param_name] = {
-            "type": p_type,
-            "description": desc,
-        }
-
-    return {
-        "type": "function",
-        "function": {
-            "name": tool_name,
-            "description": defn.get("desc", ""),
-            "parameters": {
-                "type": "object",
-                "properties": properties,
-                "required": required,
-            },
-        },
-    }
-
-
-def get_adk_tools_for_names(tool_names: List[str]) -> List[Dict[str, Any]]:
-    """Return tool declarations for a list of tool names."""
-    declarations = []
-    seen = set()
-    for name in tool_names:
-        clean = name.strip()
-        if clean and clean not in seen:
-            seen.add(clean)
-            decl = get_adk_tool_declaration(clean)
-            if decl:
-                declarations.append(decl)
     return declarations

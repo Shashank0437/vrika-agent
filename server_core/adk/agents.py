@@ -7,13 +7,8 @@ Defines Supervisor, Recon, Vulnerability Assessment, Cloud, and Reporting Agents
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any, Dict, List, Optional
-
-from server_core.adk.state import VrikaAgentState
-from server_core.adk.prompts import build_consolidated_system_prompt
-from server_core.adk.tools import get_adk_tools_for_names
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +64,12 @@ SPECIALIST_REGISTRY: Dict[str, SpecialistAgentConfig] = {
 
 
 class VrikaOrchestrator:
-    """Google ADK Orchestrator for intent routing, sub-agent delegation, and prompt composition."""
+    """Fallback planner for the ADK turn orchestrator.
+
+    This is deliberately deterministic and catalog-aware.  It is used only when
+    the model router is unavailable or produces an unusable operational plan;
+    it must never replace the model router's contextual tool selection.
+    """
 
     @staticmethod
     def classify_and_route(
@@ -78,16 +78,51 @@ class VrikaOrchestrator:
         catalog_tools: Optional[List[Dict[str, Any]]] = None,
         max_tools: int = 12,
     ) -> Dict[str, Any]:
-        """Classify operator request and determine intent, category, and tool shortlist."""
+        """Return a safe, catalog-filtered fallback route.
+
+        ``catalog_tools`` is the caller's authorization boundary.  Never emit a
+        tool that was not offered by that catalog.
+        """
         text_lower = user_message.lower().strip()
         combined_text = f"{context_str}\n{user_message}".lower()
+
+        catalog_names = [
+            str(tool.get("name") or "").strip()
+            for tool in (catalog_tools or [])
+            if isinstance(tool, dict) and str(tool.get("name") or "").strip()
+        ]
+        catalog_by_lower = {name.lower(): name for name in catalog_names}
+
+        def available(names: List[str]) -> List[str]:
+            selected: List[str] = []
+            for name in names:
+                canonical = catalog_by_lower.get(name.lower())
+                if canonical and canonical not in selected:
+                    selected.append(canonical)
+                if len(selected) >= max_tools:
+                    break
+            return selected
+
+        def matching_tools(keywords: List[str]) -> List[str]:
+            scored: List[tuple[int, str]] = []
+            for tool in catalog_tools or []:
+                if not isinstance(tool, dict):
+                    continue
+                name = str(tool.get("name") or "").strip()
+                if not name:
+                    continue
+                haystack = f"{name} {tool.get('desc') or ''}".lower()
+                score = sum(1 for word in keywords if word in haystack)
+                if score:
+                    scored.append((score, name))
+            return [name for _, name in sorted(scored, key=lambda item: (-item[0], item[1]))[:max_tools]]
 
         # 1. Check for PDF / Report request
         if any(w in text_lower for w in ["report", "pdf", "writeup", "write-up", "executive summary", "document findings"]):
             return {
                 "intent": "operational",
                 "category": "reporting",
-                "tool_names": ["penetration-report"],
+                "tool_names": available(["penetration-report"]),
                 "reply": "",
             }
 
@@ -95,8 +130,8 @@ class VrikaOrchestrator:
         if any(w in text_lower for w in ["nmap", "port scan", "ports", "subdomain", "subfinder", "httpx", "recon", "fingerprint", "whatweb"]):
             return {
                 "intent": "operational",
-                "category": "web_recon",
-                "tool_names": ["httpx", "nmap", "whatweb", "wafw00f", "subfinder"][:max_tools],
+                "category": "network_recon" if any(w in text_lower for w in ["nmap", "port", "masscan", "rustscan"]) else "web_recon",
+                "tool_names": available(["httpx", "nmap", "whatweb", "wafw00f", "subfinder", "masscan", "rustscan"]),
                 "reply": "",
             }
 
@@ -107,7 +142,7 @@ class VrikaOrchestrator:
             return {
                 "intent": "operational",
                 "category": "web_vuln",
-                "tool_names": ["wafw00f", "httpx", "nuclei", "nikto"][:max_tools],
+                "tool_names": available(["wafw00f", "httpx", "nuclei", "nikto", "whatweb", "ffuf", "dalfox", "sqlmap"]),
                 "reply": "",
             }
 
@@ -125,7 +160,7 @@ class VrikaOrchestrator:
             return {
                 "intent": "operational",
                 "category": "web_vuln",
-                "tool_names": ["httpx", "nuclei", "wafw00f"][:max_tools],
+                "tool_names": matching_tools(["http", "vuln", "scan", "recon", "nuclei", "nikto"]),
                 "reply": "",
             }
 

@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import uuid
 from typing import Any, Dict, Generator, List
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
@@ -22,7 +23,14 @@ from flask import Blueprint, Response, jsonify, request, stream_with_context
 from server_core.singletons import llm_client
 from server_core.llm_client import create_llm_client
 from server_core.tool_schema import build_tool_schemas
-from server_core.adk import VrikaOrchestrator, build_consolidated_system_prompt, get_adk_tools_for_names, normalize_tool_parameters
+from server_core.adk import (
+    TargetKnowledgeState,
+    VrikaOrchestrator,
+    build_consolidated_system_prompt,
+    extract_state_from_tool_output,
+    normalize_tool_parameters,
+    trace_turn,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,25 +103,55 @@ def _messages_with_schema_nudges(
     messages: List[Dict[str, Any]],
     schemas: List[Dict[str, Any]] | None,
 ) -> List[Dict[str, Any]]:
+    """Build the one canonical ADK system context for a streaming turn.
+
+    The Vrika server owns durable chat persistence and approval state.  The
+    bridge reconstructs the ADK knowledge snapshot from that durable history on
+    every request so restarts and multi-worker deployments cannot lose context.
+    """
     nudges: List[str] = []
     if _schemas_include_tool_name(schemas, "penetration-report"):
         nudges.append(_PENETRATION_REPORT_SCHEMA_NUDGE)
     if _schemas_include_tool_name(schemas, "nmap"):
         nudges.append(_NMAP_TARGET_SCHEMA_NUDGE)
-    if not nudges:
-        return list(messages)
+    knowledge = TargetKnowledgeState()
+    system_parts: List[str] = []
+    schema_names = _schema_tool_names(schemas)
+    role = "supervisor"
+    if "penetration-report" in schema_names:
+        role = "reporting"
+    elif any(name in schema_names for name in ("nuclei", "nikto", "sqlmap", "dalfox")):
+        role = "web_vuln"
+    elif any(name in schema_names for name in ("nmap", "masscan", "rustscan", "subfinder", "httpx")):
+        role = "recon"
 
-    nudge_text = "\n\n" + "\n\n".join(nudges)
     out: List[Dict[str, Any]] = []
-    found_sys = False
     for m in messages:
-        if isinstance(m, dict) and str(m.get("role") or "").lower() == "system" and not found_sys:
-            found_sys = True
-            out.append({"role": "system", "content": str(m.get("content") or "") + nudge_text})
-        else:
-            out.append(dict(m))
-    if not found_sys:
-        out.insert(0, {"role": "system", "content": nudge_text.strip()})
+        if not isinstance(m, dict):
+            continue
+        message_role = str(m.get("role") or "").lower()
+        if message_role == "system":
+            content = str(m.get("content") or "").strip()
+            if content:
+                system_parts.append(content)
+            continue
+        if message_role == "tool":
+            extract_state_from_tool_output(
+                knowledge,
+                str(m.get("name") or m.get("tool_name") or "unknown"),
+                m.get("content", ""),
+            )
+        out.append(dict(m))
+
+    adk_prompt = build_consolidated_system_prompt(
+        role=role,
+        knowledge=knowledge,
+        active_tools=schema_names,
+    )
+    if nudges:
+        system_parts.append("\n\n".join(nudges))
+    system_parts.append(adk_prompt)
+    out.insert(0, {"role": "system", "content": "\n\n".join(system_parts)})
     return out
 
 
@@ -200,24 +238,8 @@ def route_intent():
             if len(desc) > 100:
                 desc = desc[:97] + "..."
             catalog_lines.append(f"- {name}: {desc}")
+        catalog_text = "\n".join(catalog_lines) if catalog_lines else "(no tools)"
         allowed_categories = frozenset(CATEGORIES.keys())
-
-        # ADK Fast-path Router check (deterministic intent classification & tool shortlisting)
-        adk_route = VrikaOrchestrator.classify_and_route(
-            message,
-            context_str=context_str,
-            max_tools=max_pick,
-        )
-        if adk_route.get("intent") == "operational" and adk_route.get("tool_names"):
-            valid_tools = [t for t in adk_route["tool_names"] if not allowed_names or t in allowed_names]
-            if valid_tools:
-                return jsonify({
-                    "success": True,
-                    "intent": "operational",
-                    "tool_names": valid_tools[:max_pick],
-                    "reply": adk_route.get("reply", ""),
-                    "category": adk_route.get("category", "web_vuln"),
-                })
 
         sys_prompt = _ROUTER_SYSTEM_TEMPLATE.format(
             max_tools=max_pick,
@@ -254,6 +276,22 @@ def route_intent():
             cand = raw_cat.strip().lower().replace(" ", "_").replace("-", "_")
             if cand in allowed_categories:
                 category_slug = cand
+        # The ADK planner is a resilient fallback, not an LLM-router shortcut.
+        # It is intentionally consulted only when the model response is
+        # malformed or cannot bind an authorized tool for an operational plan.
+        if not parsed or (intent == "operational" and not tool_names):
+            fallback = VrikaOrchestrator.classify_and_route(
+                message,
+                context_str=context_str,
+                catalog_tools=tools,
+                max_tools=max_pick,
+            )
+            fallback_names = fallback.get("tool_names") or []
+            tool_names = [name for name in fallback_names if name in allowed_names][:max_pick]
+            if tool_names:
+                intent = "operational"
+                if not category_slug:
+                    category_slug = str(fallback.get("category") or "")
         return jsonify(
             {
                 "success": True,
@@ -264,7 +302,15 @@ def route_intent():
             },
         )
     except Exception as exc:
-        logger.exception("cipherstrike_bridge route-intent")
+        logger.exception("cipherstrike_bridge route-intent; using catalog-aware ADK fallback")
+        fallback = VrikaOrchestrator.classify_and_route(
+            message if isinstance(message, str) else "",
+            context_str=context_str if isinstance(context_str, str) else "",
+            catalog_tools=tools if isinstance(tools, list) else [],
+            max_tools=max_pick if isinstance(max_pick, int) else 12,
+        )
+        if fallback.get("intent") == "operational" and fallback.get("tool_names"):
+            return jsonify({"success": True, **fallback, "fallback": "adk"})
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -402,6 +448,13 @@ def _yield_cipherstrike_tool_pending_sse(
                 logger.info(
                     "cipherstrike_bridge: normalized tool name %r -> %r",
                     raw_tool_name,
+                    canonical_name,
+                )
+            try:
+                arguments = normalize_tool_parameters(canonical_name, arguments)
+            except Exception:
+                logger.exception(
+                    "cipherstrike_bridge: parameter normalization failed for %r; retaining model arguments",
                     canonical_name,
                 )
             try:
@@ -603,14 +656,17 @@ def _normalize_openai_compatible_messages_local(messages: List[Dict[str, Any]]) 
     return out
 
 
-def _stream_llm_sse(
+def _stream_adk_orchestrated_sse(
     messages: List[Dict[str, Any]],
     schemas: List[Dict[str, Any]] | None = None,
     attack_chain_force_next_tool: bool = False,
     active_client: Any = None,
+    session_id: str | None = None,
 ) -> Generator[str, None, None]:
-    """Stream tokens from the configured LLM; optional ``schemas`` enables tool mode."""
+    """Execute the canonical ADK-controlled turn and emit the Vrika SSE contract."""
     client = active_client or llm_client
+    turn_id = session_id or uuid.uuid4().hex
+    trace = trace_turn(turn_id, metadata={"schemas": _schema_tool_names(schemas)})
     backend = getattr(client, "_backend", None)
     provider = getattr(backend, "provider", None) if backend else None
     schemas_ok = isinstance(schemas, list) and len(schemas) > 0
@@ -710,6 +766,15 @@ def _stream_llm_sse(
                     if "usage" in chunk:
                         usage_chunk = {"type": "usage", "usage": chunk["usage"]}
                         yield f"data: [STATS] {json.dumps(usage_chunk)}\n\n"
+                    for tool_call in tcalls if isinstance(tcalls, list) else []:
+                        function = tool_call.get("function") if isinstance(tool_call, dict) else {}
+                        if isinstance(function, dict):
+                            trace.log_tool_execution(
+                                str(function.get("name") or "unknown"),
+                                function.get("arguments") if isinstance(function.get("arguments"), dict) else {},
+                                "pending approval/execution",
+                                status="pending",
+                            )
                     pending_sse = list(_yield_cipherstrike_tool_pending_sse(tcalls if isinstance(tcalls, list) else [], schemas))
                     if pending_sse:
                         saw_visible_output = True
@@ -887,7 +952,7 @@ def _stream_llm_sse(
     except GeneratorExit:
         raise
     except Exception as exc:
-        logger.error("cipherstrike_bridge llm-stream: %s", exc)
+        logger.error("cipherstrike_bridge ADK orchestrated stream: %s", exc)
         yield f"data: [ERROR] {str(exc)}\n\n"
         yield "data: [DONE]\n\n"
 
@@ -971,11 +1036,12 @@ def llm_stream():
 
         return Response(
             stream_with_context(
-                _stream_llm_sse(
+                _stream_adk_orchestrated_sse(
                     messages,
                     schemas if isinstance(schemas, list) else None,
                     attack_chain_force_next_tool=attack_chain_force,
                     active_client=active_client,
+                    session_id=str(body.get("session_id") or "") or None,
                 )
             ),
             mimetype="text/event-stream",
@@ -1011,7 +1077,7 @@ def llm_chat_tools_then_chunk():
             return jsonify({"success": False, "error": "schemas must be a non-empty list"}), 400
 
         return Response(
-            stream_with_context(_stream_llm_sse(messages, schemas, active_client=active_client)),
+            stream_with_context(_stream_adk_orchestrated_sse(messages, schemas, active_client=active_client, session_id=str(body.get("session_id") or "") or None)),
             mimetype="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
