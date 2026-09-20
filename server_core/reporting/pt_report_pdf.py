@@ -911,6 +911,27 @@ def _build_pdf_bytes(data: Dict[str, Any], generated_by: str) -> bytes:
     return pdf
 
 
+def _restore_vault_tokens(node: Any, vault_map: Dict[str, str], redact_secrets: bool = False) -> Any:
+    """Recursively restore [[VRIKA:...]] semantic placeholders in report data structures."""
+    if not vault_map or not isinstance(vault_map, dict):
+        return node
+    if isinstance(node, str):
+        out = node
+        for token, original_value in vault_map.items():
+            if token not in out:
+                continue
+            if redact_secrets and token.startswith("[[VRIKA:SECRET:"):
+                out = out.replace(token, "[REDACTED_CREDENTIAL]")
+            else:
+                out = out.replace(token, str(original_value))
+        return out
+    if isinstance(node, list):
+        return [_restore_vault_tokens(item, vault_map, redact_secrets=redact_secrets) for item in node]
+    if isinstance(node, dict):
+        return {k: _restore_vault_tokens(v, vault_map, redact_secrets=redact_secrets) for k, v in node.items()}
+    return node
+
+
 def generate_penetration_report(
     *,
     session_transcript: str,
@@ -920,6 +941,7 @@ def generate_penetration_report(
     ui_context: str = "",
     llm_client: Any,
     session_id: str | None = None,
+    vault_map: Dict[str, str] | None = None,
 ) -> Tuple[bytes, str, str]:
     """Return (pdf_bytes, filename, summary_for_llm)."""
     if not session_transcript or not str(session_transcript).strip():
@@ -931,8 +953,20 @@ def generate_penetration_report(
     if ui_context and ui_context.strip():
         extra = "\n\nAdditional UI context:\n" + ui_context.strip()
 
+    # The LLM receives the masked transcript and produces report JSON with [[VRIKA:...]] tokens
     raw_llm = _llm_fill_report(session_transcript.strip() + extra, llm_client, session_id=session_id)
+
+    # Inbound demasking: restore all placeholders in report structures back to original client values
+    # before building the PDF so the final deliverable is clean and accurate.
+    if vault_map and isinstance(vault_map, dict):
+        raw_llm = _restore_vault_tokens(raw_llm, vault_map, redact_secrets=False)
+        client_name = _restore_vault_tokens(client_name, vault_map, redact_secrets=False)
+        target_label = _restore_vault_tokens(target_label, vault_map, redact_secrets=False)
+
     data = _normalize_report_data(raw_llm, fallback_client=client_name, fallback_target=target_label)
+    if vault_map and isinstance(vault_map, dict):
+        data = _restore_vault_tokens(data, vault_map, redact_secrets=False)
+
     pdf = _build_pdf_bytes(data, generated_by="Vrika")
 
     safe_title = re.sub(r"[^A-Za-z0-9]+", "_", data["report_title"]).strip("_")[:64] or "Penetration_Test_Report"
