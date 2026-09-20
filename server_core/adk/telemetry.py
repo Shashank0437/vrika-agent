@@ -94,18 +94,32 @@ class SpanContext:
             except Exception as e:
                 logger.warning("Langfuse tool logging error: %s", e)
 
-    def log_llm_response(self, model: str, prompt: Any, response: str, thinking: str = "", metadata: Optional[Dict[str, Any]] = None):
+    def log_llm_response(
+        self,
+        model: str,
+        prompt: Any,
+        response: Any,
+        thinking: str = "",
+        metadata: Optional[Dict[str, Any]] = None,
+        usage: Optional[Dict[str, Any]] = None,
+        name: str = "llm_call",
+    ):
         if self._client:
             try:
-                self._client.generation(
-                    name="llm_call",
-                    model=model,
-                    input=prompt,
-                    output=response,
-                    metadata={"thinking": thinking, **(metadata or {})},
-                )
+                kwargs: Dict[str, Any] = {
+                    "name": name,
+                    "model": model,
+                    "input": prompt,
+                    "output": response,
+                    "metadata": {"thinking": thinking, **(metadata or {})},
+                }
+                if usage and isinstance(usage, dict):
+                    kwargs["usage"] = usage
+                return self._client.generation(**kwargs)
             except Exception as e:
                 logger.warning("Langfuse LLM logging error: %s", e)
+        return None
+
 
 
 class TraceContext(SpanContext):

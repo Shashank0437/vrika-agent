@@ -308,7 +308,7 @@ def route_intent():
         backend = getattr(active_client, "_backend", None)
         trace.log_llm_response(
             model=str(getattr(backend, "provider", None) or "unknown"),
-            prompt=message.strip(),
+            prompt=chat_messages,
             response=text_out,
             metadata={"stage": "route_intent"},
         )
@@ -659,10 +659,11 @@ def _force_tool_call_retry(
                 meta: Dict[str, Any] = {"stage": "forced_retry", "reason": reason}
                 if error:
                     meta["error"] = error
+                retry_input = {"messages": messages, "tools": tools or []} if tools else messages
                 trace.log_llm_response(
                     model=str(getattr(getattr(client, "_backend", None), "provider", None) or "unknown"),
-                    prompt=messages[-1] if messages else "",
-                    response=str(result.get("content") or ""),
+                    prompt=retry_input,
+                    response=result,
                     metadata=meta,
                 )
             except Exception:
@@ -754,25 +755,28 @@ def _stream_adk_orchestrated_sse(
     """Execute the canonical ADK-controlled turn and emit the Vrika SSE contract."""
     client = active_client or llm_client
     chat_session_id = session_id or uuid.uuid4().hex
-    _last_user_input = ""
-    for _m in reversed(messages):
-        if isinstance(_m, dict) and str(_m.get("role") or "") == "user":
-            _last_user_input = str(_m.get("content") or "")
-            break
+    schemas_ok = isinstance(schemas, list) and len(schemas) > 0
+    tools_arg = schemas if schemas_ok else None
+    messages_adj = _messages_with_schema_nudges(messages, schemas if schemas_ok else None)
+    model_input_payload = {
+        "messages": messages_adj,
+        "tools": tools_arg or [],
+    } if tools_arg else messages_adj
+
+
     trace = trace_turn(
         chat_session_id,
         name="vrika_llm_stream",
         metadata={"schemas": _schema_tool_names(schemas)},
-        input_data=_last_user_input,
+        input_data=model_input_payload,
         trace_id=turn_id,
     )
-    orchestrator_span = trace.span("adk_orchestrator", input_data=_last_user_input)
+    orchestrator_span = trace.span("adk_orchestrator", input_data=model_input_payload)
     tool_selection_span = orchestrator_span.span(
-        "adk_tool_selection", input_data={"offered_tools": _schema_tool_names(schemas)},
+        "adk_tool_selection", input_data={"offered_tools": _schema_tool_names(schemas), "messages": messages_adj},
     )
     backend = getattr(client, "_backend", None)
     provider = getattr(backend, "provider", None) if backend else None
-    schemas_ok = isinstance(schemas, list) and len(schemas) > 0
 
     if schemas_ok and provider not in ("gemini", "openai", "openrouter", "ollama", "lmstudio", "custom"):
         tool_selection_span.end()
@@ -781,12 +785,11 @@ def _stream_adk_orchestrated_sse(
         yield from _stream_tools_blocking_sse(messages, schemas, active_client=client)
         return
 
-    tools_arg = schemas if schemas_ok else None
-    messages_adj = _messages_with_schema_nudges(messages, schemas if schemas_ok else None)
     saw_visible_output = False
     stream_tool_call_chunk_seen = False
     stream_tool_call_count = 0
     stream_text_chars = 0
+    last_usage: Optional[Dict[str, Any]] = None
     turn_outcome: Dict[str, Any] = {}
     stream_text_parts: List[str] = []
     # Log the offered tool names and the user message that triggered this stream so we can
@@ -859,6 +862,8 @@ def _stream_adk_orchestrated_sse(
         yield "data: [THINKING]\n\n"
         for chunk in client.stream_chat(messages_adj, tools=tools_arg):
             if isinstance(chunk, dict):
+                if "usage" in chunk and isinstance(chunk["usage"], dict):
+                    last_usage = chunk["usage"]
                 if chunk.get("type") == "thinking":
                     yield f"data: [THINK_TOKEN] {json.dumps(chunk.get('content', ''))}\n\n"
                     continue
@@ -879,9 +884,10 @@ def _stream_adk_orchestrated_sse(
                         yield f"data: [STATS] {json.dumps(usage_chunk)}\n\n"
                     tool_selection_span.log_llm_response(
                         model=str(provider or "unknown"),
-                        prompt="".join(stream_text_parts) or _last_user_input,
-                        response=f"[tool_calls] {raw_names}",
-                        metadata={"stage": "tool_call_decision"},
+                        prompt=model_input_payload,
+                        response={"tool_calls": tcalls, "text": "".join(stream_text_parts)},
+                        metadata={"stage": "tool_call_decision", "tools": _schema_tool_names(schemas)},
+                        usage=last_usage,
                     )
                     for tool_call in tcalls if isinstance(tcalls, list) else []:
                         function = tool_call.get("function") if isinstance(tool_call, dict) else {}
@@ -917,10 +923,13 @@ def _stream_adk_orchestrated_sse(
             final_text = "".join(stream_text_parts)
             orchestrator_span.log_llm_response(
                 model=str(provider or "unknown"),
-                prompt=_last_user_input,
+                prompt=model_input_payload,
                 response=final_text,
+                metadata={"stage": "text_summary", "tools": _schema_tool_names(schemas)},
+                usage=last_usage,
             )
             turn_outcome.update({"path": "text_response", "text": final_text})
+
 
         # Stream ended with no visible output (only thinking or nothing). If tools were
         # offered AND nothing actionable was produced, retry once non-streaming with
@@ -1157,15 +1166,12 @@ def llm_chat():
         tool_list = tools if isinstance(tools, list) and tools else None
 
         chat_session_id = str(body.get("session_id") or "") or uuid.uuid4().hex
-        last_user = next(
-            (m.get("content") for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "user"),
-            "",
-        )
+        chat_model_input = {"messages": messages, "tools": tool_list or []} if tool_list else messages
         trace = trace_turn(
             chat_session_id,
             name="vrika_llm_chat",
             metadata={"stage": body.get("purpose") or "llm_chat"},
-            input_data=last_user,
+            input_data=chat_model_input,
             trace_id=str(body.get("turn_id") or "").strip() or None,
         )
 
@@ -1182,8 +1188,9 @@ def llm_chat():
                 out["usage"] = result["usage"]
             trace.log_llm_response(
                 model=str(getattr(getattr(active_client, "_backend", None), "provider", None) or "unknown"),
-                prompt=last_user,
-                response=out["content"],
+                prompt=chat_model_input,
+                response=out["content"] or out.get("tool_calls") or out,
+                usage=out.get("usage"),
             )
             trace.update(output=out)
             trace.flush()
@@ -1193,7 +1200,7 @@ def llm_chat():
         out = {"success": True, "content": text.strip(), "tool_calls": None}
         trace.log_llm_response(
             model=str(getattr(getattr(active_client, "_backend", None), "provider", None) or "unknown"),
-            prompt=last_user,
+            prompt=chat_model_input,
             response=text.strip(),
         )
         trace.update(output=out)

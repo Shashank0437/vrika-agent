@@ -515,16 +515,17 @@ def _llm_fill_report(transcript: str, llm_client: Any, session_id: str | None = 
         "--- TRANSCRIPT ---\n"
         + transcript.strip()
     )
+    report_messages = [
+        {"role": "system", "content": _LLM_SYSTEM},
+        {"role": "user", "content": user_content},
+    ]
     trace = trace_turn(
         session_id or uuid.uuid4().hex,
         name="vrika_penetration_report",
-        input_data=user_content[:2000],
+        input_data=report_messages,
     )
     raw = llm_client.chat(
-        [
-            {"role": "system", "content": _LLM_SYSTEM},
-            {"role": "user", "content": user_content},
-        ],
+        report_messages,
         num_ctx=getattr(llm_client, "num_ctx_analyse", None) or 16384,
     )
     text = raw if isinstance(raw, str) else str((raw or {}).get("content") or "")
@@ -532,7 +533,7 @@ def _llm_fill_report(transcript: str, llm_client: Any, session_id: str | None = 
     try:
         trace.log_llm_response(
             model=str(getattr(getattr(llm_client, "_backend", None), "provider", None) or "unknown"),
-            prompt=user_content[:2000],
+            prompt=report_messages,
             response=text,
             metadata={"stage": "penetration_report_fill"},
         )
