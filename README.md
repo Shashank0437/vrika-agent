@@ -22,6 +22,24 @@
 
 NyxStrike connects LLM agents to real offensive security tools and executes full attack chains — from recon to exploitation.
 
+### Vrika chat execution boundary
+
+Only native function calls matching the tools offered for that turn can reach
+approval. Arguments are normalized and checked against their JSON schemas;
+unknown tools, invalid arguments and malformed batches are rejected before any
+approval event is emitted. Tool-shaped prose (including DSML/XML) is not executable.
+Response text is buffered until call validation; thinking/status events continue
+streaming. A missing or malformed requested call gets one bounded repair attempt,
+then an explicit error, never a fabricated execution result.
+
+The bridge accepts per-request `llm_config` for both routing and chat.
+`require_tool_call` is used for explicit named-tool requests with a known target,
+not for clarification questions or ordinary post-tool summaries. Tool selection
+does not bypass Vrika's approval, organization policy or execution permissions.
+The compatibility catalog ID `burpsuite` invokes the built-in HTTP/browser Burp
+Suite **alternative**, not the PortSwigger scanner; its description makes this
+distinction explicit.
+
 ---
 
 ## 🚀 Quick Start (Installation)

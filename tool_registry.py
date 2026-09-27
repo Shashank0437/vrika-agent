@@ -1416,7 +1416,7 @@ TOOLS: Dict[str, dict] = {
         "effectiveness": 0.80,
     },
     "burpsuite": {
-        "desc": "Burp Suite web application security testing platform",
+        "desc": "Burp Suite alternative using built-in HTTP/browser analysis; NOT the PortSwigger Burp Suite scanner",
         "endpoint": "/api/tools/burpsuite-alternative",
         "method": "POST",
         "category": "web_recon",

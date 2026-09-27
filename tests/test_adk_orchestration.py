@@ -70,3 +70,26 @@ def test_tool_parameter_normalization_maps_aliases_and_strips_port_scan_urls():
     assert normalize_tool_parameters("subfinder", {"target": "https://example.com/a"}) == {
         "domain": "example.com"
     }
+
+
+def test_router_uses_request_model_instead_of_unconfigured_global(monkeypatch):
+    class UnavailableClient:
+        def is_available(self):
+            return False
+
+    config = {"provider": "openrouter", "model": "test-model", "api_key": "test-only"}
+    received = []
+
+    def configured_client(value):
+        received.append(value)
+        return _RouterClient()
+
+    monkeypatch.setattr(routes, "create_llm_client", configured_client)
+    response = _client(monkeypatch, UnavailableClient()).post(
+        "/api/cipherstrike/route-intent",
+        json={"message": "run nmap on example.test", "tools": [{"name": "nmap"}], "llm_config": config},
+    )
+    assert response.status_code == 200
+    assert response.get_json()["tool_names"] == ["nmap"]
+    assert "fallback" not in response.get_json()
+    assert received == [config]

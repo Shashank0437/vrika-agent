@@ -19,6 +19,7 @@ import uuid
 from typing import Any, Dict, Generator, List
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
+from jsonschema import Draft7Validator
 
 from server_core.singletons import llm_client
 from server_core.llm_client import create_llm_client
@@ -462,7 +463,9 @@ def _resolve_tool_name(raw_name: str) -> tuple[str, Any]:
         seen.add(c)
         td = get_tool(c)
         if td:
-            return c, td
+            for key in (c.lower(), c.lower().replace("-", "_"), c.lower().replace("_", "-")):
+                if TOOLS.get(key) is td:
+                    return key, td
 
     # Last resort: case-insensitive scan of every registry key.
     target_lower = (expanded[-1] if expanded else n).lower()
@@ -484,17 +487,19 @@ def _yield_cipherstrike_tool_pending_sse(
     duplicate_count = 0
     offered_tool_names = _schema_tool_names(schemas)
     if not isinstance(tool_calls, list):
-        return
+        raise ValueError("Tool calls must be a list.")
+    if len(tool_calls) > _MAX_MULTI_TOOL_CALLS:
+        raise ValueError("The model requested too many tools in one response.")
     for tc in tool_calls[:_MAX_MULTI_TOOL_CALLS]:
         if not isinstance(tc, dict):
-            continue
+            raise ValueError("Malformed tool call.")
         fn = tc.get("function", {})
         if not isinstance(fn, dict):
-            continue
+            raise ValueError("Malformed tool function.")
         raw_tool_name = str(fn.get("name") or "").strip()
         arguments = fn.get("arguments", {})
-        if not isinstance(arguments, dict):
-            arguments = {}
+        if not isinstance(arguments, dict) or "_raw" in arguments or "_value" in arguments:
+            raise ValueError("Tool arguments must be a valid JSON object.")
         canonical_name, tool_def = _resolve_tool_name(raw_tool_name)
         if not tool_def and raw_tool_name.lower() in _GENERIC_SINGLE_TOOL_NAMES and len(offered_tool_names) == 1:
             canonical_name = offered_tool_names[0]
@@ -505,6 +510,9 @@ def _yield_cipherstrike_tool_pending_sse(
                     raw_tool_name,
                     canonical_name,
                 )
+        if not tool_def or canonical_name not in offered_tool_names:
+            logger.warning("cipherstrike_bridge: rejected unknown or unoffered tool %r", raw_tool_name)
+            raise ValueError("The model requested a tool not offered for this turn.")
         if tool_def:
             if canonical_name != raw_tool_name:
                 logger.info(
@@ -512,13 +520,16 @@ def _yield_cipherstrike_tool_pending_sse(
                     raw_tool_name,
                     canonical_name,
                 )
-            try:
-                arguments = normalize_tool_parameters(canonical_name, arguments)
-            except Exception:
-                logger.exception(
-                    "cipherstrike_bridge: parameter normalization failed for %r; retaining model arguments",
-                    canonical_name,
+            arguments = normalize_tool_parameters(canonical_name, arguments)
+            schema = next(s["function"]["parameters"] for s in schemas if (s.get("function") or {}).get("name") == canonical_name)
+            if not Draft7Validator(schema).is_valid(arguments) or any(
+                arguments.get(key) is None or (
+                    isinstance(arguments.get(key), str) and not arguments[key].strip()
                 )
+                for key in schema.get("required", [])
+            ):
+                logger.warning("cipherstrike_bridge: rejected invalid arguments for %s", canonical_name)
+                raise ValueError(f"Invalid or missing required arguments for {canonical_name}.")
             try:
                 args_key = json.dumps(arguments, sort_keys=True, separators=(",", ":"), default=str)
             except Exception:
@@ -588,7 +599,7 @@ def _yield_cipherstrike_tool_pending_sse(
         )
 
 
-def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dict[str, Any]], active_client: Any = None) -> Generator[str, None, None]:
+def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dict[str, Any]], active_client: Any = None, require_tool_call: bool = False) -> Generator[str, None, None]:
     """Non-streaming chat + tools (OpenAI/Anthropic or fallback); replay assistant text as SSE chunks.
 
     Operational turns with tool schemas on non-Gemini providers take this path: the model runs to
@@ -610,12 +621,21 @@ def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dic
             yield f"data: [THINK_TOKEN] {json.dumps(thinking_extra)}\n\n"
 
         if tool_calls:
-            pending_sse = list(_yield_cipherstrike_tool_pending_sse(tool_calls if isinstance(tool_calls, list) else [], schemas))
+            try:
+                pending_sse = list(_yield_cipherstrike_tool_pending_sse(tool_calls, schemas))
+            except ValueError as exc:
+                logger.warning("cipherstrike_bridge: invalid blocking tool response: %s", exc)
+                pending_sse = list(_repair_tool_response_sse(messages_adj, schemas, client))
             if pending_sse:
                 for ln in pending_sse:
                     yield ln
                 yield "data: [DONE]\n\n"
                 return
+
+        if require_tool_call or _TOOL_CALL_MARKUP_RE.search(content):
+            yield from _repair_tool_response_sse(messages_adj, schemas, client)
+            yield "data: [DONE]\n\n"
+            return
 
         if content:
             for chunk in _iter_sse_text_chunks(content):
@@ -629,12 +649,46 @@ def _stream_tools_blocking_sse(messages: List[Dict[str, Any]], schemas: List[Dic
         yield "data: [DONE]\n\n"
 
 
-_THOUGHT_ONLY_FALLBACK_NUDGE = (
-    "Your previous turn produced only internal thinking and no tool_call or visible reply. "
-    "You MUST now emit a function call using one of the available tools. "
-    "If the user named a target, pass it as the tool's target/url argument. "
-    "Do not produce only thinking content again."
+_TOOL_CALL_MARKUP_RE = re.compile(
+    r"<[｜|]DSML[｜|]|<\s*(?:tool_call|function_call|invoke)\b|"
+    r"\[TOOL_CALL(?:_BATCH)?_PENDING\]",
+    re.IGNORECASE,
 )
+
+
+def _repair_tool_response_sse(
+    messages: List[Dict[str, Any]],
+    schemas: List[Dict[str, Any]] | None,
+    client: Any,
+    trace: Any = None,
+) -> Generator[str, None, None]:
+    """Retry native function selection once; never execute tool-shaped prose."""
+    if not schemas:
+        logger.warning("cipherstrike_bridge: tool-shaped response without schemas")
+        yield "data: [ERROR] The model produced a tool-call imitation without any available tools. No tool was started.\n\n"
+        return
+    retry_messages = list(messages) + [{
+        "role": "system",
+        "content": (
+            "The previous response did not contain a valid native tool call. "
+            "Use ONLY an offered function name and its declared arguments. "
+            "Do not write tool-call markup or claim execution. Do not invent a missing target."
+        ),
+    }]
+    result = _force_tool_call_retry(
+        retry_messages, schemas, active_client=client, trace=trace, reason="invalid_or_missing_tool_call",
+    )
+    calls = result.get("tool_calls") or []
+    try:
+        pending = list(_yield_cipherstrike_tool_pending_sse(calls, schemas))
+    except ValueError as exc:
+        logger.warning("cipherstrike_bridge: tool repair failed validation: %s", exc)
+        pending = []
+    if not pending:
+        logger.warning("cipherstrike_bridge: no valid tool call after bounded repair")
+        yield "data: [ERROR] The model could not produce a valid call for the requested tool. No tool was started; check the target and retry.\n\n"
+        return
+    yield from pending
 
 
 def _force_tool_call_retry(
@@ -751,6 +805,7 @@ def _stream_adk_orchestrated_sse(
     active_client: Any = None,
     session_id: str | None = None,
     turn_id: str | None = None,
+    require_tool_call: bool = False,
 ) -> Generator[str, None, None]:
     """Execute the canonical ADK-controlled turn and emit the Vrika SSE contract."""
     client = active_client or llm_client
@@ -782,7 +837,7 @@ def _stream_adk_orchestrated_sse(
         tool_selection_span.end()
         orchestrator_span.end()
         trace.flush()
-        yield from _stream_tools_blocking_sse(messages, schemas, active_client=client)
+        yield from _stream_tools_blocking_sse(messages, schemas, active_client=client, require_tool_call=require_tool_call)
         return
 
     saw_visible_output = False
@@ -898,7 +953,16 @@ def _stream_adk_orchestrated_sse(
                                 "pending approval/execution",
                                 status="pending",
                             )
-                    pending_sse = list(_yield_cipherstrike_tool_pending_sse(tcalls if isinstance(tcalls, list) else [], schemas))
+                    try:
+                        pending_sse = list(_yield_cipherstrike_tool_pending_sse(tcalls, schemas))
+                        if not pending_sse:
+                            raise ValueError("The native tool-call response was empty.")
+                        if not _TOOL_CALL_MARKUP_RE.search("".join(stream_text_parts)):
+                            for text_part in stream_text_parts:
+                                yield f"data: {json.dumps(text_part)}\n\n"
+                    except ValueError as exc:
+                        logger.warning("cipherstrike_bridge: invalid streamed tool response: %s", exc)
+                        pending_sse = list(_repair_tool_response_sse(messages_adj, schemas, client, tool_selection_span))
                     if pending_sse:
                         saw_visible_output = True
                         for ln in pending_sse:
@@ -917,7 +981,7 @@ def _stream_adk_orchestrated_sse(
             if isinstance(chunk, str):
                 stream_text_chars += len(chunk)
                 stream_text_parts.append(chunk)
-            yield f"data: {json.dumps(chunk)}\n\n"
+            # Keep unvalidated tool-call imitations and premature execution claims out of the UI.
 
         if stream_text_parts:
             final_text = "".join(stream_text_parts)
@@ -930,6 +994,12 @@ def _stream_adk_orchestrated_sse(
             )
             turn_outcome.update({"path": "text_response", "text": final_text})
 
+        if require_tool_call or _TOOL_CALL_MARKUP_RE.search("".join(stream_text_parts)):
+            yield from _repair_tool_response_sse(messages_adj, schemas, client, tool_selection_span)
+            yield "data: [DONE]\n\n"
+            return
+        for text_part in stream_text_parts:
+            yield f"data: {json.dumps(text_part)}\n\n"
 
         # Stream ended with no visible output (only thinking or nothing). If tools were
         # offered AND nothing actionable was produced, retry once non-streaming with
@@ -939,67 +1009,7 @@ def _stream_adk_orchestrated_sse(
                 "cipherstrike_bridge: thought-only response (tool_chunk_seen=%s text_chars=%d) with %d tools; retrying non-stream with tool_choice=required",
                 stream_tool_call_chunk_seen, stream_text_chars, len(schemas or []),
             )
-            try:
-                retry_msgs = list(messages_adj) + [
-                    {"role": "system", "content": _THOUGHT_ONLY_FALLBACK_NUDGE},
-                ]
-                result = _force_tool_call_retry(
-                    retry_msgs, tools_arg, active_client=client, trace=tool_selection_span, reason="thought_only_no_output",
-                )
-                logger.info(
-                    "cipherstrike_bridge: retry result type=%s keys=%s",
-                    type(result).__name__,
-                    list(result.keys()) if isinstance(result, dict) else None,
-                )
-                if isinstance(result, dict):
-                    retry_tcalls = result.get("tool_calls") or []
-                    retry_text = result.get("content") if isinstance(result.get("content"), str) else ""
-                    retry_raw_names = [
-                        str(((tc or {}).get("function") or {}).get("name") or "")
-                        for tc in (retry_tcalls if isinstance(retry_tcalls, list) else [])
-                    ]
-                    logger.info(
-                        "cipherstrike_bridge: retry returned tool_calls=%d raw_names=%s text_len=%d",
-                        len(retry_tcalls) if isinstance(retry_tcalls, list) else 0,
-                        retry_raw_names,
-                        len(retry_text or ""),
-                    )
-                    if retry_tcalls:
-                        pending_sse = list(_yield_cipherstrike_tool_pending_sse(retry_tcalls, schemas))
-                        if pending_sse:
-                            for ln in pending_sse:
-                                yield ln
-                        else:
-                            logger.warning(
-                                "cipherstrike_bridge: retry tool_calls present but ALL dropped by _yield_cipherstrike_tool_pending_sse (raw_names=%s)",
-                                retry_raw_names,
-                            )
-                            # Emit a clearer prompt naming the offered tools.
-                            offered = [
-                                str((s.get("function") or {}).get("name") or s.get("name") or "")
-                                for s in (schemas or [])
-                                if isinstance(s, dict)
-                            ]
-                            offered = [n for n in offered if n][:6]
-                            fallback = (
-                                f"The model requested tools that I couldn't resolve ({', '.join(retry_raw_names) or 'unknown names'}). "
-                                f"Try again, or call one of these directly: {', '.join(offered) if offered else '(no tools available)'}"
-                            )
-                            for slice_ in _iter_sse_text_chunks(fallback):
-                                yield f"data: {json.dumps(slice_)}\n\n"
-                    elif retry_text.strip():
-                        for slice_ in _iter_sse_text_chunks(retry_text):
-                            yield f"data: {json.dumps(slice_)}\n\n"
-                    else:
-                        # Last resort: emit a visible prompt asking what they want.
-                        fallback = (
-                            "I have tools available but I'm not sure how to act on this. "
-                            "Could you rephrase or pick a specific tool to run?"
-                        )
-                        for slice_ in _iter_sse_text_chunks(fallback):
-                            yield f"data: {json.dumps(slice_)}\n\n"
-            except Exception as retry_exc:
-                logger.warning("cipherstrike_bridge: thought-only retry failed: %s", retry_exc)
+            yield from _repair_tool_response_sse(messages_adj, schemas, client, tool_selection_span)
 
         elif (
             saw_visible_output
@@ -1249,6 +1259,7 @@ def llm_stream():
                     active_client=active_client,
                     session_id=str(body.get("session_id") or "") or None,
                     turn_id=str(body.get("turn_id") or "").strip() or None,
+                    require_tool_call=bool(body.get("require_tool_call")),
                 )
             ),
             mimetype="text/event-stream",
