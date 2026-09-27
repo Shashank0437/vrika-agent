@@ -72,6 +72,17 @@ def analyze_session_endpoint():
     from server_core.llm_agent import analyze_session, format_analysis_md
     from server_core.process_manager import AITaskManager
 
+    # Callers such as vrika-server send their organization's LLM settings; the
+    # global client is only a fallback and is unconfigured on shared deployments.
+    llm_cfg = body.get("llm_config")
+    if llm_cfg is not None and not isinstance(llm_cfg, dict):
+      return jsonify({"success": False, "error": "llm_config must be an object"}), 400
+    if llm_cfg:
+      from server_core.llm_client import create_llm_client
+      active_client = create_llm_client(llm_cfg)
+    else:
+      active_client = llm_client
+
     task_id = f"ai_analyze_{_uuid.uuid4().hex[:8]}"
     AITaskManager.register_task(task_id, "ai_analyze_session", session_id=session_id)
     cancelled = False
@@ -79,7 +90,7 @@ def analyze_session_endpoint():
       # If provided_logs is a list, the agent skips its local SessionStore/RunHistoryStore lookup.
       result = analyze_session(
         session_id=session_id,
-        llm_client=llm_client,
+        llm_client=active_client,
         db=db,
         run_history=run_history,
         provided_logs=provided_logs if isinstance(provided_logs, list) else None,
